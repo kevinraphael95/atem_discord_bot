@@ -107,6 +107,7 @@ class Deck(commands.Cog):
         help="Affiche les decks du tournoi VAACT, organisés par saison.",
         description="Affiche une interface interactive pour choisir une saison et un duelliste."
     )
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def deck(self, ctx: commands.Context):
         try:
             deck_data = load_deck_data()
