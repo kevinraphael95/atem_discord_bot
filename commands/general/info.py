@@ -26,6 +26,7 @@ class InfoCog(commands.Cog):
         name="info",
         help="Affiche les nouveautés et derniers changements du bot."
     )
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def info(self, ctx: commands.Context):
         """Commande principale qui envoie un embed avec les nouveautés."""
         prefix = ctx.prefix  # Récupère le préfixe dynamique utilisé par le bot
