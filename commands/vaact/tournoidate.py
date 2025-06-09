@@ -186,6 +186,7 @@ class TournoiDate(commands.Cog):
         description="Affiche un menu interactif pour choisir la date du prochain tournoi."
     )
     @commands.has_permissions(administrator=True)
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def TournoiDate(self, ctx: commands.Context):
         """Commande principale avec menus déroulants pour la date."""
         try:
