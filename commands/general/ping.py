@@ -28,6 +28,7 @@ class Ping(commands.Cog):
         help="Affiche la latence actuelle du bot.",
         description="Affiche la latence actuelle du bot en millisecondes."
     )
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def ping(self, ctx: commands.Context):
         """Commande simple pour tester la réactivité du bot."""
         try:
