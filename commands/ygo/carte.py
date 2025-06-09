@@ -30,6 +30,7 @@ class Carte(commands.Cog):
         help="🔍 Rechercher une carte Yu-Gi-Oh! dans plusieurs langues.",
         description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN, DE, IT, PT)."
     )
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def carte(self, ctx: commands.Context, *, nom: str):
         """Commande principale pour chercher une carte Yu-Gi-Oh!"""
 
