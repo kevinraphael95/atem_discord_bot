@@ -31,6 +31,7 @@ class TopQS(commands.Cog):
         aliases=["qst", "qstop"],                    # Alias utilisables
         help="Affiche le classement des meilleures séries de bonnes réponses."  # Aide courte
     )
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def topqs(self, ctx: commands.Context):
         """
         📊 Récupère depuis Supabase le top 10 des utilisateurs ayant les meilleurs streaks.
