@@ -32,6 +32,7 @@ class Streak(commands.Cog):
         aliases=["qs", "questionstreak"],      # 🪪 Alias secondaires : !qs fonctionne aussi
         help="Affiche ta série de bonnes réponses."      # 📚 Aide courte
     )
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def streak(self, ctx: commands.Context):
         """
         🔍 Cherche dans Supabase la série de bonnes réponses (streak) pour l’utilisateur,
