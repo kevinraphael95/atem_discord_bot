@@ -55,6 +55,7 @@ class TournoiCommand(commands.Cog):
         help="📅 Affiche la date du prochain tournoi VAACT.",
         description="Récupère la date du tournoi depuis Supabase et permet de s’inscrire au rappel."
     )
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def tournoi(self, ctx: commands.Context):
         """Commande principale !tournoi."""
         if not SUPABASE_URL or not SUPABASE_KEY:
