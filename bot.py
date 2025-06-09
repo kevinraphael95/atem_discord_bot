@@ -61,9 +61,9 @@ async def load_commands():
 # ──────────────────────────────────────────────────────────────
 async def acquire_lock():
     now = datetime.now(timezone.utc).isoformat()
-    supabase.table("bot_lock").delete().eq("id", "atem_lock").execute()
+    supabase.table("bot_lock").delete().eq("id", "bot_lock").execute()
     supabase.table("bot_lock").insert({
-        "id": "atem_lock",
+        "id": "bot_lock",
         "instance_id": INSTANCE_ID,
         "updated_at": now
     }).execute()
@@ -71,7 +71,7 @@ async def acquire_lock():
     print(f"🔐 Verrou acquis : {INSTANCE_ID}")
 
 async def is_locked_by_us():
-    res = supabase.table("bot_lock").select("instance_id").eq("id", "atem_lock").execute()
+    res = supabase.table("bot_lock").select("instance_id").eq("id", "bot_lock").execute()
     if res.data and res.data[0]["instance_id"] == INSTANCE_ID:
         return True
     return False
@@ -82,7 +82,7 @@ async def is_locked_by_us():
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user} (ID: {bot.user.id})")
-    await bot.change_presence(activity=discord.Game("Yugi VS Kaiba ⚔️"))
+    await bot.change_presence(activity=discord.Game("Yu-Gi-Oh Master Duel ⚔️"))
     await acquire_lock()
 
 # ──────────────────────────────────────────────────────────────
