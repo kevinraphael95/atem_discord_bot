@@ -32,10 +32,7 @@ class InfoCog(commands.Cog):
         prefix = ctx.prefix  # Récupère le préfixe dynamique utilisé par le bot
 
         changelog_lines = [
-            f"• La commande {prefix}illustration devient multijoueur, vous pouvez répondre quand les autres font la commande!",
-            f"• La commande {prefix}illustration a maintenant aussi un leaderboard, donné automatiquement quand quelqu'un donne une réponse à la commande.",
-            f"• Ajout de la commande {prefix}info",
-            f"• La commande {prefix}tournoi permet de voir la date du prochain tournoi VAACT et mettre un rappel en MP trois jours avant."
+            f"• Le codage c'est de la merde."
         ]
 
         embed = discord.Embed(
