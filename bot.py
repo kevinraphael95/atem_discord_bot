@@ -30,22 +30,16 @@ from supabase_client import supabase
 # 🔧 Initialisation de l’environnement
 # ──────────────────────────────────────────────────────────────
 
-# Se placer dans le dossier du script
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-# Charger les variables d’environnement (.env)
 load_dotenv()
 
-# Clés importantes
 TOKEN = os.getenv("DISCORD_TOKEN")
 COMMAND_PREFIX = os.getenv("COMMAND_PREFIX", "!")
 INSTANCE_ID = str(uuid.uuid4())
 
-# Enregistrer cette instance
 with open("instance_id.txt", "w") as f:
     f.write(INSTANCE_ID)
 
-# Fonction pour le préfixe dynamique (ici statique)
 def get_prefix(bot, message):
     return COMMAND_PREFIX
 
@@ -78,7 +72,23 @@ async def load_commands():
                         print(f"❌ Failed to load {path}: {e}")
 
 # ──────────────────────────────────────────────────────────────
-# 🔔 On Ready : présence + verrouillage forcé de l’instance
+# 🔁 Tâche de vérification continue du verrou
+# ──────────────────────────────────────────────────────────────
+async def verify_lock_loop():
+    while True:
+        await asyncio.sleep(10)
+        try:
+            lock = supabase.table("bot_lock").select("instance_id").eq("id", "bot_lock").execute()
+            if lock.data and lock.data[0]["instance_id"] != INSTANCE_ID:
+                print("🔴 Cette instance n'est plus maître. Déconnexion...")
+                await bot.close()
+                os._exit(0)
+        except Exception as e:
+            print(f"❌ Erreur dans la vérification du verrou : {e}")
+
+
+# ──────────────────────────────────────────────────────────────
+# 🔔 On Ready : présence + verrouillage + surveillance
 # ──────────────────────────────────────────────────────────────
 @bot.event
 async def on_ready():
@@ -86,7 +96,6 @@ async def on_ready():
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="Duel Monsters"))
 
     try:
-        # Forcer le verrou avec la nouvelle instance à chaque redémarrage
         now = datetime.now(timezone.utc).isoformat()
         supabase.table("bot_lock").upsert({
             "id": "bot_lock",
@@ -96,6 +105,9 @@ async def on_ready():
 
         print(f"🔐 Verrou mis à jour pour cette instance : {INSTANCE_ID}")
         bot.is_main_instance = True
+
+        # Démarrer la tâche de surveillance du verrou
+        bot.loop.create_task(verify_lock_loop())
 
     except Exception as e:
         print(f"❌ Erreur lors de la mise à jour du verrou : {e}")
@@ -120,14 +132,12 @@ async def on_message(message):
 
     contenu = message.content.lower()
 
-    # Réponse en embed si le bot est mentionné seul
     if bot.user in message.mentions and len(message.mentions) == 1:
         prefix = get_prefix(bot, message)
 
         embed = discord.Embed(
             title="👑 Atem, Roi des Duellistes, s’avance.",
-            description= 
-            (
+            description=(
                 f"Je suis **Atem**, l’esprit du Pharaon, gardien des **Duels des Ténèbres** et protecteur du **Royaume des Ombres**.\n"
                 "Tu m’as appelé, duelliste ?\n\n"
                 f"Utilise la commande `{prefix}help` pour voir mes commandes.\n"
@@ -146,7 +156,6 @@ async def on_message(message):
         return
 
     await bot.process_commands(message)
-
 
 # ──────────────────────────────────────────────────────────────
 # ❗ Gestion des erreurs de commandes
