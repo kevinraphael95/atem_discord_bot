@@ -54,6 +54,8 @@ intents.reactions = True
 
 bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=None)
 bot.is_main_instance = False
+bot.INSTANCE_ID = INSTANCE_ID
+bot.supabase = supabase
 
 # ──────────────────────────────────────────────────────────────
 # 🔌 Chargement dynamique des commandes depuis /commands/*
@@ -84,8 +86,8 @@ async def verify_lock_loop():
                 await bot.close()
                 os._exit(0)
         except Exception as e:
-            print(f"❌ Erreur dans la vérification du verrou : {e}")
-
+            print(f"⚠️ Erreur dans la vérification du verrou (ignorée) : {e}")
+            # On continue quand même, failover
 
 # ──────────────────────────────────────────────────────────────
 # 🔔 On Ready : présence + verrouillage + surveillance
@@ -110,8 +112,9 @@ async def on_ready():
         bot.loop.create_task(verify_lock_loop())
 
     except Exception as e:
-        print(f"❌ Erreur lors de la mise à jour du verrou : {e}")
-        bot.is_main_instance = False
+        print(f"⚠️ Impossible de se connecter à Supabase : {e}")
+        print("🔓 Aucune gestion de verrou — le bot démarre quand même.")
+        bot.is_main_instance = True  # ⚠️ Optionnel : on active tout de même
 
 # ──────────────────────────────────────────────────────────────
 # 📩 Message reçu : réagir aux mots-clés et lancer les commandes
@@ -124,8 +127,8 @@ async def on_message(message):
             if lock.data and lock.data[0].get("instance_id") != INSTANCE_ID:
                 return
     except Exception as e:
-        print(f"❌ Erreur lors de la vérification du lock : {e}")
-        return
+        print(f"⚠️ Erreur lors de la vérification du lock (ignorée) : {e}")
+        # Le message passe quand même
 
     if message.author.bot:
         return
