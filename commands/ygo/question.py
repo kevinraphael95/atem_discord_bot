@@ -174,25 +174,7 @@ class Question(commands.Cog):
             for emoji in REACTIONS[:4]:
                 await msg.add_reaction(emoji)
 
-
-            # Compte à rebours dynamique : toutes les 10s puis chaque seconde les 5 dernières secondes
-            total_time = 60
-
-            # Phase 1 : mise à jour toutes les 10 secondes
-            for remaining in range(total_time, 5, -10):
-                embed.set_footer(text=f"⏳ Temps restant : {remaining} secondes. Réagis avec l’emoji correspondant 👇")
-                await msg.edit(embed=embed)
-                await asyncio.sleep(10)
-
-            # Phase 2 : mise à jour chaque seconde pour les 5 dernières secondes
-            for remaining in range(5, 0, -1):
-                embed.set_footer(text=f"⏳ Temps restant : {remaining} seconde{'s' if remaining > 1 else ''}… Dépêche-toi !")
-                await msg.edit(embed=embed)
-                await asyncio.sleep(1)
-
-            # Affichage "temps écoulé" avant traitement des réponses
-            embed.set_footer(text="⏰ Temps écoulé ! Réponses en cours de traitement…")
-            await msg.edit(embed=embed)
+            await asyncio.sleep(60)  # Attente de 60 secondes pour laisser tout le monde voter
 
             # Récupération des réactions
             msg = await ctx.channel.fetch_message(msg.id)
@@ -205,7 +187,7 @@ class Question(commands.Cog):
                         if not user.bot:
                             winners.append(user)
 
-            # Résultat final
+
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
                 description=f"La bonne réponse était : **{true_card['name']}** ({REACTIONS[correct_index]})",
@@ -218,8 +200,11 @@ class Question(commands.Cog):
                     await self.update_streak(str(user.id), correct=True)
             else:
                 result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
+            await ctx.send(embed=result_embed)
 
-            await msg.edit(embed=result_embed)
+        except Exception as e:
+            print("[ERREUR QUESTION]", e)
+            await ctx.send("🚨 Une erreur est survenue.")
 
 
 # ────────────────────────────────────────────────────────────────
