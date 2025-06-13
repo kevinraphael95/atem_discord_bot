@@ -62,6 +62,23 @@ class Carte(commands.Cog):
                         else:
                             await ctx.send("🚨 Erreur : Impossible de récupérer les données depuis l’API.")
                             return
+
+                # Ajout : recherche approximative si carte non trouvée
+                if not carte:
+                    url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
+                    async with session.get(url_fuzzy) as resp_fuzzy:
+                        if resp_fuzzy.status == 200:
+                            data_fuzzy = await resp_fuzzy.json()
+                            suggestions = data_fuzzy.get("data", [])
+                            if suggestions:
+                                noms_proches = [c.get("name") for c in suggestions[:3]]
+                                msg_suggestions = "\n".join(f"• **{n}**" for n in noms_proches)
+                                await ctx.send(
+                                    f"❌ Carte introuvable pour `{nom}`.\n"
+                                    f"🔎 Vouliez-vous dire :\n{msg_suggestions}"
+                                )
+                                return
+
         except Exception as e:
             print(f"[ERREUR commande !carte] {e}")
             await ctx.send("🚨 Erreur inattendue lors de la récupération des données.")
