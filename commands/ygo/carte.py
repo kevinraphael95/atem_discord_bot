@@ -194,14 +194,6 @@ class Carte(commands.Cog):
         await message.channel.send(embed=embed)
 
 
-        embed = discord.Embed(
-            title=f"💰 Prix des sets pour {carte['name']}",
-            description=prix_message,
-            color=discord.Color.gold()
-        )
-
-        await message.channel.send(embed=embed)
-
     def cog_load(self):
         self.carte.category = "🃏 Yu-Gi-Oh!"
 
