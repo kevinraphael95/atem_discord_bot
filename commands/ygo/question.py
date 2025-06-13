@@ -143,14 +143,14 @@ class Question(commands.Cog):
             image_url = true_card.get("card_images", [{}])[0].get("image_url_cropped")
 
             embed = discord.Embed(
-                title="🧠 Quelle est cette carte ?",
+                title="🧠 Essaie de trouver le nom de cette carte grace à sa description.",
                 description=(
                     f"📘 **Type :** {true_card.get('type', '—')}\n"
                     f"📝 **Description :**\n*{censored[:500]}{'...' if len(censored) > 300 else ''}*"
                 ),
                 color=discord.Color.purple()
             )
-            embed.set_author(name="YGO Quiz", icon_url="https://cdn-icons-png.flaticon.com/512/361/361678.png")
+            embed.set_author(name="Trouve le nom de la carte", icon_url="https://cdn-icons-png.flaticon.com/512/361/361678.png")
             #mettre une image
             #if image_url:
                 #embed.set_thumbnail(url=image_url)
@@ -190,7 +190,7 @@ class Question(commands.Cog):
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
-                description=f"La bonne réponse était : **{true_card['name']}** ({REACTIONS[correct_index]})",
+                description=f"La bonne réponse était : {REACTIONS[correct_index]} **{true_card['name']}**",
                 color=discord.Color.green()
             )
             if winners:
