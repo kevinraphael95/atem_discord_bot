@@ -151,8 +151,9 @@ class Question(commands.Cog):
                 color=discord.Color.purple()
             )
             embed.set_author(name="YGO Quiz", icon_url="https://cdn-icons-png.flaticon.com/512/361/361678.png")
-            if image_url:
-                embed.set_thumbnail(url=image_url)
+            #mettre une image
+            #if image_url:
+                #embed.set_thumbnail(url=image_url)
 
             embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
 
