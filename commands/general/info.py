@@ -32,11 +32,11 @@ class InfoCog(commands.Cog):
         prefix = ctx.prefix  # Récupère le préfixe dynamique utilisé par le bot
 
         changelog_lines = [
-            f"• Le codage c'est de la merde."
+            f"• Modifications pour rendre la commande $question multijoueur (que tout le monde puisse répondre)."
         ]
 
         embed = discord.Embed(
-            title="🛠️ Nouveautés et derniers changements",
+            title="🛠️ Derniers changements",
             color=discord.Color.blue()
         )
         embed.description = "\n".join(changelog_lines)
