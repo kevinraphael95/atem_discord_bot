@@ -159,15 +159,40 @@ class Carte(commands.Cog):
             await message.channel.send(f"⚠️ Pas de données de sets/prix disponibles pour **{carte['name']}**.")
             return
 
-        # Construire la liste des prix
+        # Construire la liste des prix (filtrés et triés)
         prix_sets = []
         for s in carte["card_sets"]:
-            set_name = s.get("set_name", "Inconnu")
-            rarity = s.get("set_rarity", "Inconnue")
-            price = s.get("set_price", "?")
-            prix_sets.append(f"• **{set_name}** ({rarity}) : ${price}")
+            try:
+                price = float(s.get("set_price", "0"))
+            except ValueError:
+                continue
+            if price > 0:
+                prix_sets.append({
+                    "name": s.get("set_name", "Inconnu"),
+                    "rarity": s.get("set_rarity", "Inconnue"),
+                    "price": price
+                })
 
-        prix_message = "\n".join(prix_sets)
+        if not prix_sets:
+            await message.channel.send(f"⚠️ Aucun prix disponible pour **{carte['name']}**.")
+            return
+
+        # Tri décroissant par prix
+        prix_sets.sort(key=lambda x: x["price"], reverse=True)
+
+        # Formatage pour affichage
+        prix_message = "\n".join(
+            f"• **{s['name']}** ({s['rarity']}) : ${s['price']:.2f}" for s in prix_sets
+        )
+
+        embed = discord.Embed(
+            title=f"💰 Prix des sets pour {carte['name']}",
+            description=prix_message,
+            color=discord.Color.gold()
+        )
+
+        await message.channel.send(embed=embed)
+
 
         embed = discord.Embed(
             title=f"💰 Prix des sets pour {carte['name']}",
