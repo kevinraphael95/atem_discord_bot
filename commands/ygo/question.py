@@ -74,33 +74,24 @@ class Question(commands.Cog):
     @commands.command(
         name="question",
         aliases=["q"],
-        help="🧠 Devine une carte Yu-Gi-Oh à partir de sa description. Essaie de faire la plus grande série de bonnes réponses. (jeu solo)"
+        help="🧠 Devine une carte Yu-Gi-Oh à partir de sa description. Tout le monde peut participer pendant 1 minute !"
     )
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
     async def Question(self, ctx):
         try:
-            # ───────────────────────────────
-            # 🧪 Étape 1 : Échantillon initial
-            # ───────────────────────────────
             sample = await self.fetch_card_sample(limit=60)
             random.shuffle(sample)
 
-            # 🔍 Trouver une carte avec nom + description
             main_card = next((c for c in sample if "name" in c and "desc" in c), None)
             if not main_card:
                 await ctx.send("❌ Aucune carte trouvée.")
                 return
 
-            # ───────────────────────────────
-            # 🧩 Étape 2 : Sélection des propositions
-            # ───────────────────────────────
             archetype = main_card.get("archetype")
             main_type = main_card.get("type", "").lower()
             type_group = "monstre" if "monstre" in main_type else ("magie" if "magie" in main_type else "piège")
-
             group = []
 
-            # ▶️ Si pas d’archétype : filtrer par type
             if not archetype:
                 group = [
                     c for c in sample
@@ -110,7 +101,6 @@ class Question(commands.Cog):
                     and not c.get("archetype") 
                 ]
             else:
-                # 🔁 Tentative de récupération par archétype
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as resp:
@@ -123,7 +113,6 @@ class Question(commands.Cog):
                                 and "desc" in c
                                 and c.get("type", "").lower() == main_type
                             ]
-                            # 🔄 Sinon : même grande famille
                             if len(group) < 3:
                                 group = [
                                     c for c in arch_sample
@@ -132,7 +121,6 @@ class Question(commands.Cog):
                                     and type_group in c.get("type", "").lower()
                                 ]
 
-            # 🔁 Fallbacks si pas assez de cartes
             if len(group) < 3:
                 group = [
                     c for c in sample
@@ -140,28 +128,20 @@ class Question(commands.Cog):
                     and "desc" in c
                     and type_group in c.get("type", "").lower()
                 ]
-
             if len(group) < 3:
                 group = random.sample(
                     [c for c in sample if c.get("name") != main_card["name"] and "desc" in c],
                     3
                 )
 
-            # ───────────────────────────────
-            # 📊 Étape 3 : Construction du quiz
-            # ───────────────────────────────
             true_card = main_card
             wrongs = random.sample(group, 3)
             all_choices = [true_card["name"]] + [c["name"] for c in wrongs]
             random.shuffle(all_choices)
 
-            # 🕶️ Censure description
             censored = self.censor_card_name(true_card["desc"], true_card["name"])
-
-            # 📎 Image
             image_url = true_card.get("card_images", [{}])[0].get("image_url_cropped")
 
-            # 🧾 Construction de l'embed
             embed = discord.Embed(
                 title="🧠 Quelle est cette carte ?",
                 description=(
@@ -176,7 +156,6 @@ class Question(commands.Cog):
 
             embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
 
-            # 💥 Statistiques (si monstre)
             if main_type.startswith("monstre"):
                 embed.add_field(name="💥 ATK", value=str(true_card.get("atk", "—")), inline=True)
                 embed.add_field(name="🛡️ DEF", value=str(true_card.get("def", "—")), inline=True)
@@ -188,38 +167,44 @@ class Question(commands.Cog):
                 value="\n".join(f"{REACTIONS[i]} {name}" for i, name in enumerate(all_choices)),
                 inline=False
             )
-            embed.set_footer(text="Réagis avec l'emoji correspondant à ta réponse👇\n Fais questionscore (ou qs) pour voir ton score et questionscoretop (ou qst) pour voir les meilleurs score de tous les joueurs.")
+            embed.set_footer(text="Tu as 60 secondes pour répondre ! Réagis avec l’emoji correspondant à ta réponse👇")
 
-            # Envoi de l'embed + réactions
             msg = await ctx.send(embed=embed)
             for emoji in REACTIONS[:4]:
                 await msg.add_reaction(emoji)
 
-            # ⏳ Attente de la réaction
-            def check(reaction, user):
-                return user == ctx.author and reaction.message.id == msg.id and str(reaction.emoji) in REACTIONS
+            await asyncio.sleep(60)  # Attente de 60 secondes pour laisser tout le monde voter
 
-            try:
-                reaction, _ = await self.bot.wait_for("reaction_add", timeout=600.0, check=check)
-            except asyncio.TimeoutError:
-                await ctx.send("⏰ Temps écoulé !")
-                return
-
-            # 📈 Résultat
-            selected_index = REACTIONS.index(str(reaction.emoji))
+            # Récupération des réactions
+            msg = await ctx.channel.fetch_message(msg.id)
             correct_index = all_choices.index(true_card["name"])
-            user_id = str(ctx.author.id)
+            winners = []
 
-            if selected_index == correct_index:
-                await self.update_streak(user_id, correct=True)
-                await ctx.send(f"✅ Bonne réponse ! C’était **{true_card['name']}**.")
+            for reaction in msg.reactions:
+                if str(reaction.emoji) == REACTIONS[correct_index]:
+                    users = await reaction.users().flatten()
+                    for user in users:
+                        if not user.bot:
+                            winners.append(user)
+
+            result_embed = discord.Embed(
+                title="⏰ Temps écoulé !",
+                description=f"La bonne réponse était : **{true_card['name']}** ({REACTIONS[correct_index]})",
+                color=discord.Color.green()
+            )
+            if winners:
+                noms = "\n".join(f"✅ {user.mention}" for user in winners)
+                result_embed.add_field(name="Bravo à :", value=noms, inline=False)
+                for user in winners:
+                    await self.update_streak(str(user.id), correct=True)
             else:
-                await self.update_streak(user_id, correct=False)
-                await ctx.send(f"❌ Mauvaise réponse ! C’était **{true_card['name']}**.")
+                result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
+            await ctx.send(embed=result_embed)
 
         except Exception as e:
             print("[ERREUR QUESTION]", e)
             await ctx.send("🚨 Une erreur est survenue.")
+
 
 # ────────────────────────────────────────────────────────────────
 # 🔌 SETUP DU COG
