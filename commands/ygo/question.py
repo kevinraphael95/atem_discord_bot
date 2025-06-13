@@ -186,9 +186,6 @@ class Question(commands.Cog):
                         if not user.bot:
                             winners.append(user)
 
-                    for user in users:
-                        if not user.bot:
-                            winners.append(user)
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
