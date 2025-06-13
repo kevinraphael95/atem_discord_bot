@@ -174,9 +174,6 @@ class Question(commands.Cog):
             for emoji in REACTIONS[:4]:
                 await msg.add_reaction(emoji)
 
-            msg = await ctx.send(embed=embed)
-            for emoji in REACTIONS[:4]:
-                await msg.add_reaction(emoji)
 
             # Compte à rebours dynamique : toutes les 10s puis chaque seconde les 5 dernières secondes
             total_time = 60
