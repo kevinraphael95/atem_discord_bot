@@ -28,13 +28,13 @@ class Carte(commands.Cog):
         name="carte",
         aliases=["card"],
         help="🔍 Rechercher une carte Yu-Gi-Oh! dans plusieurs langues.",
-        description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN, DE, IT, PT)."
+        description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN)."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def carte(self, ctx: commands.Context, *, nom: str):
         """Commande principale pour chercher une carte Yu-Gi-Oh!"""
 
-        lang_codes = ["fr", "en", "de", "it", "pt"]
+        lang_codes = ["fr", "en"]  # ✅ On teste seulement FR puis EN
         nom_encode = urllib.parse.quote(nom)
 
         carte = None
@@ -54,10 +54,8 @@ class Carte(commands.Cog):
                                 nom_corrige = carte.get("name", nom)
                                 break
                         elif resp.status == 400:
-                            # Carte non trouvée dans cette langue, on continue
                             continue
                         else:
-                            # Autre erreur API
                             await ctx.send("🚨 Erreur : Impossible de récupérer les données depuis l’API.")
                             return
         except Exception as e:
@@ -66,7 +64,7 @@ class Carte(commands.Cog):
             return
 
         if not carte:
-            await ctx.send(f"❌ Carte introuvable dans toutes les langues. Vérifie l’orthographe exacte : `{nom}`.")
+            await ctx.send(f"❌ Carte introuvable en français ou en anglais. Vérifie l’orthographe exacte : `{nom}`.")
             return
 
         if nom_corrige.lower() != nom.lower():
