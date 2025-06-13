@@ -1,6 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
 # Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! dans plusieurs langues
+#           avec réaction emoji pour afficher les prix des raretés par set
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -12,6 +13,7 @@ import discord
 from discord.ext import commands
 import aiohttp
 import urllib.parse
+import asyncio
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -19,10 +21,12 @@ import urllib.parse
 class Carte(commands.Cog):
     """
     Commande !carte — Rechercher une carte Yu-Gi-Oh! et afficher ses informations.
+    Permet via réaction 💶 d’afficher les prix des sets et raretés.
     """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._message_carte_cache = {}  # {message.id: carte_data}
 
     @commands.command(
         name="carte",
@@ -112,7 +116,66 @@ class Carte(commands.Cog):
             embed.add_field(name="👹 Race", value=race, inline=True)
 
         embed.set_thumbnail(url=carte["card_images"][0]["image_url"])
-        await ctx.send(embed=embed)
+        message = await ctx.send(embed=embed)
+
+        # Ajouter la réaction euro (💶)
+        emoji = "💶"
+        await message.add_reaction(emoji)
+
+        # Stocker la carte liée au message
+        self._message_carte_cache[message.id] = carte
+
+        # Nettoyer le cache après 5 minutes
+        async def cleanup_cache(msg_id):
+            await asyncio.sleep(300)
+            self._message_carte_cache.pop(msg_id, None)
+
+        self.bot.loop.create_task(cleanup_cache(message.id))
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction: discord.Reaction, user: discord.User):
+        # Ignore les réactions du bot
+        if user.bot:
+            return
+
+        if reaction.emoji != "💶":
+            return
+
+        message = reaction.message
+
+        if message.id not in self._message_carte_cache:
+            return
+
+        carte = self._message_carte_cache[message.id]
+
+        # Retirer la réaction utilisateur pour éviter les spams
+        try:
+            await message.remove_reaction("💶", user)
+        except discord.errors.Forbidden:
+            pass  # Pas la permission, on ignore
+
+        # Vérifier présence des données de prix
+        if "card_sets" not in carte or not carte["card_sets"]:
+            await message.channel.send(f"⚠️ Pas de données de sets/prix disponibles pour **{carte['name']}**.")
+            return
+
+        # Construire la liste des prix
+        prix_sets = []
+        for s in carte["card_sets"]:
+            set_name = s.get("set_name", "Inconnu")
+            rarity = s.get("set_rarity", "Inconnue")
+            price = s.get("set_price", "?")
+            prix_sets.append(f"• **{set_name}** ({rarity}) : ${price}")
+
+        prix_message = "\n".join(prix_sets)
+
+        embed = discord.Embed(
+            title=f"💰 Prix des sets pour {carte['name']}",
+            description=prix_message,
+            color=discord.Color.gold()
+        )
+
+        await message.channel.send(embed=embed)
 
     def cog_load(self):
         self.carte.category = "🃏 Yu-Gi-Oh!"
