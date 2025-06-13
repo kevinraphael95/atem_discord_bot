@@ -153,41 +153,14 @@ class Carte(commands.Cog):
             await message.remove_reaction("💶", user)
         except discord.errors.Forbidden:
             pass  # Pas la permission, on ignore
-
-        # Vérifier présence des données de prix
-        if "card_sets" not in carte or not carte["card_sets"]:
-            await message.channel.send(f"⚠️ Pas de données de sets/prix disponibles pour **{carte['name']}**.")
-            return
-
-        # Construire la liste des prix (filtrés et triés)
-        prix_sets = []
-        for s in carte["card_sets"]:
-            try:
-                price = float(s.get("set_price", "0"))
-            except ValueError:
-                continue
-            if price > 0:
-                prix_sets.append({
-                    "name": s.get("set_name", "Inconnu"),
-                    "rarity": s.get("set_rarity", "Inconnue"),
-                    "price": price
-                })
-
-        if not prix_sets:
-            await message.channel.send(f"⚠️ Aucun prix disponible pour **{carte['name']}**.")
-            return
-
-        # Tri décroissant par prix
-        prix_sets.sort(key=lambda x: x["price"], reverse=True)
-
-        # Formatage pour affichage
-        prix_message = "\n".join(
-            f"• **{s['name']}** ({s['rarity']}) : ${s['price']:.2f}" for s in prix_sets
-        )
+        # 🔗 Lien direct vers Cardmarket dans la bonne langue
+        langue_cm = "FR" if carte.get("lang", "en") == "fr" else "EN"
+        nom_cm = urllib.parse.quote(carte["name"])
+        url_cm = f"https://www.cardmarket.com/{langue_cm}/YuGiOh/Products/Search?searchString={nom_cm}"
 
         embed = discord.Embed(
-            title=f"💰 Prix des sets pour {carte['name']}",
-            description=prix_message,
+            title=f"💶 Voir les offres Cardmarket pour {carte['name']}",
+            description=f"[🔗 Cliquez ici pour voir sur Cardmarket]({url_cm})",
             color=discord.Color.gold()
         )
 
