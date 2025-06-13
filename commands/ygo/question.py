@@ -182,7 +182,10 @@ class Question(commands.Cog):
 
             for reaction in msg.reactions:
                 if str(reaction.emoji) == REACTIONS[correct_index]:
-                    users = await reaction.users().flatten()
+                    async for user in reaction.users():
+                        if not user.bot:
+                            winners.append(user)
+
                     for user in users:
                         if not user.bot:
                             winners.append(user)
