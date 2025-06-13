@@ -30,11 +30,11 @@ class Carte(commands.Cog):
         help="🔍 Rechercher une carte Yu-Gi-Oh! dans plusieurs langues.",
         description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN)."
     )
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
         """Commande principale pour chercher une carte Yu-Gi-Oh!"""
 
-        lang_codes = ["fr", "en"]  # ✅ On teste seulement FR puis EN
+        lang_codes = ["fr", ""]  # 🔧 FR, puis défaut (EN sans paramètre)
         nom_encode = urllib.parse.quote(nom)
 
         carte = None
@@ -44,13 +44,17 @@ class Carte(commands.Cog):
         try:
             async with aiohttp.ClientSession() as session:
                 for code in lang_codes:
-                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
+                    if code:
+                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
+                    else:
+                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
+
                     async with session.get(url) as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             if "data" in data:
                                 carte = data["data"][0]
-                                langue_detectee = code
+                                langue_detectee = code if code else "en"
                                 nom_corrige = carte.get("name", nom)
                                 break
                         elif resp.status == 400:
