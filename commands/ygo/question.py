@@ -187,6 +187,18 @@ class Question(commands.Cog):
                         if not user.bot:
                             winners.append(user)
 
+            # Identifie tous les participants
+            participants = set()
+            for reaction in msg.reactions:
+                async for user in reaction.users():
+                    if not user.bot:
+                        participants.add(user)
+
+            # Joue les perdants
+            losers = participants - set(winners)
+            for user in losers:
+                await self.update_streak(str(user.id), correct=False)
+
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
