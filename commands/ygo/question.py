@@ -178,46 +178,46 @@ class Question(commands.Cog):
 
             await asyncio.sleep(60)  # Attente de 60 secondes pour laisser tout le monde voter
 
+
+            
             # Récupération des réactions après le temps imparti
             msg = await ctx.channel.fetch_message(msg.id)
             correct_index = all_choices.index(true_card["name"])
-            winners = []
-
-            for reaction in msg.reactions:
-                if str(reaction.emoji) == REACTIONS[correct_index]:
-                    async for user in reaction.users():
-                        if not user.bot:
-                            winners.append(user)
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
                 description=f"La bonne réponse était : {REACTIONS[correct_index]} **{true_card['name']}**",
                 color=discord.Color.green()
             )
+
+            winners = []
+            for reaction in msg.reactions:
+                if str(reaction.emoji) == REACTIONS[correct_index]:
+                    async for user in reaction.users():
+                        if not user.bot:
+                            winners.append(user)
+
             if winners:
                 noms = "\n".join(f"✅ {user.mention}" for user in winners)
                 result_embed.add_field(name="Bravo à :", value=noms, inline=False)
                 for user in winners:
                     await self.update_streak(str(user.id), correct=True)
-
-                
-                voters = set()
-                for reaction in msg.reactions:
-                    async for user in reaction.users():
-                        if not user.bot:
-                            voters.add(user)
-
-                for user in voters:
-                    if user not in winners:
-                        await self.update_streak(str(user.id), correct=False)
-
-
-
-    
             else:
                 result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
 
+            # Mettre à jour les streaks des mauvais votants
+            voters = set()
+            for reaction in msg.reactions:
+                async for user in reaction.users():
+                    if not user.bot:
+                        voters.add(user)
+
+            for user in voters:
+                if user not in winners:
+                    await self.update_streak(str(user.id), correct=False)
+
             await ctx.send(embed=result_embed)
+
 
         except Exception as e:
             print("[ERREUR QUESTION]", e)
