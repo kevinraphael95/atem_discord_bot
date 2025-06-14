@@ -199,6 +199,21 @@ class Question(commands.Cog):
                 result_embed.add_field(name="Bravo à :", value=noms, inline=False)
                 for user in winners:
                     await self.update_streak(str(user.id), correct=True)
+
+                
+                voters = set()
+                for reaction in msg.reactions:
+                    async for user in reaction.users():
+                        if not user.bot:
+                            voters.add(user)
+
+                for user in voters:
+                    if user not in winners:
+                        await self.update_streak(str(user.id), correct=False)
+
+
+
+    
             else:
                 result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
 
