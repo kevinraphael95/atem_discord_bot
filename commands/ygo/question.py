@@ -92,13 +92,15 @@ class Question(commands.Cog):
             type_group = "monstre" if "monstre" in main_type else ("magie" if "magie" in main_type else "piège")
             group = []
 
+            
+
             if not archetype:
                 group = [
                     c for c in sample
                     if c.get("name") != main_card["name"]
                     and "desc" in c
                     and c.get("type", "").lower() == main_type
-                    and not c.get("archetype") 
+                    and not c.get("archetype")
                 ]
             else:
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
@@ -121,6 +123,7 @@ class Question(commands.Cog):
                                     and type_group in c.get("type", "").lower()
                                 ]
 
+            
             if len(group) < 3:
                 group = [
                     c for c in sample
