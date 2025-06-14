@@ -97,13 +97,6 @@ class IllustrationCommand(commands.Cog):
             random.shuffle(all_choices)
             correct_index = all_choices.index(true_card["name"])
 
-            # Envoi du message de compte à rebours
-            countdown_msg = await ctx.send("⏳ Début dans 10 secondes...")
-
-            # Compte à rebours de 10 secondes, on édite le message chaque seconde
-            for i in range(10, 0, -1):
-                await countdown_msg.edit(content=f"⏳ Début dans {i} seconde{'s' if i > 1 else ''}...")
-                await asyncio.sleep(1)
 
             # Préparation de l'embed avec l'image et les choix
             embed_choices = discord.Embed(
@@ -114,8 +107,9 @@ class IllustrationCommand(commands.Cog):
             embed_choices.set_image(url=image_url)
             embed_choices.set_footer(text=f"🔹 Archétype : ||{true_card.get('archetype', 'Aucun')}||")
 
-            # Edition du message initial pour afficher l'embed + description
-            await countdown_msg.edit(content=None, embed=embed_choices)
+            # Envoi du message principal sans compte à rebours
+            countdown_msg = await ctx.send(embed=embed_choices)
+
 
             # Ajout des réactions pour les réponses
             for emoji in REACTIONS[:len(all_choices)]:
