@@ -92,8 +92,6 @@ class Question(commands.Cog):
             type_group = "monstre" if "monstre" in main_type else ("magie" if "magie" in main_type else "piège")
             group = []
 
-            
-
             if not archetype:
                 group = [
                     c for c in sample
@@ -123,7 +121,6 @@ class Question(commands.Cog):
                                     and type_group in c.get("type", "").lower()
                                 ]
 
-            
             if len(group) < 3:
                 group = [
                     c for c in sample
@@ -178,8 +175,6 @@ class Question(commands.Cog):
 
             await asyncio.sleep(60)  # Attente de 60 secondes pour laisser tout le monde voter
 
-
-            
             # Récupération des réactions après le temps imparti
             msg = await ctx.channel.fetch_message(msg.id)
             correct_index = all_choices.index(true_card["name"])
@@ -217,7 +212,6 @@ class Question(commands.Cog):
                     await self.update_streak(str(user.id), correct=False)
 
             await ctx.send(embed=result_embed)
-
 
         except Exception as e:
             print("[ERREUR QUESTION]", e)
