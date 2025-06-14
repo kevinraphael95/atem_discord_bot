@@ -172,14 +172,13 @@ class Question(commands.Cog):
                 inline=False
             )
             embed.set_footer(text="Vous avez 60 secondes pour répondre !\n Réagissez avec l’emoji correspondant à votre réponse👇")
-
             msg = await ctx.send(embed=embed)
             for emoji in REACTIONS[:4]:
                 await msg.add_reaction(emoji)
 
             await asyncio.sleep(60)  # Attente de 60 secondes pour laisser tout le monde voter
 
-            # Récupération des réactions
+            # Récupération des réactions après le temps imparti
             msg = await ctx.channel.fetch_message(msg.id)
             correct_index = all_choices.index(true_card["name"])
             winners = []
@@ -189,7 +188,6 @@ class Question(commands.Cog):
                     async for user in reaction.users():
                         if not user.bot:
                             winners.append(user)
-
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
@@ -203,6 +201,7 @@ class Question(commands.Cog):
                     await self.update_streak(str(user.id), correct=True)
             else:
                 result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
+
             await ctx.send(embed=result_embed)
 
         except Exception as e:
