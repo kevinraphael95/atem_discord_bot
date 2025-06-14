@@ -143,14 +143,14 @@ class Question(commands.Cog):
             image_url = true_card.get("card_images", [{}])[0].get("image_url_cropped")
 
             embed = discord.Embed(
-                title="🧠 Essaie de trouver le nom de cette carte grace à sa description.",
+                title="🧠 Essayez de trouver le nom de cette carte grace à sa description. (tout le monde peut jouer)",
                 description=(
                     f"📘 **Type :** {true_card.get('type', '—')}\n"
                     f"📝 **Description :**\n*{censored[:500]}{'...' if len(censored) > 300 else ''}*"
                 ),
                 color=discord.Color.purple()
             )
-            embed.set_author(name="Trouve le nom de la carte", icon_url="https://cdn-icons-png.flaticon.com/512/361/361678.png")
+            embed.set_author(name="Trouvez le nom de la carte", icon_url="https://cdn-icons-png.flaticon.com/512/361/361678.png")
             #mettre une image
             #if image_url:
                 #embed.set_thumbnail(url=image_url)
@@ -168,7 +168,7 @@ class Question(commands.Cog):
                 value="\n".join(f"{REACTIONS[i]} {name}" for i, name in enumerate(all_choices)),
                 inline=False
             )
-            embed.set_footer(text="Tu as 60 secondes pour répondre ! Réagis avec l’emoji correspondant à ta réponse👇")
+            embed.set_footer(text="Vous avez 60 secondes pour répondre !\n Réagissez avec l’emoji correspondant à votre réponse👇")
 
             msg = await ctx.send(embed=embed)
             for emoji in REACTIONS[:4]:
