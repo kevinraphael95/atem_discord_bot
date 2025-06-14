@@ -32,7 +32,9 @@ class InfoCog(commands.Cog):
         prefix = ctx.prefix  # Récupère le préfixe dynamique utilisé par le bot
 
         changelog_lines = [
-            f"• Modifications pour rendre la commande $question multijoueur (que tout le monde puisse répondre)."
+            f"• Commande $question :\n"
+            f"- Commande maintenant multijoueur\n"
+            f"- De meilleures propositions de noms quand la carte n'a aucun archétype"
         ]
 
         embed = discord.Embed(
