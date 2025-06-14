@@ -41,9 +41,7 @@ class Question(commands.Cog):
     # 🔒 Censure le nom de la carte dans sa description
     # ────────────────────────────────────────────────────────
     def censor_card_name(self, desc: str, name: str) -> str:
-        escaped_name = re.escape(name)
-        # Remplace toutes les occurrences insensibles à la casse par des █
-        return re.sub(escaped_name, lambda m: "█" * len(m.group()), desc, flags=re.IGNORECASE)
+        return re.sub(re.escape(name), "█" * len(name), desc, flags=re.IGNORECASE)
 
     # ────────────────────────────────────────────────────────
     # 🔁 Met à jour le streak de l’utilisateur
@@ -100,7 +98,7 @@ class Question(commands.Cog):
                     if c.get("name") != main_card["name"]
                     and "desc" in c
                     and c.get("type", "").lower() == main_type
-                    and not c.get("archetype")
+                    and not c.get("archetype") 
                 ]
             else:
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
@@ -145,6 +143,75 @@ class Question(commands.Cog):
             image_url = true_card.get("card_images", [{}])[0].get("image_url_cropped")
 
             embed = discord.Embed(
-                title="🧠 Essayez de trouver le nom de cette carte grace à sa description. (tout le monde peut jouer)",
+                title="🧠 Quelle est cette carte ?",
                 description=(
-                    f"📘 **T**
+                    f"📘 **Type :** {true_card.get('type', '—')}\n"
+                    f"📝 **Description :**\n*{censored[:500]}{'...' if len(censored) > 300 else ''}*"
+                ),
+                color=discord.Color.purple()
+            )
+            embed.set_author(name="YGO Quiz", icon_url="https://cdn-icons-png.flaticon.com/512/361/361678.png")
+            #mettre une image
+            #if image_url:
+                #embed.set_thumbnail(url=image_url)
+
+            embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
+
+            if main_type.startswith("monstre"):
+                embed.add_field(name="💥 ATK", value=str(true_card.get("atk", "—")), inline=True)
+                embed.add_field(name="🛡️ DEF", value=str(true_card.get("def", "—")), inline=True)
+                embed.add_field(name="⭐ Niveau", value=str(true_card.get("level", "—")), inline=True)
+                embed.add_field(name="🌪️ Attribut", value=true_card.get("attribute", "—"), inline=True)
+
+            embed.add_field(
+                name="❓ Choisis la bonne carte :",
+                value="\n".join(f"{REACTIONS[i]} {name}" for i, name in enumerate(all_choices)),
+                inline=False
+            )
+            embed.set_footer(text="Tu as 60 secondes pour répondre ! Réagis avec l’emoji correspondant à ta réponse👇")
+
+            msg = await ctx.send(embed=embed)
+            for emoji in REACTIONS[:4]:
+                await msg.add_reaction(emoji)
+
+            await asyncio.sleep(60)  # Attente de 60 secondes pour laisser tout le monde voter
+
+            # Récupération des réactions
+            msg = await ctx.channel.fetch_message(msg.id)
+            correct_index = all_choices.index(true_card["name"])
+            winners = []
+
+            for reaction in msg.reactions:
+                if str(reaction.emoji) == REACTIONS[correct_index]:
+                    async for user in reaction.users():
+                        if not user.bot:
+                            winners.append(user)
+
+
+            result_embed = discord.Embed(
+                title="⏰ Temps écoulé !",
+                description=f"La bonne réponse était : **{true_card['name']}** ({REACTIONS[correct_index]})",
+                color=discord.Color.green()
+            )
+            if winners:
+                noms = "\n".join(f"✅ {user.mention}" for user in winners)
+                result_embed.add_field(name="Bravo à :", value=noms, inline=False)
+                for user in winners:
+                    await self.update_streak(str(user.id), correct=True)
+            else:
+                result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
+            await ctx.send(embed=result_embed)
+
+        except Exception as e:
+            print("[ERREUR QUESTION]", e)
+            await ctx.send("🚨 Une erreur est survenue.")
+
+
+# ────────────────────────────────────────────────────────────────
+# 🔌 SETUP DU COG
+# ────────────────────────────────────────────────────────────────
+async def setup(bot: commands.Bot):
+    cog = Question(bot)
+    for command in cog.get_commands():
+        command.category = "🃏 Yu-Gi-Oh!"  # 📚 Pour l’organisation des commandes
+    await bot.add_cog(cog)
