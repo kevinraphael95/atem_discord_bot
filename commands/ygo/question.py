@@ -146,7 +146,7 @@ class Question(commands.Cog):
                 title="🧠 Essayez de trouver le nom de cette carte grace à sa description. (tout le monde peut jouer)",
                 description=(
                     f"📘 **Type :** {true_card.get('type', '—')}\n"
-                    f"📝 **Description :**\n*{censored[:500]}{'...' if len(censored) > 300 else ''}*"
+                    f"📝 **Description :**\n*{censored[:1500]}{'...' if len(censored) > 1500 else ''}*"
                 ),
                 color=discord.Color.purple()
             )
