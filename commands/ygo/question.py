@@ -13,6 +13,7 @@ import aiohttp                               # 🌐 Requêtes HTTP asynchrones
 import random                                # 🎲 Choix aléatoires
 import asyncio                               # ⏳ Timeout & délais
 import re                                    # ✂️ Remplacement avec RegEx
+from datetime import datetime
 from supabase_client import supabase         # ☁️ Base de données Supabase
 
 # Réactions pour les 4 propositions
@@ -66,6 +67,21 @@ class Question(commands.Cog):
                 "current_streak": 1 if correct else 0,
                 "best_streak": 1 if correct else 0
             }).execute()
+
+    # ────────────────────────────────────────────────────────
+    # 🔒 Vérifie s’il y a déjà une question active sur le serveur
+    # ────────────────────────────────────────────────────────
+    async def is_question_active(self, guild_id: str):
+        data = supabase.table("ygo_questions").select("*").eq("guild_id", guild_id).execute()
+        if not data.data:
+            return None
+        return data.data[0]
+
+    # ────────────────────────────────────────────────────────
+    # 🔓 Supprime le verrou de question pour ce serveur
+    # ────────────────────────────────────────────────────────
+    async def clear_question_status(self, guild_id: str):
+        supabase.table("ygo_questions").delete().eq("guild_id", guild_id).execute()
 
     # ────────────────────────────────────────────────────────────────
     # ❓ COMMANDE !question
@@ -121,6 +137,23 @@ class Question(commands.Cog):
                                     and type_group in c.get("type", "").lower()
                                 ]
 
+
+     
+
+
+            guild_id = str(ctx.guild.id)
+            existing = await self.is_question_active(guild_id)
+            if existing:
+                try:
+                    msg_id = int(existing["message_id"])
+                    old_msg = await ctx.channel.fetch_message(msg_id)
+                    await ctx.reply("⚠️ Une question est déjà en cours sur ce serveur !", mention_author=False)
+                    await ctx.send(f"👉 [Voici la question en cours]({old_msg.jump_url})")
+                    return
+                except Exception:
+                    pass  # Si on ne trouve pas l’ancien message, on continue
+
+
             if len(group) < 3:
                 group = [
                     c for c in sample
@@ -171,6 +204,13 @@ class Question(commands.Cog):
             embed.set_footer(text="Vous avez 60 secondes pour répondre ! Réagissez avec l’emoji correspondant à votre réponse👇")
 
             msg = await ctx.send(embed=embed)
+            # Enregistre le message de question en cours
+            supabase.table("ygo_questions").upsert({
+                "guild_id": guild_id,
+                "message_id": str(msg.id),
+                "timestamp": datetime.utcnow().isoformat()
+            }).execute()
+
             for emoji in REACTIONS[:4]:
                 await msg.add_reaction(emoji)
 
@@ -220,6 +260,7 @@ class Question(commands.Cog):
                     await self.update_streak(str(user.id), correct=True)
             else:
                 result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
+            await self.clear_question_status(guild_id)
             await ctx.send(embed=result_embed)
 
         except Exception as e:
