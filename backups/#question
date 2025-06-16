@@ -174,30 +174,38 @@ class Question(commands.Cog):
             for emoji in REACTIONS[:4]:
                 await msg.add_reaction(emoji)
 
+            
             await asyncio.sleep(60)  # Attente de 60 secondes pour laisser tout le monde voter
 
-            # Récupération des réactions
+            
+
+            # Récupération des réactions après délai
             msg = await ctx.channel.fetch_message(msg.id)
-            correct_index = all_choices.index(true_card["name"])
-            winners = []
 
-            for reaction in msg.reactions:
-                if str(reaction.emoji) == REACTIONS[correct_index]:
-                    async for user in reaction.users():
-                        if not user.bot:
-                            winners.append(user)
-
-            # Identifie tous les participants
-            participants = set()
+            user_answers = {}  # user_id -> emoji
             for reaction in msg.reactions:
                 async for user in reaction.users():
-                    if not user.bot:
-                        participants.add(user)
+                    if user.bot:
+                        continue
+                    if user.id not in user_answers:
+                        user_answers[user.id] = str(reaction.emoji)
 
-            # Joue les perdants
-            losers = participants - set(winners)
+            # Calcul des bons joueurs
+            correct_index = all_choices.index(true_card["name"])
+            correct_emoji = REACTIONS[correct_index]
+            winners = [await self.bot.fetch_user(uid) for uid, emoji in user_answers.items() if emoji == correct_emoji]
+
+            # Tous les participants
+            participants = [await self.bot.fetch_user(uid) for uid in user_answers]
+            losers = [u for u in participants if u not in winners]
+
+            # Mise à jour des streaks
+            for user in winners:
+                await self.update_streak(str(user.id), correct=True)
             for user in losers:
                 await self.update_streak(str(user.id), correct=False)
+
+
 
 
             result_embed = discord.Embed(
