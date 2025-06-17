@@ -98,7 +98,7 @@ class Question(commands.Cog):
                     if c.get("name") != main_card["name"]
                     and "desc" in c
                     and c.get("type", "").lower() == main_type
-                    and not c.get("archetype") 
+                    and not c.get("archetype")
                 ]
             else:
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
@@ -151,9 +151,8 @@ class Question(commands.Cog):
                 color=discord.Color.purple()
             )
             embed.set_author(name="Trouvez le nom de la carte", icon_url="https://cdn-icons-png.flaticon.com/512/361/361678.png")
-            #mettre une image
-            #if image_url:
-                #embed.set_thumbnail(url=image_url)
+            # if image_url:
+            #     embed.set_thumbnail(url=image_url)
 
             embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
 
@@ -171,42 +170,36 @@ class Question(commands.Cog):
             embed.set_footer(text="Vous avez 60 secondes pour répondre ! Réagissez avec l’emoji correspondant à votre réponse👇")
 
             msg = await ctx.send(embed=embed)
-            for emoji in REACTIONS[:4]:
+            for emoji in REACTIONS:
                 await msg.add_reaction(emoji)
 
-            
-            await asyncio.sleep(60)  # Attente de 60 secondes pour laisser tout le monde voter
-
-            
-
-            # Récupération des réactions après délai
-            msg = await ctx.channel.fetch_message(msg.id)
-
             user_answers = {}  # user_id -> emoji
-            for reaction in msg.reactions:
-                async for user in reaction.users():
-                    if user.bot:
-                        continue
-                    if user.id not in user_answers:
-                        user_answers[user.id] = str(reaction.emoji)
 
-            # Calcul des bons joueurs
+            def check(reaction, user):
+                return (
+                    reaction.message.id == msg.id
+                    and str(reaction.emoji) in REACTIONS
+                    and not user.bot
+                    and user.id not in user_answers
+                )
+
+            try:
+                while True:
+                    reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
+                    user_answers[user.id] = str(reaction.emoji)
+            except asyncio.TimeoutError:
+                pass
+
             correct_index = all_choices.index(true_card["name"])
             correct_emoji = REACTIONS[correct_index]
             winners = [await self.bot.fetch_user(uid) for uid, emoji in user_answers.items() if emoji == correct_emoji]
-
-            # Tous les participants
             participants = [await self.bot.fetch_user(uid) for uid in user_answers]
             losers = [u for u in participants if u not in winners]
 
-            # Mise à jour des streaks
             for user in winners:
                 await self.update_streak(str(user.id), correct=True)
             for user in losers:
                 await self.update_streak(str(user.id), correct=False)
-
-
-
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
@@ -216,16 +209,14 @@ class Question(commands.Cog):
             if winners:
                 noms = "\n".join(f"✅ {user.mention}" for user in winners)
                 result_embed.add_field(name="Bravo à :", value=noms, inline=False)
-                for user in winners:
-                    await self.update_streak(str(user.id), correct=True)
             else:
                 result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
+
             await ctx.send(embed=result_embed)
 
         except Exception as e:
             print("[ERREUR QUESTION]", e)
             await ctx.send("🚨 Une erreur est survenue.")
-
 
 # ────────────────────────────────────────────────────────────────
 # 🔌 SETUP DU COG
