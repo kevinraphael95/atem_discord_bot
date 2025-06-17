@@ -143,7 +143,7 @@ class Question(commands.Cog):
             image_url = true_card.get("card_images", [{}])[0].get("image_url_cropped")
 
             embed = discord.Embed(
-                title="🧠 Quelle est le nom de cette carte ?",
+                title="🧠 Quelle est le nom de cette carte ? (tout le monde peut jouer)",
                 description=(
                     f"📘 **Type :** {true_card.get('type', '—')}\n"
                     f"📝 **Description :**\n*{censored[:1500]}{'...' if len(censored) > 1500 else ''}*"
