@@ -41,7 +41,7 @@ class Question(commands.Cog):
     # 🔒 Censure le nom de la carte dans sa description
     # ────────────────────────────────────────────────────────
     def censor_card_name(self, desc: str, name: str) -> str:
-        return re.sub(re.escape(name), "█" * len(name), desc, flags=re.IGNORECASE)
+        return re.sub(re.escape(name), "[cette carte]", desc, flags=re.IGNORECASE)
 
     # ────────────────────────────────────────────────────────
     # 🔁 Met à jour le streak de l’utilisateur
