@@ -27,7 +27,7 @@ def is_clean_card(card):
         "eyes of blue", "punk", "fur hire", "dark world", "dragonmaid",
         "sky striker", "labrynth", "floowandereeze", "marincess", "salamangreat",
         "tri-brigade", "madolche", "phantasm spiral", "f.a.", "f.a", "abc-", "abc -", "live☆twin",
-        "number", "hero"
+        "branded", "cloudian", "hero", "number", "oni"
     ]
     name = card.get("name", "").lower()
     return all(keyword not in name for keyword in banned_keywords)
