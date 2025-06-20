@@ -218,7 +218,7 @@ class Question(commands.Cog):
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
-                description=f"La bonne réponse était : **{true_card['name']}** ({REACTIONS[correct_index]})",
+                description=f"La bonne réponse était : {REACTIONS[correct_index]} **{true_card['name']}**",
                 color=discord.Color.green()
             )
             if winners:
