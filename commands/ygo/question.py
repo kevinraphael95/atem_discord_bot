@@ -18,6 +18,19 @@ from supabase_client import supabase         # ☁️ Base de données Supabase
 # Réactions pour les 4 propositions
 REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 
+
+# ────────────────────────────────────────────────────────────────
+# 🧹 Filtrage de cartes interdites (anti-meta, anti-spam, etc.)
+# ────────────────────────────────────────────────────────────────
+def is_clean_card(card):
+    banned_keywords = [
+        "eyes of blue", "punk", "fur hire", "dark world", "dragonmaid",
+        "sky striker", "labrynth", "floowandereeze", "marincess", "salamangreat",
+        "tri-brigade", "madolche", "phantasm spiral", "f.a.", "f.a", "abc-", "abc -", "live☆twin"
+    ]
+    name = card.get("name", "").lower()
+    return all(keyword not in name for keyword in banned_keywords)
+
 # ────────────────────────────────────────────────────────────────
 # 🧩 CLASSE DU COG
 # ────────────────────────────────────────────────────────────────
@@ -99,7 +112,9 @@ class Question(commands.Cog):
                     and "desc" in c
                     and c.get("type", "").lower() == main_type
                     and not c.get("archetype")
+                    and is_clean_card(c)  # 👈 ici on applique ton filtre de mots-clés
                 ]
+
             else:
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
                 async with aiohttp.ClientSession() as session:
