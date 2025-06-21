@@ -208,12 +208,16 @@ class Question(commands.Cog):
             # Stocker le message du quiz en cours pour la guild
             self.active_sessions[guild_id] = quiz_msg
 
+            answers = {}
+
             def check(reaction, user):
                 return (
                     reaction.message.id == quiz_msg.id
                     and reaction.emoji in REACTIONS[:len(all_choices)]
                     and not user.bot
+                    and user.id not in answers  # ✅ Empêche les doubles réponses
                 )
+
 
             winners = set()
             answers = {}
@@ -235,14 +239,26 @@ class Question(commands.Cog):
                 # Temps écoulé, afficher résultats
                 self.active_sessions[guild_id] = None
 
-                if winners:
-                    winners_mentions = ", ".join(w.mention for w in winners)
-                    await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Les gagnants sont : {winners_mentions} 🎉")
-                else:
-                    await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Personne n'a trouvé la bonne réponse... 😢")
-                    
                 correct_index = all_choices.index(true_card["name"])
-                await quiz_msg.channel.send(f"La réponse était : {REACTIONS[correct_index]} **{true_card['name']}**")
+                reponse = f"{REACTIONS[correct_index]} **{true_card['name']}**"
+
+                # Création de l'embed final
+                result_embed = discord.Embed(
+                    title="⏰ Le temps est écoulé !",
+                    description=(
+                        f"✅ La réponse était : {reponse}\n\n"
+                        + (
+                            f"🎉 **Gagnants :** {', '.join(w.mention for w in winners)}"
+                            if winners
+                            else "😢 Personne n'a trouvé la bonne réponse..."
+                        )
+                    ),
+                    color=discord.Color.green() if winners else discord.Color.red()
+                )
+                result_embed.set_footer(text="Merci d'avoir joué !")
+
+                await quiz_msg.channel.send(embed=result_embed)
+
 
         except Exception as e:
             self.active_sessions[guild_id] = None
