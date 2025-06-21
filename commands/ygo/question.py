@@ -24,8 +24,10 @@ REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 # ────────────────────────────────────────────────────────────────
 def is_clean_card(card):
     banned_keywords = [
-        "@Ignister", "abc -", "abc-", "abyss", "altergeist", "beetrouper", "branded", "cloudian", "crusadia", "cyber", "D.D.", "dark world",
-        "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "f.a", "f.a.", "floowandereeze", "fur hire", "harpie", 
+        "@Ignister", "abc -", "abc-", "abyss", "altergeist", "beetrouper", "branded", "cloudian", 
+        "crusadia", "cyber", "D.D.", "dark world",
+        "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "f.a", "f.a.", 
+        "floowandereeze", "fur hire", "harpie", 
         "hero", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
         "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro", 
         "oni", "Performapal", "phantasm spiral", "pot", "prophecy", "punk", "rescue", "rose dragon", 
