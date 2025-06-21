@@ -115,13 +115,38 @@ class Question(commands.Cog):
             sample = await self.fetch_card_sample(limit=60)
             random.shuffle(sample)
 
-            main_card = next((c for c in sample if "name" in c and "desc" in c), None)
+            # On va chercher une carte principale valide, avec archétype dispo en assez grand nombre
+            main_card = None
+
+            for card in sample:
+                if "name" not in card or "desc" not in card:
+                    continue
+
+                archetype = card.get("archetype")
+                if archetype:
+                    # Vérifier qu'il y a au moins 10 autres cartes avec ce même archétype via l'API
+                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                if len(data.get("data", [])) >= 11:  # au moins 11 cartes (1 principale + 10 autres)
+                                    main_card = card
+                                    break
+                            else:
+                                continue
+                else:
+                    # Carte sans archétype, on l'accepte directement
+                    main_card = card
+                    break
+
             if not main_card:
-                await ctx.send("❌ Aucune carte trouvée.")
+                await ctx.send("❌ Aucune carte trouvée avec un archétype suffisamment grand.")
                 self.active_sessions[guild_id] = None
                 return
 
             archetype = main_card.get("archetype")
+
             main_type = main_card.get("type", "").lower()
             type_group = "monstre" if "monstre" in main_type else ("magie" if "magie" in main_type else "piège")
             group = []
