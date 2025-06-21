@@ -29,10 +29,10 @@ def is_clean_card(card):
         "hero", "kaiser", "kozaky", "labrynth", "live☆twin", "madolche", "marincess",
         "Mekk-Knight", "metalfoes", "noble knight", "number", "oni", "phantasm spiral", "pot", "prophecy", "punk", "rescue",
         "salamangreat", "sky striker", "tri-brigade"
-
     ]
     name = card.get("name", "").lower()
     return all(keyword not in name for keyword in banned_keywords)
+
 
 # ────────────────────────────────────────────────────────────────
 # 🧩 CLASSE DU COG
@@ -40,7 +40,8 @@ def is_clean_card(card):
 class Question(commands.Cog):
     def __init__(self, bot):
         self.bot = bot  # 🔁 Référence au bot
-        self.active_sessions = {}  # id_guild : True/False
+        # Stocke le message du quiz en cours pour chaque guild
+        self.active_sessions = {}  # guild_id : discord.Message ou None
 
     # ────────────────────────────────────────────────────────
     # 🔄 Récupère un échantillon aléatoire de cartes
@@ -97,13 +98,15 @@ class Question(commands.Cog):
     async def Question(self, ctx):
         guild_id = ctx.guild.id if ctx.guild else None
 
-        # Vérifier si une partie est déjà active dans ce serveur
+        # Partie active ? on récupère le message Discord
         if guild_id in self.active_sessions and self.active_sessions[guild_id]:
-            await ctx.send("⚠️ Une partie est déjà en cours dans ce serveur. Patientez qu'elle se termine.")
+            quiz_msg = self.active_sessions[guild_id]
+            # Répondre en reply sous le message du quiz en cours
+            await quiz_msg.reply("⚠️ Une partie est déjà en cours dans ce serveur. Patientez qu'elle se termine.", mention_author=False)
             return
-        
-        # Marquer la partie comme active
-        self.active_sessions[guild_id] = True
+
+        # Marquer la partie comme active (en attente)
+        self.active_sessions[guild_id] = None
 
         try:
             sample = await self.fetch_card_sample(limit=60)
@@ -112,6 +115,7 @@ class Question(commands.Cog):
             main_card = next((c for c in sample if "name" in c and "desc" in c), None)
             if not main_card:
                 await ctx.send("❌ Aucune carte trouvée.")
+                self.active_sessions[guild_id] = None
                 return
 
             archetype = main_card.get("archetype")
@@ -126,9 +130,8 @@ class Question(commands.Cog):
                     and "desc" in c
                     and c.get("type", "").lower() == main_type
                     and not c.get("archetype")
-                    and is_clean_card(c)  # 👈 ici on applique ton filtre de mots-clés
+                    and is_clean_card(c)
                 ]
-
             else:
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
                 async with aiohttp.ClientSession() as session:
@@ -188,54 +191,63 @@ class Question(commands.Cog):
             if main_type.startswith("monstre"):
                 embed.add_field(name="💥 ATK", value=str(true_card.get("atk", "—")), inline=True)
                 embed.add_field(name="🛡️ DEF", value=str(true_card.get("def", "—")), inline=True)
-                embed.add_field(name="⭐ Niveau", value=str(true_card.get("level", "—")), inline=True)
-                embed.add_field(name="🌪️ Attribut", value=true_card.get("attribute", "—"), inline=True)
+                embed.add_field(name="⚙️ Niveau", value=str(true_card.get("level", "—")), inline=True)
 
-            embed.add_field(
-                name="❓ Choisis la bonne carte :",
-                value="\n".join(f"{REACTIONS[i]} {name}" for i, name in enumerate(all_choices)),
-                inline=False
-            )
-            embed.set_footer(text="Vous avez 60 secondes pour répondre ! Réagissez avec l’emoji correspondant à votre réponse👇")
+            # Options de réponses
+            options_str = ""
+            for idx, choice in enumerate(all_choices):
+                options_str += f"{REACTIONS[idx]} - **{choice}**\n"
+            embed.add_field(name="Choix possibles", value=options_str, inline=False)
 
-            msg = await ctx.send(embed=embed)
-            for emoji in REACTIONS:
-                await msg.add_reaction(emoji)
+            quiz_msg = await ctx.send(embed=embed)
 
-            user_answers = {}  # user_id -> emoji
+            # Ajouter réactions pour que tout le monde puisse réagir
+            for r in REACTIONS[:len(all_choices)]:
+                await quiz_msg.add_reaction(r)
+
+            # Stocker le message du quiz en cours pour la guild
+            self.active_sessions[guild_id] = quiz_msg
 
             def check(reaction, user):
                 return (
-                    reaction.message.id == msg.id
-                    and str(reaction.emoji) in REACTIONS
+                    reaction.message.id == quiz_msg.id
+                    and reaction.emoji in REACTIONS[:len(all_choices)]
                     and not user.bot
                 )
 
-            # 60 secondes pour répondre
+            winners = set()
+            answers = {}
+
+            # Attendre 60 secondes pour collecter les réactions
             try:
                 while True:
                     reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
-                    user_answers[user.id] = str(reaction.emoji)
+                    idx = REACTIONS.index(reaction.emoji)
+                    selected_name = all_choices[idx]
+                    if user.id not in answers:
+                        answers[user.id] = selected_name
+                        if selected_name == true_card["name"]:
+                            winners.add(user)
+                            await self.update_streak(str(user.id), True)
+                        else:
+                            await self.update_streak(str(user.id), False)
             except asyncio.TimeoutError:
-                pass
+                # Temps écoulé, afficher résultats
+                self.active_sessions[guild_id] = None
 
-            # Calcul des résultats
-            correct_emoji = REACTIONS[all_choices.index(true_card["name"])]
-            winners = [user_id for user_id, emoji in user_answers.items() if emoji == correct_emoji]
+                if winners:
+                    winners_mentions = ", ".join(w.mention for w in winners)
+                    await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Les gagnants sont : {winners_mentions} 🎉")
+                else:
+                    await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Personne n'a trouvé la bonne réponse... 😢")
 
-            # Mise à jour des streaks dans Supabase
-            for user_id in user_answers.keys():
-                await self.update_streak(str(user_id), user_id in winners)
+                await quiz_msg.channel.send(f"La réponse était : **{true_card['name']}**")
 
-            if winners:
-                winners_mentions = ", ".join(f"<@{user_id}>" for user_id in winners)
-                await ctx.send(f"🎉 Bravo à {winners_mentions} pour avoir trouvé la bonne réponse : **{true_card['name']}** !")
-            else:
-                await ctx.send(f"😢 Personne n’a trouvé la bonne réponse : **{true_card['name']}**.")
+        except Exception as e:
+            self.active_sessions[guild_id] = None
+            await ctx.send(f"❌ Une erreur est survenue : `{e}`")
 
-        finally:
-            # Libérer la session pour ce serveur
-            self.active_sessions[guild_id] = False
+
 
 
 
