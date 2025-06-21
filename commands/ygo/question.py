@@ -235,24 +235,13 @@ class Question(commands.Cog):
                 # Temps écoulé, afficher résultats
                 self.active_sessions[guild_id] = None
 
-   
                 if winners:
                     winners_mentions = ", ".join(w.mention for w in winners)
-                    description = f"⏰ Le temps est écoulé ! Les gagnants sont : {winners_mentions} 🎉\n\n" \
-                                  f"La réponse était : **{true_card['name']}**"
+                    await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Les gagnants sont : {winners_mentions} 🎉")
                 else:
-                    description = f"⏰ Le temps est écoulé ! Personne n'a trouvé la bonne réponse... 😢\n\n" \
-                                  f"La réponse était : **{true_card['name']}**"
+                    await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Personne n'a trouvé la bonne réponse... 😢")
 
-                    embed = discord.Embed(
-                    title="Résultat du Quiz",
-                    description=description,
-                    color=discord.Color.gold()
-                )
-                embed.set_footer(text="Merci d'avoir participé !")
-
-                await quiz_msg.channel.send(embed=embed)
-
+                await quiz_msg.channel.send(f"La réponse était : {REACTIONS[correct_index]} **{true_card['name']}**")
 
         except Exception as e:
             self.active_sessions[guild_id] = None
