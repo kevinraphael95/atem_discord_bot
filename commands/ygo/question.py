@@ -28,7 +28,7 @@ def is_clean_card(card):
         "dragonmaid", "eyes of blue", "f.a", "f.a.", "floowandereeze", "fur hire", "harpie", 
         "hero", "kaiser", "kozaky", "labrynth", "live☆twin", "madolche", "marincess",
         "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro",
-        "oni", "phantasm spiral", "pot", "prophecy", "punk", "rescue",
+        "oni", "Performapal", "phantasm spiral", "pot", "prophecy", "punk", "rescue",
         "salamangreat", "sky striker", "tri-brigade"
     ]
     name = card.get("name", "").lower()
