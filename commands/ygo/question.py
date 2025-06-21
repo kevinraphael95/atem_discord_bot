@@ -240,7 +240,8 @@ class Question(commands.Cog):
                     await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Les gagnants sont : {winners_mentions} 🎉")
                 else:
                     await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Personne n'a trouvé la bonne réponse... 😢")
-
+                    
+                correct_index = all_choices.index(true_card["name"])
                 await quiz_msg.channel.send(f"La réponse était : {REACTIONS[correct_index]} **{true_card['name']}**")
 
         except Exception as e:
