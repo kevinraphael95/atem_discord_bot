@@ -18,6 +18,22 @@ from supabase_client import supabase         # ☁️ Base de données Supabase
 # Réactions pour les 4 propositions
 REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 
+
+# ────────────────────────────────────────────────────────────────
+# 🧹 Filtrage de cartes interdites (anti-meta, anti-spam, etc.)
+# ────────────────────────────────────────────────────────────────
+def is_clean_card(card):
+    banned_keywords = [
+        "@Ignister", "abc -", "abc-", "altergeist", "beetrouper", "branded", "cloudian", "D.D.", "dark world",
+        "dragonmaid", "eyes of blue", "f.a", "f.a.", "floowandereeze", "fur hire", "harpie", 
+        "hero", "kaiser", "kozaky", "labrynth", "live☆twin", "madolche", "marincess",
+        "metalfoes", "noble knight", "number", "oni", "phantasm spiral", "pot", "prophecy", "punk", "rescue",
+        "salamangreat", "sky striker", "tri-brigade"
+
+    ]
+    name = card.get("name", "").lower()
+    return all(keyword not in name for keyword in banned_keywords)
+
 # ────────────────────────────────────────────────────────────────
 # 🧩 CLASSE DU COG
 # ────────────────────────────────────────────────────────────────
@@ -99,7 +115,9 @@ class Question(commands.Cog):
                     and "desc" in c
                     and c.get("type", "").lower() == main_type
                     and not c.get("archetype")
+                    and is_clean_card(c)  # 👈 ici on applique ton filtre de mots-clés
                 ]
+
             else:
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
                 async with aiohttp.ClientSession() as session:
@@ -203,7 +221,7 @@ class Question(commands.Cog):
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
-                description=f"La bonne réponse était : **{true_card['name']}** ({REACTIONS[correct_index]})",
+                description=f"La bonne réponse était : {REACTIONS[correct_index]} **{true_card['name']}**",
                 color=discord.Color.green()
             )
             if winners:
