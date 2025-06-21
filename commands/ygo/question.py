@@ -24,10 +24,12 @@ REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 # ────────────────────────────────────────────────────────────────
 def is_clean_card(card):
     banned_keywords = [
-        "eyes of blue", "punk", "fur hire", "dark world", "dragonmaid",
-        "sky striker", "labrynth", "floowandereeze", "marincess", "salamangreat",
-        "tri-brigade", "madolche", "phantasm spiral", "f.a.", "f.a", "abc-", "abc -", "live☆twin",
-        "branded", "cloudian", "hero", "kozaky", "kaiser", "metalfoes", "number", "oni"
+        "@Ignister", "abc -", "abc-", "altergeist", "branded", "cloudian", "D.D.", "dark world",
+        "dragonmaid", "eyes of blue", "f.a", "f.a.", "floowandereeze", "fur hire", "harpie", 
+        "hero", "kaiser", "kozaky", "labrynth", "live☆twin", "madolche", "marincess",
+        "metalfoes", "number", "oni", "phantasm spiral", "pot", "punk", "rescue",
+        "salamangreat", "sky striker", "tri-brigade"
+
     ]
     name = card.get("name", "").lower()
     return all(keyword not in name for keyword in banned_keywords)
