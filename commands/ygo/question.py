@@ -241,7 +241,7 @@ class Question(commands.Cog):
                 else:
                     await quiz_msg.channel.send(f"⏰ Le temps est écoulé ! Personne n'a trouvé la bonne réponse... 😢")
 
-                await quiz_msg.channel.send(f"La réponse était : **{true_card['name']}**")
+                await quiz_msg.channel.send(f"La réponse était : {REACTIONS[correct_index]} **{true_card['name']}**")
 
         except Exception as e:
             self.active_sessions[guild_id] = None
