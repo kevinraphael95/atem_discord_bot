@@ -24,10 +24,10 @@ REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 # ────────────────────────────────────────────────────────────────
 def is_clean_card(card):
     banned_keywords = [
-        "@Ignister", "abc -", "abc-", "altergeist", "branded", "cloudian", "D.D.", "dark world",
+        "@Ignister", "abc -", "abc-", "altergeist", "beetrouper", "branded", "cloudian", "D.D.", "dark world",
         "dragonmaid", "eyes of blue", "f.a", "f.a.", "floowandereeze", "fur hire", "harpie", 
         "hero", "kaiser", "kozaky", "labrynth", "live☆twin", "madolche", "marincess",
-        "metalfoes", "number", "oni", "phantasm spiral", "pot", "punk", "rescue",
+        "metalfoes", "noble knight", "number", "oni", "phantasm spiral", "pot", "prophecy", "punk", "rescue",
         "salamangreat", "sky striker", "tri-brigade"
 
     ]
