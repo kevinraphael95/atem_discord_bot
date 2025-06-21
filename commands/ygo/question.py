@@ -27,7 +27,8 @@ def is_clean_card(card):
         "@Ignister", "abc -", "abc-", "abyss", "altergeist", "beetrouper", "branded", "cloudian", "D.D.", "dark world",
         "dragonmaid", "eyes of blue", "f.a", "f.a.", "floowandereeze", "fur hire", "harpie", 
         "hero", "kaiser", "kozaky", "labrynth", "live☆twin", "madolche", "marincess",
-        "Mekk-Knight", "metalfoes", "noble knight", "number", "oni", "phantasm spiral", "pot", "prophecy", "punk", "rescue",
+        "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro",
+        "oni", "phantasm spiral", "pot", "prophecy", "punk", "rescue",
         "salamangreat", "sky striker", "tri-brigade"
     ]
     name = card.get("name", "").lower()
