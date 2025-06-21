@@ -40,6 +40,7 @@ def is_clean_card(card):
 class Question(commands.Cog):
     def __init__(self, bot):
         self.bot = bot  # 🔁 Référence au bot
+        self.active_sessions = {}  # id_guild : True/False
 
     # ────────────────────────────────────────────────────────
     # 🔄 Récupère un échantillon aléatoire de cartes
@@ -94,6 +95,16 @@ class Question(commands.Cog):
     )
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
     async def Question(self, ctx):
+        guild_id = ctx.guild.id if ctx.guild else None
+
+        # Vérifier si une partie est déjà active dans ce serveur
+        if guild_id in self.active_sessions and self.active_sessions[guild_id]:
+            await ctx.send("⚠️ Une partie est déjà en cours dans ce serveur. Patientez qu'elle se termine.")
+            return
+        
+        # Marquer la partie comme active
+        self.active_sessions[guild_id] = True
+
         try:
             sample = await self.fetch_card_sample(limit=60)
             random.shuffle(sample)
@@ -198,9 +209,9 @@ class Question(commands.Cog):
                     reaction.message.id == msg.id
                     and str(reaction.emoji) in REACTIONS
                     and not user.bot
-                    and user.id not in user_answers
                 )
 
+            # 60 secondes pour répondre
             try:
                 while True:
                     reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
@@ -208,33 +219,25 @@ class Question(commands.Cog):
             except asyncio.TimeoutError:
                 pass
 
-            correct_index = all_choices.index(true_card["name"])
-            correct_emoji = REACTIONS[correct_index]
-            winners = [await self.bot.fetch_user(uid) for uid, emoji in user_answers.items() if emoji == correct_emoji]
-            participants = [await self.bot.fetch_user(uid) for uid in user_answers]
-            losers = [u for u in participants if u not in winners]
+            # Calcul des résultats
+            correct_emoji = REACTIONS[all_choices.index(true_card["name"])]
+            winners = [user_id for user_id, emoji in user_answers.items() if emoji == correct_emoji]
 
-            for user in winners:
-                await self.update_streak(str(user.id), correct=True)
-            for user in losers:
-                await self.update_streak(str(user.id), correct=False)
+            # Mise à jour des streaks dans Supabase
+            for user_id in user_answers.keys():
+                await self.update_streak(str(user_id), user_id in winners)
 
-            result_embed = discord.Embed(
-                title="⏰ Temps écoulé !",
-                description=f"La bonne réponse était : {REACTIONS[correct_index]} **{true_card['name']}**",
-                color=discord.Color.green()
-            )
             if winners:
-                noms = "\n".join(f"✅ {user.mention}" for user in winners)
-                result_embed.add_field(name="Bravo à :", value=noms, inline=False)
+                winners_mentions = ", ".join(f"<@{user_id}>" for user_id in winners)
+                await ctx.send(f"🎉 Bravo à {winners_mentions} pour avoir trouvé la bonne réponse : **{true_card['name']}** !")
             else:
-                result_embed.add_field(name="Aucun gagnant 😢", value="Personne n’a trouvé la bonne réponse.")
+                await ctx.send(f"😢 Personne n’a trouvé la bonne réponse : **{true_card['name']}**.")
 
-            await ctx.send(embed=result_embed)
+        finally:
+            # Libérer la session pour ce serveur
+            self.active_sessions[guild_id] = False
 
-        except Exception as e:
-            print("[ERREUR QUESTION]", e)
-            await ctx.send("🚨 Une erreur est survenue.")
+
 
 # ────────────────────────────────────────────────────────────────
 # 🔌 SETUP DU COG
