@@ -72,7 +72,7 @@ async def get_valid_card(sample, min_count=11):
 # ────────────────────────────────────────────────────────────────
 # 🧩 CLASSE DU COG
 # ────────────────────────────────────────────────────────────────
-class Question(commands.Cog):
+class TestQuestion(bot)commands.Cog):
     def __init__(self, bot):
         self.bot = bot  # 🔁 Référence au bot
         # Stocke le message du quiz en cours pour chaque guild
@@ -130,7 +130,7 @@ class Question(commands.Cog):
         help="🧠 Devine une carte Yu-Gi-Oh à partir de sa description. Tout le monde peut participer pendant 1 minute !"
     )
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
-    async def Question(self, ctx):
+    async def TestQuestion(bot)self, ctx):
         # Ici tu peux appeler ta fonction get_valid_card
         sample = await self.fetch_card_sample(limit=60)
         main_card = await get_valid_card(sample, min_count=11)
@@ -276,7 +276,7 @@ class Question(commands.Cog):
 # 🔌 SETUP DU COG
 # ────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
-    cog = Question(bot)
+    cog = TestQuestion(bot)bot)
     for command in cog.get_commands():
         command.category = "🃏 Yu-Gi-Oh!"  # 📚 Pour l’organisation des commandes
     await bot.add_cog(cog)
