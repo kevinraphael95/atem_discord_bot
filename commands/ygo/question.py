@@ -25,7 +25,7 @@ REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 def is_clean_card(card):
     banned_keywords = [
         "@Ignister", "abc -", "abc-", "abyss", "ancient gear", "altergeist", "beetrouper", "branded", "cloudian", 
-        "crusadia", "cyber", "D.D.", "dark world", "dinowrestler", 
+        "crusadia", "cyber", "D.D.", "dark magician", "dark world", "dinowrestler", 
         "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "f.a", "f.a.", 
         "floowandereeze", "fur hire", "harpie", 
         "hero", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
