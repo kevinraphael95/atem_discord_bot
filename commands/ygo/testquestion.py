@@ -1,8 +1,8 @@
-# ────────────────────────────────────────────────────────────────
-# 🧠 Question.py — Commande !question
+# ────────────────────────────────────────────────────────────────────────────────
+# 🧠 Question.py — Commande !question et !testquestion
 # Objectif : Deviner une carte Yu-Gi-Oh à partir de sa description parmi 4 choix
 # Bonus : suivi de série de bonnes réponses (streak) enregistré via Supabase
-# ────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────
 # 📦 IMPORTS
@@ -18,24 +18,27 @@ from supabase_client import supabase         # ☁️ Base de données Supabase
 # Réactions pour les 4 propositions
 REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 
+
 # ────────────────────────────────────────────────────────────────
 # 🧹 Filtrage de cartes interdites (anti-meta, anti-spam, etc.)
 # ────────────────────────────────────────────────────────────────
 def is_clean_card(card):
     banned_keywords = [
         "@Ignister", "abc -", "abc-", "abyss", "altergeist", "beetrouper", "branded", "cloudian", 
-        "crusadia", "cyber", "D.D.", "dark world", "dragonmaid", "dragon ruler", "dragunity",
-        "exosister", "eyes of blue", "f.a", "f.a.", "floowandereeze", "fur hire", "harpie", 
-        "hero", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", 
-        "madolche", "marincess", "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", 
-        "numero", "numéro", "oni", "Performapal", "phantasm spiral", "pot", "prophecy", "psychic", 
-        "punk", "rescue", "rose dragon", "salamangreat", "sky striker", "tierra", "tri-brigade", "unchained"
+        "crusadia", "cyber", "D.D.", "dark world",
+        "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "f.a", "f.a.", 
+        "floowandereeze", "fur hire", "harpie", 
+        "hero", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
+        "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro", 
+        "oni", "Performapal", "phantasm spiral", "pot", "prophecy", "psychic", "punk", "rescue", "rose dragon", 
+        "salamangreat", "sky striker", "tierra", "tri-brigade", "unchained"
     ]
     name = card.get("name", "").lower()
     return all(keyword not in name for keyword in banned_keywords)
 
+
 # ────────────────────────────────────────────────────────────────
-# GET VALID CARD (avec archétype valide si possible)
+# GET VALID CARD, SI LA MAIN CARD A UN ARCHETYPE SUE Y4AI 10 CARTES DE LARCHETYPE MINIMUM SINON ESSAYER ENCORE
 # ────────────────────────────────────────────────────────────────
 async def get_valid_card(sample, min_count=11):
     archetype_cache = {}
@@ -65,14 +68,19 @@ async def get_valid_card(sample, min_count=11):
 
     return None
 
+
 # ────────────────────────────────────────────────────────────────
 # 🧩 CLASSE DU COG
 # ────────────────────────────────────────────────────────────────
 class Question(commands.Cog):
     def __init__(self, bot):
-        self.bot = bot
-        self.active_sessions = {}
+        self.bot = bot  # 🔁 Référence au bot
+        # Stocke le message du quiz en cours pour chaque guild
+        self.active_sessions = {}  # guild_id : discord.Message ou None
 
+    # ────────────────────────────────────────────────────────
+    # 🔄 Récupère un échantillon aléatoire de cartes
+    # ────────────────────────────────────────────────────────
     async def fetch_card_sample(self, limit=100):
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
         async with aiohttp.ClientSession() as session:
@@ -82,9 +90,15 @@ class Question(commands.Cog):
                 data = await resp.json()
                 return random.sample(data.get("data", []), min(limit, len(data.get("data", []))))
 
+    # ────────────────────────────────────────────────────────
+    # 🔒 Censure le nom de la carte dans sa description
+    # ────────────────────────────────────────────────────────
     def censor_card_name(self, desc: str, name: str) -> str:
         return re.sub(re.escape(name), "[cette carte]", desc, flags=re.IGNORECASE)
 
+    # ────────────────────────────────────────────────────────
+    # 🔁 Met à jour le streak de l’utilisateur
+    # ────────────────────────────────────────────────────────
     async def update_streak(self, user_id: str, correct: bool):
         data = supabase.table("ygo_streaks").select("*").eq("user_id", user_id).execute()
         row = data.data[0] if data.data else None
@@ -106,12 +120,21 @@ class Question(commands.Cog):
                 "best_streak": 1 if correct else 0
             }).execute()
 
-    @commands.command(name="testquestion", aliases=["tq"], help="🧠 Devine une carte Yu-Gi-Oh à partir de sa description !")
+    # ────────────────────────────────────────────────────────────────
+    # ❓ COMMANDE !testquestion
+    # Deviner une carte à partir de sa description censurée
+    # ────────────────────────────────────────────────────────────────
+    @commands.command(
+        name="testquestion",
+        aliases=["tq"],
+        help="🧠 Test : devine une carte Yu-Gi-Oh à partir de sa description en mode test !"
+    )
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
-    async def question(self, ctx):
+    async def TestQuestion(self, ctx):
+        # **copie exacte** de la méthode Question ci-dessus,
+        # seule la signature et les messages changent si tu veux.
         sample = await self.fetch_card_sample(limit=60)
         main_card = await get_valid_card(sample, min_count=11)
-
         if not main_card:
             await ctx.send("❌ Aucune carte valide trouvée.")
             return
@@ -119,7 +142,7 @@ class Question(commands.Cog):
         guild_id = ctx.guild.id if ctx.guild else None
         if guild_id in self.active_sessions and self.active_sessions[guild_id]:
             await self.active_sessions[guild_id].reply(
-                "⚠️ Une partie est déjà en cours dans ce serveur. Patientez qu'elle se termine.",
+                "⚠️ Une partie de test est déjà en cours. Patientez…",
                 mention_author=False
             )
             return
@@ -127,7 +150,6 @@ class Question(commands.Cog):
         self.active_sessions[guild_id] = None
 
         archetype = main_card.get("archetype")
-        false_cards_pool = []
         if archetype:
             url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
             async with aiohttp.ClientSession() as session:
@@ -135,11 +157,12 @@ class Question(commands.Cog):
                     if resp.status == 200:
                         data = await resp.json()
                         archetype_cards = data.get("data", [])
-                        filtered = [c for c in archetype_cards if c["name"] != main_card["name"] and is_clean_card(c)]
-                        if len(filtered) >= 3:
-                            false_cards_pool = filtered
-
-        if not false_cards_pool:
+                    else:
+                        archetype_cards = []
+            false_cards_pool = [c for c in archetype_cards if c["name"] != main_card["name"] and is_clean_card(c)]
+            if len(false_cards_pool) < 3:
+                false_cards_pool = [c for c in sample if c["name"] != main_card["name"] and is_clean_card(c)]
+        else:
             false_cards_pool = [c for c in sample if c["name"] != main_card["name"] and is_clean_card(c)]
 
         false_choices = random.sample(false_cards_pool, k=3)
@@ -149,9 +172,9 @@ class Question(commands.Cog):
         desc_censored = self.censor_card_name(main_card["desc"], main_card["name"]).replace("\n", " ")
 
         embed = discord.Embed(
-            title="🧠 Devine la carte Yu-Gi-Oh !",
+            title="🧪 Test : devine la carte Yu-Gi-Oh !",
             description=desc_censored,
-            color=discord.Color.blurple()
+            color=discord.Color.orange()
         )
         for i, card in enumerate(options):
             embed.add_field(name=REACTIONS[i], value=card["name"], inline=False)
@@ -186,9 +209,10 @@ class Question(commands.Cog):
             result_lines.append(f"{emoji} {card['name']} {mark} ({counts[emoji]} vote{'s' if counts[emoji] != 1 else ''})")
 
         result_text = "\n".join(result_lines)
-        await ctx.send(f"🧾 Résultats :\n{result_text}")
+        await ctx.send(f"🧾 Résultats TEST :\n{result_text}")
 
         self.active_sessions[guild_id] = None
+
 
 # ────────────────────────────────────────────────────────────────
 # 🔌 SETUP DU COG
