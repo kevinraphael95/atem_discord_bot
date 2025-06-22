@@ -38,6 +38,38 @@ def is_clean_card(card):
 
 
 # ────────────────────────────────────────────────────────────────
+# GET VALID CARD, SI LA MAIN CARD A UN ARCHETYPE SUE Y4AI 10 CARTES DE LARCHETYPE MINIMUM SINON ESSAYER ENORE ET ENCORE
+# ────────────────────────────────────────────────────────────────
+async def get_valid_card(sample, min_count=11):
+    archetype_cache = {}
+    max_attempts = 30
+    attempts = 0
+
+    while attempts < max_attempts:
+        card = random.choice(sample)
+        attempts += 1
+
+        archetype = card.get("archetype")
+        if not archetype:
+            return card
+
+        if archetype not in archetype_cache:
+            url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        archetype_cache[archetype] = len(data.get("data", []))
+                    else:
+                        archetype_cache[archetype] = 0
+
+        if archetype_cache[archetype] >= min_count:
+            return card
+
+    return None
+
+
+# ────────────────────────────────────────────────────────────────
 # 🧩 CLASSE DU COG
 # ────────────────────────────────────────────────────────────────
 class Question(commands.Cog):
@@ -99,6 +131,13 @@ class Question(commands.Cog):
     )
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
     async def Question(self, ctx):
+        # Ici tu peux appeler ta fonction get_valid_card
+        sample = await self.fetch_card_sample(limit=60)
+        main_card = await get_valid_card(sample, min_count=11)
+        if not main_card:
+            await ctx.send("❌ Aucune carte valide trouvée.")
+            return
+            
         guild_id = ctx.guild.id if ctx.guild else None
 
         # Partie active ? on récupère le message Discord
