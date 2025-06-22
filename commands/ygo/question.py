@@ -15,6 +15,7 @@ import asyncio                               # ⏳ Timeout & délais
 import re                                    # ✂️ Remplacement avec RegEx
 from supabase_client import supabase         # ☁️ Base de données Supabase
 
+
 # Réactions pour les 4 propositions
 REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 
@@ -38,33 +39,36 @@ def is_clean_card(card):
 
 
 # ────────────────────────────────────────────────────────────────
-# GET VALID CARD, SI LA MAIN CARD A UN ARCHETYPE SUE Y4AI 10 CARTES DE LARCHETYPE MINIMUM SINON ESSAYER ENORE ET ENCORE
+# GET VALID CARD
+# - Choisit une carte au hasard dans l'échantillon
+# - Si archétype, vérifie via API qu'il y a au moins min_count cartes dans cet archétype
+# - Sinon, continue jusqu'à max_attempts essais
 # ────────────────────────────────────────────────────────────────
-async def get_valid_card(sample, min_count=11):
+async def get_valid_card(sample, min_count=11, max_attempts=30):
     archetype_cache = {}
-    max_attempts = 30
     attempts = 0
 
-    while attempts < max_attempts:
-        card = random.choice(sample)
-        attempts += 1
-
-        archetype = card.get("archetype")
-        if not archetype:
-            return card
-
-        if archetype not in archetype_cache:
-            url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
-            async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession() as session:
+        while attempts < max_attempts:
+            attempts += 1
+            card = random.choice(sample)
+            archetype = card.get("archetype")
+            
+            if not archetype:
+                # Carte sans archétype, on la valide directement
+                return card
+            
+            if archetype not in archetype_cache:
+                url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
                 async with session.get(url) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         archetype_cache[archetype] = len(data.get("data", []))
                     else:
                         archetype_cache[archetype] = 0
-
-        if archetype_cache[archetype] >= min_count:
-            return card
+            
+            if archetype_cache[archetype] >= min_count:
+                return card
 
     return None
 
@@ -131,13 +135,6 @@ class Question(commands.Cog):
     )
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
     async def Question(self, ctx):
-        # Ici tu peux appeler ta fonction get_valid_card
-        sample = await self.fetch_card_sample(limit=60)
-        main_card = await get_valid_card(sample, min_count=11)
-        if not main_card:
-            await ctx.send("❌ Aucune carte valide trouvée.")
-            return
-            
         guild_id = ctx.guild.id if ctx.guild else None
 
         # Partie active ? on récupère le message Discord
@@ -152,185 +149,147 @@ class Question(commands.Cog):
 
         try:
             sample = await self.fetch_card_sample(limit=60)
-            random.shuffle(sample)
+            if not sample:
+                await ctx.send("❌ Impossible de récupérer les cartes pour le quiz.")
+                self.active_sessions[guild_id] = None
+                return
 
-            # On va chercher une carte principale valide, avec archétype dispo en assez grand nombre
-            main_card = None
-
-            for card in sample:
-                if "name" not in card or "desc" not in card:
-                    continue
-
-                archetype = card.get("archetype")
-                if archetype:
-                    # Vérifier qu'il y a au moins 10 autres cartes avec ce même archétype via l'API
-                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(url) as resp:
-                            if resp.status == 200:
-                                data = await resp.json()
-                                if len(data.get("data", [])) >= 11:  # au moins 11 cartes (1 principale + 10 autres)
-                                    main_card = card
-                                    break
-                            else:
-                                continue
-                else:
-                    # Carte sans archétype, on l'accepte directement
-                    main_card = card
-                    break
-
+            # Choix de la carte principale valide
+            main_card = await get_valid_card(sample, min_count=11)
             if not main_card:
-                await ctx.send("❌ Aucune carte trouvée avec un archétype suffisamment grand.")
+                await ctx.send("❌ Aucune carte valide trouvée avec un archétype assez grand ou sans archétype.")
                 self.active_sessions[guild_id] = None
                 return
 
             archetype = main_card.get("archetype")
-
             main_type = main_card.get("type", "").lower()
+            # Simplification du type pour fallback
             type_group = "monstre" if "monstre" in main_type else ("magie" if "magie" in main_type else "piège")
+
             group = []
 
-            if not archetype:
-                group = [
-                    c for c in sample
-                    if c.get("name") != main_card["name"]
-                    and "desc" in c
-                    and c.get("type", "").lower() == main_type
-                    and not c.get("archetype")
-                    and is_clean_card(c)
-                ]
-            else:
-                url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
-                async with aiohttp.ClientSession() as session:
+            # Construction des fausses réponses selon archétype
+            async with aiohttp.ClientSession() as session:
+                if archetype:
+                    # Récupérer un échantillon dans cet archétype
+                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
                     async with session.get(url) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            arch_sample = random.sample(data.get("data", []), min(60, len(data.get("data", []))))
+                            arch_cards = data.get("data", [])
+                            arch_sample = random.sample(arch_cards, min(60, len(arch_cards)))
+
+                            # Cartes différentes, même type et avec description
                             group = [
                                 c for c in arch_sample
                                 if c.get("name") != main_card["name"]
-                                and "desc" in c
-                                and c.get("type", "").lower() == main_type
+                                and "desc" in c and c.get("desc")
+                                and (type_group in c.get("type", "").lower())
                             ]
                             if len(group) < 3:
-                                group = [
-                                    c for c in arch_sample
-                                    if c.get("name") != main_card["name"]
-                                    and "desc" in c
-                                    and type_group in c.get("type", "").lower()
-                                ]
+                                group = []  # fallback si pas assez
+                # Fallback si pas assez dans archétype ou pas d'archétype
+                if not group or len(group) < 3:
+                    # Prendre aléatoirement 3 cartes dans l'échantillon filtré qui ne sont pas la carte principale
+                    group = [
+                        c for c in sample
+                        if c.get("name") != main_card["name"]
+                        and "desc" in c and c.get("desc")
+                        and (type_group in c.get("type", "").lower())
+                    ]
+                    if len(group) >= 3:
+                        group = random.sample(group, 3)
+                    else:
+                        # Si toujours pas assez, prendre n'importe quoi sauf la carte principale
+                        group = [c for c in sample if c.get("name") != main_card["name"]]
+                        if len(group) >= 3:
+                            group = random.sample(group, 3)
+                        else:
+                            # Insuffisant, abandonner
+                            await ctx.send("❌ Pas assez de cartes disponibles pour générer les réponses.")
+                            self.active_sessions[guild_id] = None
+                            return
 
-            if len(group) < 3:
-                group = [
-                    c for c in sample
-                    if c.get("name") != main_card["name"]
-                    and "desc" in c
-                    and type_group in c.get("type", "").lower()
-                ]
-            if len(group) < 3:
-                group = random.sample(
-                    [c for c in sample if c.get("name") != main_card["name"] and "desc" in c],
-                    3
-                )
+            # On mélange la bonne réponse + 3 fausses
+            choices = group[:3] + [main_card]
+            random.shuffle(choices)
 
-            true_card = main_card
-            wrongs = random.sample(group, 3)
-            all_choices = [true_card["name"]] + [c["name"] for c in wrongs]
-            random.shuffle(all_choices)
-
-            censored = self.censor_card_name(true_card["desc"], true_card["name"])
-            image_url = true_card.get("card_images", [{}])[0].get("image_url_cropped")
-
+            # Préparer l'embed
             embed = discord.Embed(
-                title="🧠 Quelle est le nom de cette carte ? (tout le monde peut jouer)",
-                description=(
-                    f"📘 **Type :** {true_card.get('type', '—')}\n"
-                    f"📝 **Description :**\n*{censored[:1500]}{'...' if len(censored) > 1500 else ''}*"
-                ),
-                color=discord.Color.purple()
+                title="🧩 Devine la carte Yu-Gi-Oh !",
+                color=discord.Color.gold()
             )
-            embed.set_author(name="Trouvez le nom de la carte", icon_url="https://cdn-icons-png.flaticon.com/512/361/361678.png")
-            # if image_url:
-            #     embed.set_thumbnail(url=image_url)
+            # Description censurée
+            censored_desc = self.censor_card_name(main_card["desc"], main_card["name"])
+            embed.description = f"**Description de la carte :**\n{censored_desc}"
 
-            embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
+            # Ajouter les propositions avec leurs réactions (A, B, C, D)
+            for i, c in enumerate(choices):
+                embed.add_field(name=f"{REACTIONS[i]} {c['name']}", value=f"*{c.get('type', 'Type inconnu')}*", inline=False)
 
-            if main_type.startswith("monstre"):
-                embed.add_field(name="💥 ATK", value=str(true_card.get("atk", "—")), inline=True)
-                embed.add_field(name="🛡️ DEF", value=str(true_card.get("def", "—")), inline=True)
-                embed.add_field(name="⚙️ Niveau", value=str(true_card.get("level", "—")), inline=True)
+            embed.set_footer(text="Réagissez avec 🇦 🇧 🇨 🇩 pour répondre. Vous avez 60 secondes.")
 
-            # Options de réponses
-            options_str = ""
-            for idx, choice in enumerate(all_choices):
-                options_str += f"{REACTIONS[idx]} - **{choice}**\n"
-            embed.add_field(name="Choix possibles", value=options_str, inline=False)
-
+            # Envoyer le message du quiz
             quiz_msg = await ctx.send(embed=embed)
-
-            # Ajouter réactions pour que tout le monde puisse réagir
-            for r in REACTIONS[:len(all_choices)]:
-                await quiz_msg.add_reaction(r)
-
-            # Stocker le message du quiz en cours pour la guild
             self.active_sessions[guild_id] = quiz_msg
 
-            answers = {}
+            # Ajouter les réactions
+            for r in REACTIONS:
+                await quiz_msg.add_reaction(r)
 
             def check(reaction, user):
                 return (
-                    reaction.message.id == quiz_msg.id
-                    and reaction.emoji in REACTIONS[:len(all_choices)]
-                    and not user.bot
-                    and user.id not in answers  # ✅ Empêche les doubles réponses
+                    reaction.message.id == quiz_msg.id and
+                    str(reaction.emoji) in REACTIONS and
+                    not user.bot and
+                    (user in ctx.channel.members or ctx.guild is None)
                 )
 
-
-            winners = set()
-            answers = {}
-
-            # Attendre 60 secondes pour collecter les réactions
             try:
+                # Collecter toutes les réactions pendant 60 secondes
+                users_answers = {}  # user_id : choix_indice
+
                 while True:
-                    reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
-                    idx = REACTIONS.index(reaction.emoji)
-                    selected_name = all_choices[idx]
-                    if user.id not in answers:
-                        answers[user.id] = selected_name
-                        if selected_name == true_card["name"]:
-                            winners.add(user)
-                            await self.update_streak(str(user.id), True)
-                        else:
-                            await self.update_streak(str(user.id), False)
+                    reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+                    choice_index = REACTIONS.index(str(reaction.emoji))
+                    users_answers[user.id] = choice_index
             except asyncio.TimeoutError:
-                # Temps écoulé, afficher résultats
-                self.active_sessions[guild_id] = None
+                pass
 
-                correct_index = all_choices.index(true_card["name"])
-                reponse = f"{REACTIONS[correct_index]} **{true_card['name']}**"
+            # Calculer résultats
+            correct_index = choices.index(main_card)
 
-                # Création de l'embed final
-                result_embed = discord.Embed(
-                    title="⏰ Le temps est écoulé !",
-                    description=(
-                        f"✅ La réponse était : {reponse}\n\n"
-                        + (
-                            f"🎉 **Gagnants :** {', '.join(w.mention for w in winners)}"
-                            if winners
-                            else "😢 Personne n'a trouvé la bonne réponse..."
-                        )
-                    ),
-                    color=discord.Color.green() if winners else discord.Color.red()
-                )
-                result_embed.set_footer(text="Merci d'avoir joué !")
+            # Préparer les résultats
+            winners = [user_id for user_id, ans in users_answers.items() if ans == correct_index]
 
-                await quiz_msg.channel.send(embed=result_embed)
+            # Récupérer les membres depuis l’ID
+            winners_mentions = []
+            for user_id in winners:
+                user = self.bot.get_user(user_id)
+                if user:
+                    winners_mentions.append(user.mention)
 
+            result_msg = f"🕑 Temps écoulé ! La bonne réponse était **{REACTIONS[correct_index]} {main_card['name']}**.\n"
+
+            if winners_mentions:
+                result_msg += "🎉 Bravo à : " + ", ".join(winners_mentions)
+            else:
+                result_msg += "😞 Personne n'a trouvé la bonne réponse cette fois."
+
+            # Mettre à jour le streak pour chaque participant
+            for user_id, ans in users_answers.items():
+                correct = (ans == correct_index)
+                await self.update_streak(str(user_id), correct)
+
+            # Afficher le message résultat
+            await ctx.send(result_msg)
 
         except Exception as e:
-            self.active_sessions[guild_id] = None
-            await ctx.send(f"❌ Une erreur est survenue : `{e}`")
+            await ctx.send(f"⚠️ Une erreur est survenue : {e}")
 
+        finally:
+            # Fin de partie, libérer la session
+            self.active_sessions[guild_id] = None
 
 
 
