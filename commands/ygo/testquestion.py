@@ -127,6 +127,7 @@ class Question(commands.Cog):
         self.active_sessions[guild_id] = None
 
         archetype = main_card.get("archetype")
+        false_cards_pool = []
         if archetype:
             url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
             async with aiohttp.ClientSession() as session:
@@ -134,12 +135,11 @@ class Question(commands.Cog):
                     if resp.status == 200:
                         data = await resp.json()
                         archetype_cards = data.get("data", [])
-                    else:
-                        archetype_cards = []
-            false_cards_pool = [c for c in archetype_cards if c["name"] != main_card["name"] and is_clean_card(c)]
-            if len(false_cards_pool) < 3:
-                false_cards_pool = [c for c in sample if c["name"] != main_card["name"] and is_clean_card(c)]
-        else:
+                        filtered = [c for c in archetype_cards if c["name"] != main_card["name"] and is_clean_card(c)]
+                        if len(filtered) >= 3:
+                            false_cards_pool = filtered
+
+        if not false_cards_pool:
             false_cards_pool = [c for c in sample if c["name"] != main_card["name"] and is_clean_card(c)]
 
         false_choices = random.sample(false_cards_pool, k=3)
@@ -189,9 +189,6 @@ class Question(commands.Cog):
         await ctx.send(f"🧾 Résultats :\n{result_text}")
 
         self.active_sessions[guild_id] = None
-
-
-
 
 # ────────────────────────────────────────────────────────────────
 # 🔌 SETUP DU COG
