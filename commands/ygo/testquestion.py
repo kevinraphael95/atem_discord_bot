@@ -106,7 +106,7 @@ class Question(commands.Cog):
                 "best_streak": 1 if correct else 0
             }).execute()
 
-    @commands.command(name="question", aliases=["q"], help="🧠 Devine une carte Yu-Gi-Oh à partir de sa description !")
+    @commands.command(name="testquestion", aliases=["tq"], help="🧠 Devine une carte Yu-Gi-Oh à partir de sa description !")
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
     async def question(self, ctx):
         sample = await self.fetch_card_sample(limit=60)
