@@ -20,6 +20,18 @@ REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
 
 
 # ────────────────────────────────────────────────────────────────
+# Interdiction des commandes en MP
+# ────────────────────────────────────────────────────────────────
+def no_dm():
+    async def predicate(ctx):
+        if ctx.guild is None:
+            await ctx.send("❌ Cette commande ne peut pas être utilisée en message privé.")
+            return False
+        return True
+    return commands.check(predicate)
+
+
+# ────────────────────────────────────────────────────────────────
 # 🧹 Filtrage de cartes interdites (anti-meta, anti-spam, etc.)
 # ────────────────────────────────────────────────────────────────
 def is_clean_card(card):
@@ -129,6 +141,7 @@ class TestQuestion(commands.Cog):
         aliases=["tq"],
         help="🧠 Devine une carte Yu-Gi-Oh à partir de sa description. Tout le monde peut participer pendant 1 minute !"
     )
+    @no_dm()  # <-- interdit la commande en MP
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
     async def TestQuestion(self, ctx):
         # Ici tu peux appeler ta fonction get_valid_card
@@ -190,6 +203,7 @@ class TestQuestion(commands.Cog):
             type_group = "monstre" if "monstre" in main_type else ("magie" if "magie" in main_type else "piège")
             group = []
 
+
             if not archetype:
                 group = [
                     c for c in sample
@@ -199,26 +213,47 @@ class TestQuestion(commands.Cog):
                     and not c.get("archetype")
                     and is_clean_card(c)
                 ]
-            else:
+            if archetype:
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            arch_sample = random.sample(data.get("data", []), min(60, len(data.get("data", []))))
+                            arch_sample = data.get("data", [])
                             group = [
                                 c for c in arch_sample
                                 if c.get("name") != main_card["name"]
                                 and "desc" in c
                                 and c.get("type", "").lower() == main_type
                             ]
-                            if len(group) < 3:
-                                group = [
+
+                            # ✅ Si on en a assez, on ne prend que ça
+                            if len(group) >= 10:
+                                group = random.sample(group, 10)
+                            else:
+                                # Sinon on étend avec d'autres du même archétype et même type_group
+                                group += [
                                     c for c in arch_sample
                                     if c.get("name") != main_card["name"]
                                     and "desc" in c
                                     and type_group in c.get("type", "").lower()
+                                    and c not in group
                                 ]
+
+
+            if len(group) < 3:
+                group = [
+                    c for c in sample
+                    if c.get("name") != main_card["name"]
+                    and "desc" in c
+                    and type_group in c.get("type", "").lower()
+                ]
+            if len(group) < 3:
+                group = random.sample(
+                    [c for c in sample if c.get("name") != main_card["name"] and "desc" in c],
+                    3
+                )
+
 
             if len(group) < 3:
                 group = [
