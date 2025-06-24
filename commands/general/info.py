@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 info.py — Commande !info
-# Objectif : Afficher les nouveautés / derniers changements du bot dans un embed structuré
+# Objectif : Afficher les nouveautés / derniers changements du bot dans un embed simple
 # Catégorie : Général
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ import discord
 from discord.ext import commands
 
 # ────────────────────────────────────────────────────────────────────────────────
- 🧠 Cog principal
+# 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class InfoCog(commands.Cog):
     """
@@ -29,6 +29,8 @@ class InfoCog(commands.Cog):
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def info(self, ctx: commands.Context):
         """Commande principale qui envoie un embed avec les nouveautés."""
+        prefix = ctx.prefix  # Récupère le préfixe dynamique utilisé par le bot
+
         embed = discord.Embed(
             title="🛠️ Derniers changements du bot",
             color=discord.Color.blue()
