@@ -141,7 +141,7 @@ async def on_message(message):
         embed = discord.Embed(
             title="Présentation",
             description=(
-                f"Je suis **Atem**, un bot discord inspiré du manga Yu-Gi-Oh.\n"
+                f"Je suis **Atem**, un bot discord inspiré du manga Yu-Gi-Oh.\n\n"
                 f"Utilise la commande `{prefix}help` pour voir la liste des commandes.\n"
                 f"Utilise la commande `{prefix}info` pour avoir une présentation du bot."
             ),
