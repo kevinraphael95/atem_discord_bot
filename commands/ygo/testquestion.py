@@ -42,8 +42,8 @@ def is_clean_card(card):
         "floowandereeze", "fur hire", "genex", "harpie", 
         "hero", "héro", "héros", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
         "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro", 
-        "oni", "Performapal", "phantasm spiral", "pot", "prophecy", "psychic", "punk", "rescue", "rose dragon", 
-        "salamangreat", "six samurai", "sky striker", "tierra", "tri-brigade", "unchained"
+        "oni", "Performapal", "phantasm spiral", "Phantom Knights", "pot", "prophecy", "psychic", "punk", "rescue", "rose dragon", 
+        "salamangreat", "six samurai", "sky striker", "tierra", "Traptrix", "tri-brigade", "unchained", "zoodiac"
     ]
     name = card.get("name", "").lower()
     return all(keyword not in name for keyword in banned_keywords)
