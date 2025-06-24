@@ -205,7 +205,12 @@ class TestQuestion(commands.Cog):
 
 
             if not archetype:
-                group = [
+                def common_word_score(card_name1, card_name2):
+                    words1 = set(re.findall(r"\w+", card_name1.lower()))
+                    words2 = set(re.findall(r"\w+", card_name2.lower()))
+                    return len(words1 & words2)
+
+                candidates = [
                     c for c in sample
                     if c.get("name") != main_card["name"]
                     and "desc" in c
@@ -213,6 +218,18 @@ class TestQuestion(commands.Cog):
                     and not c.get("archetype")
                     and is_clean_card(c)
                 ]
+
+                # Trier les candidats par mots communs avec la carte principale
+                candidates.sort(key=lambda c: common_word_score(main_card["name"], c["name"]), reverse=True)
+
+                # Garder les 10 meilleurs résultats
+                group = candidates[:10]
+
+
+
+
+
+
             if archetype:
                 url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
                 async with aiohttp.ClientSession() as session:
