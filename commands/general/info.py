@@ -43,7 +43,7 @@ class InfoCog(commands.Cog):
             value=(
                 "\n"
                 "**• Question :** Devinez la carte avec sa description.\n"
-                "**• Y'a aussi TestQuestion, un test pour amméliorer la commande qustion\n"
+                "• Y'a aussi TestQuestion, un test pour amméliorer la commande qustion\n"
                 "**• Illustration :** Devinez la carte avec son illustration.\n"
                 "**• Carte :** Chercher les infos d'une carte avec son nom français oou anglais."
             ),
@@ -55,7 +55,7 @@ class InfoCog(commands.Cog):
             name="🎮 VAACT",
             value=(
                 "**• Tournoi :** Regardez si un tournoi VAACT est prévu et si oui sa date.\n"
-                "**• Deck"
+                "**• Deck :** Regardez les decks custom du tournoi version animé/manga (y'aura des astuces avec peut-être un jour)"
             ),
             inline=False
         )
