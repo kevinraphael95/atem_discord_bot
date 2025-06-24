@@ -142,8 +142,8 @@ async def on_message(message):
             title="Présentation",
             description=(
                 f"Je suis **Atem**, un bot discord inspiré du manga Yu-Gi-Oh.\n"
-                f"Utilise la commande `{prefix}help` pour voir mes commandes.\n"
-                f"Utilise la commande `{prefix}info` pour avoir une présentation un peu moijs austère de ce que fait le bot."
+                f"Utilise la commande `{prefix}help` pour voir la liste des commandes.\n"
+                f"Utilise la commande `{prefix}info` pour avoir une présentation du bot."
             ),
             color=discord.Color.red()
         )
