@@ -39,7 +39,7 @@ def is_clean_card(card):
         "@Ignister", "abc -", "abc-", "abyss", "ancient gear", "altergeist", "beetrouper", "branded", "cloudian", 
         "crusadia", "cyber", "D.D.", "dark magician", "dark world", "dinowrestler", 
         "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "f.a", "f.a.", 
-        "floowandereeze", "fur hire", "harpie", 
+        "floowandereeze", "fur hire", "gnex", "harpie", 
         "hero", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
         "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro", 
         "oni", "Performapal", "phantasm spiral", "pot", "prophecy", "psychic", "punk", "rescue", "rose dragon", 
