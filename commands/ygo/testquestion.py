@@ -40,7 +40,7 @@ def is_clean_card(card):
         "crusadia", "cyber", "D.D.", "dark magician", "dark world", "dinowrestler", 
         "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "f.a", "f.a.", 
         "floowandereeze", "fur hire", "genex", "harpie", 
-        "hero", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
+        "hero", "héro", "héros", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
         "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro", 
         "oni", "Performapal", "phantasm spiral", "pot", "prophecy", "psychic", "punk", "rescue", "rose dragon", 
         "salamangreat", "sky striker", "tierra", "tri-brigade", "unchained"
