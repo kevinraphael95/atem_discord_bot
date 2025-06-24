@@ -24,6 +24,7 @@ class InfoCog(commands.Cog):
 
     @commands.command(
         name="info",
+        aliases=["i"],
         help="Affiche les nouveautés et derniers changements du bot."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
@@ -36,11 +37,14 @@ class InfoCog(commands.Cog):
             color=discord.Color.blue()
         )
 
+
         # Section Yugioh
         embed.add_field(
             name="🃏 Yu-Gi-Oh!",
             value=(
+                "\n"
                 "**• Question :** Devinez la carte avec sa description.\n"
+                "**• Y'a aussi TestQuestion, un test pour amméliorer la commande qustion\n"
                 "**• Illustration :** Devinez la carte avec son illustration.\n"
                 "**• Carte :** Chercher les infos d'une carte avec son nom français oou anglais."
             ),
@@ -52,7 +56,7 @@ class InfoCog(commands.Cog):
             name="🎮 VAACT",
             value=(
                 "**• Tournoi :** Regardez si un tournoi VAACT est prévu et si oui sa date.\n"
-                "**• xxx"
+                "**• Deck"
             ),
             inline=False
         )
