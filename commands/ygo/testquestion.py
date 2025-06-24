@@ -255,18 +255,6 @@ class TestQuestion(commands.Cog):
                 )
 
 
-            if len(group) < 3:
-                group = [
-                    c for c in sample
-                    if c.get("name") != main_card["name"]
-                    and "desc" in c
-                    and type_group in c.get("type", "").lower()
-                ]
-            if len(group) < 3:
-                group = random.sample(
-                    [c for c in sample if c.get("name") != main_card["name"] and "desc" in c],
-                    3
-                )
 
             true_card = main_card
             wrongs = random.sample(group, 3)
