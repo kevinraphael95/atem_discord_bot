@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 info.py — Commande !info
-# Objectif : Afficher les nouveautés / derniers changements du bot dans un embed simple
+# Objectif : Afficher les nouveautés / derniers changements du bot dans un embed structuré
 # Catégorie : Général
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ import discord
 from discord.ext import commands
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
+ 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class InfoCog(commands.Cog):
     """
@@ -29,19 +29,33 @@ class InfoCog(commands.Cog):
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def info(self, ctx: commands.Context):
         """Commande principale qui envoie un embed avec les nouveautés."""
-        prefix = ctx.prefix  # Récupère le préfixe dynamique utilisé par le bot
-
-        changelog_lines = [
-            f"• Commande $question :\n"
-            f"- Commande maintenant multijoueur\n"
-            f"- De meilleures propositions de noms quand la carte n'a aucun archétype"
-        ]
-
         embed = discord.Embed(
-            title="🛠️ Derniers changements",
+            title="🛠️ Derniers changements du bot",
             color=discord.Color.blue()
         )
-        embed.description = "\n".join(changelog_lines)
+
+        # Section Yugioh
+        embed.add_field(
+            name="🃏 Yu-Gi-Oh!",
+            value=(
+                "**• Question :** Devinez la carte avec sa description.\n"
+                "**• Illustration :** Devinez la carte avec son illustration.\n"
+                "**• Carte :** Chercher les infos d'une carte avec sn nom français oou anglais."
+            ),
+            inline=False
+        )
+
+        # Section VAACT
+        embed.add_field(
+            name="🎮 VAACT",
+            value=(
+                "**• Tournoi :** Regardez si un tournoi VAACT est prévu et si oui sa date.\n"
+                "**• xxx"
+            ),
+            inline=False
+        )
+
+        # Footer
         embed.set_footer(text="Merci d'utiliser le bot !")
 
         await ctx.send(embed=embed)
