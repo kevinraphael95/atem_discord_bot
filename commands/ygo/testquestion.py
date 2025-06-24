@@ -274,6 +274,8 @@ class TestQuestion(commands.Cog):
 
 
             true_card = main_card
+            # ✅ Filtrage de carte banned word pur les fausses réponses
+            group = [c for c in group if is_clean_card(c)]
             wrongs = random.sample(group, 3)
             all_choices = [true_card["name"]] + [c["name"] for c in wrongs]
             random.shuffle(all_choices)
