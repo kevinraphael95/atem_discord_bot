@@ -32,7 +32,7 @@ class InfoCog(commands.Cog):
         prefix = ctx.prefix  # Récupère le préfixe dynamique utilisé par le bot
 
         embed = discord.Embed(
-            title="🛠️ Derniers changements du bot",
+            title="Présentation du bot",
             color=discord.Color.blue()
         )
 
@@ -42,7 +42,7 @@ class InfoCog(commands.Cog):
             value=(
                 "**• Question :** Devinez la carte avec sa description.\n"
                 "**• Illustration :** Devinez la carte avec son illustration.\n"
-                "**• Carte :** Chercher les infos d'une carte avec sn nom français oou anglais."
+                "**• Carte :** Chercher les infos d'une carte avec son nom français oou anglais."
             ),
             inline=False
         )
