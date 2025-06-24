@@ -24,7 +24,6 @@ class InfoCog(commands.Cog):
 
     @commands.command(
         name="info",
-        aliases=["i"],
         help="Affiche les nouveautés et derniers changements du bot."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
