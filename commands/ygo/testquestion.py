@@ -32,6 +32,17 @@ def no_dm():
 
 
 # ────────────────────────────────────────────────────────────────
+# si la carte main a pas d'archétypes bonus mot en commun dans les fausses cartes et la vraie
+# ────────────────────────────────────────────────────────────────
+
+def common_word_score(name1, name2):
+    words1 = set(name1.lower().split())
+    words2 = set(name2.lower().split())
+    return len(words1 & words2)
+
+
+
+# ────────────────────────────────────────────────────────────────
 # 🧹 Filtrage de cartes interdites (anti-meta, anti-spam, etc.)
 # ────────────────────────────────────────────────────────────────
 def is_clean_card(card):
@@ -165,37 +176,12 @@ class TestQuestion(commands.Cog):
 
         try:
             sample = await self.fetch_card_sample(limit=60)
-            random.shuffle(sample)
-
-            # On va chercher une carte principale valide, avec archétype dispo en assez grand nombre
-            main_card = None
-
-            for card in sample:
-                if "name" not in card or "desc" not in card:
-                    continue
-
-                archetype = card.get("archetype")
-                if archetype:
-                    # Vérifier qu'il y a au moins 10 autres cartes avec ce même archétype via l'API
-                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(url) as resp:
-                            if resp.status == 200:
-                                data = await resp.json()
-                                if len(data.get("data", [])) >= 11:  # au moins 11 cartes (1 principale + 10 autres)
-                                    main_card = card
-                                    break
-                            else:
-                                continue
-                else:
-                    # Carte sans archétype, on l'accepte directement
-                    main_card = card
-                    break
-
+            main_card = await get_valid_card(sample)
             if not main_card:
                 await ctx.send("❌ Aucune carte trouvée avec un archétype suffisamment grand.")
                 self.active_sessions[guild_id] = None
                 return
+
 
             archetype = main_card.get("archetype")
 
@@ -205,11 +191,6 @@ class TestQuestion(commands.Cog):
 
 
             if not archetype:
-                def common_word_score(card_name1, card_name2):
-                    words1 = set(re.findall(r"\w+", card_name1.lower()))
-                    words2 = set(re.findall(r"\w+", card_name2.lower()))
-                    return len(words1 & words2)
-
                 candidates = [
                     c for c in sample
                     if c.get("name") != main_card["name"]
@@ -219,10 +200,13 @@ class TestQuestion(commands.Cog):
                     and is_clean_card(c)
                 ]
 
-                # Trier les candidats par mots communs avec la carte principale
-                candidates.sort(key=lambda c: common_word_score(main_card["name"], c["name"]), reverse=True)
+                # Trie selon les mots communs
+                candidates.sort(
+                    key=lambda c: common_word_score(main_card["name"], c["name"]),
+                    reverse=True
+                )
 
-                # Garder les 10 meilleurs résultats
+                # Prend les 10 meilleurs
                 group = candidates[:10]
 
 
