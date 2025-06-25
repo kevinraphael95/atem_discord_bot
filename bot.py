@@ -139,11 +139,11 @@ async def on_message(message):
         prefix = get_prefix(bot, message)
 
         embed = discord.Embed(
-            title="Présentation",
+            title="Coucou ! 🃏",
             description=(
-                f"Je suis **Atem**, un bot discord inspiré du manga Yu-Gi-Oh.\n\n"
-                f"• Utilise la commande `{prefix}help` pour voir la liste des commandes.\n"
-                f"• Utilise la commande `{prefix}info` pour avoir une présentation du bot."
+                f", je suis **Atem**, un bot discord inspiré du manga Yu-Gi-Oh.\n\n"
+                f"• Utilise la commande `{prefix}info` pour avoir une présentation du bot et ce qu'il fait.\n"
+                f"• Utilise la commande `{prefix}help` pour avoir la liste des commandes du bot du bot ou `{prefix} + le nom d'une commande pour en avoir une description`."
             ),
             color=discord.Color.red()
         )
