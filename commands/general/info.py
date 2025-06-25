@@ -24,7 +24,7 @@ class InfoCog(commands.Cog):
 
     @commands.command(
         name="info",
-        help="Affiche les nouveautés et derniers changements du bot."
+        help="Présente le bot et ce qu'il fait."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
     async def info(self, ctx: commands.Context):
@@ -43,9 +43,9 @@ class InfoCog(commands.Cog):
             value=(
                 "\n"
                 "**• Question :** Devinez la carte avec sa description.\n"
-                "• Y'a aussi TestQuestion, un test pour amméliorer la commande qustion\n"
+                "( Y'a aussi TestQuestion, une tentative d'ammélioration de la commande question, test. )\n"
                 "**• Illustration :** Devinez la carte avec son illustration.\n"
-                "**• Carte :** Chercher les infos d'une carte avec son nom français oou anglais."
+                "**• Carte :** Chercher les infos d'une carte avec son nom français ou anglais."
             ),
             inline=False
         )
