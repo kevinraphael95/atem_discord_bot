@@ -128,18 +128,21 @@ class DateStepView(View):
                         self.selected["day"],
                         self.selected["hour"]
                     )
+
+                    
                     response = supabase.table("tournoi_info").update({"prochaine_date": dt.isoformat()}).eq("id", 1).execute()
 
-                    if response.status_code in (200, 204):
+                    if response.error is None:
                         await interaction.response.edit_message(
                             content=f"✅ Date mise à jour : {dt.strftime('%d/%m/%Y %Hh')}",
                             view=None
                         )
                     else:
                         await interaction.response.edit_message(
-                            content=f"❌ Erreur Supabase : code {response.status_code}",
+                            content=f"❌ Erreur Supabase : {response.error.message}",
                             view=None
                         )
+
 
 
 
