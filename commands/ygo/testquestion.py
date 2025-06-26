@@ -14,6 +14,7 @@ import random                                # 🎲 Choix aléatoires
 import asyncio                               # ⏳ Timeout & délais
 import re                                    # ✂️ Remplacement avec RegEx
 from supabase_client import supabase         # ☁️ Base de données Supabase
+from difflib import SequenceMatcher  # Ajoute ça en haut si ce n’est pas déjà fait
 
 # Réactions pour les 4 propositions
 REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
@@ -39,6 +40,14 @@ def common_word_score(name1, name2):
     words1 = set(name1.lower().split())
     words2 = set(name2.lower().split())
     return len(words1 & words2)
+
+
+# ────────────────────────────────────────────────────────────────
+# similarity_ratio
+# ────────────────────────────────────────────────────────────────
+def similarity_ratio(a: str, b: str) -> float:
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
 
 
 
