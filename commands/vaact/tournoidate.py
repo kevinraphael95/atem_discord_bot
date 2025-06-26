@@ -130,18 +130,22 @@ class DateStepView(View):
                     )
 
                     
-                    response = supabase.table("tournoi_info").update({"prochaine_date": dt.isoformat()}).eq("id", 1).execute()
+                    response = supabase.table("tournoi_info").update({
+                        "prochaine_date": dt.isoformat()
+                    }).eq("id", 1).execute()
 
-                    if response.error is None:
+                    # Vérifie simplement si 'data' existe ou si c'est vide
+                    if response.data:
                         await interaction.response.edit_message(
                             content=f"✅ Date mise à jour : {dt.strftime('%d/%m/%Y %Hh')}",
                             view=None
                         )
                     else:
                         await interaction.response.edit_message(
-                            content=f"❌ Erreur Supabase : {response.error.message}",
+                            content=f"❌ Erreur Supabase : mise à jour échouée",
                             view=None
                         )
+
 
 
 
