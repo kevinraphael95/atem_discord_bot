@@ -103,7 +103,7 @@ class TournoiCommand(commands.Cog):
             ),
             color=discord.Color.gold()
         )
-        embed.set_footer(text=f"Réagis à ce message avec {EMOJI_RAPPEL} pour recevoir un rappel 3 jours avant.")
+        embed.set_footer(text=f"Réagis à ce message avec {EMOJI_RAPPEL} pour recevoir un rappel 3 jours avant. (pour l'instant ça marche pas)")
 
         message = await ctx.send(embed=embed)
         await message.add_reaction(EMOJI_RAPPEL)
