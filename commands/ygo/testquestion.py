@@ -200,14 +200,17 @@ class TestQuestion(commands.Cog):
                     and is_clean_card(c)
                 ]
 
-                # Trie selon les mots communs
+                # Tri avancé par score mots + similarité globale
                 candidates.sort(
-                    key=lambda c: common_word_score(main_card["name"], c["name"]),
+                    key=lambda c: (
+                        common_word_score(main_card["name"], c["name"]) * 2 +
+                        similarity_ratio(main_card["name"], c["name"])
+                    ),
                     reverse=True
                 )
 
-                # Prend les 10 meilleurs
                 group = candidates[:10]
+
 
 
 
