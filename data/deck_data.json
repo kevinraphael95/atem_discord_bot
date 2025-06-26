@@ -7,12 +7,12 @@
         "Ext. Duel Version Expert : https://www.duelingbook.com/deck?id=15291959"
       ],
       "astuces": [
-        "TESTTESTTESTTESTTESTTESTTESTTEST",
-        "Invoque rapidement Magicien Sombre avec Rideau, Skilled ou Dimension Magique.",
-        "Protège-le avec tes pièges clés : Force de Miroir, Cylindre, Cercle Envoûtant.",
-        "Fusionne avec Buster Blader ou Magicienne pour invoquer Paladin Sombre ou Les Magiciens Sombres.",
-        "Slifer est ton boss final : invoque-le quand tu as une bonne main.",
-        "Prépare ton terrain avec des pièges posés avant le tour adverse."
+        "test",
+        "test",
+        "test",
+        "test",
+        "test",
+        "test",
       ]
     },
     "Seto Kaiba": {
@@ -284,7 +284,8 @@
       "deck" : [
         "Main/Side : https://www.duelingbook.com/deck?id=17063181",
         "Extra : https://www.duelingbook.com/deck?id=17086268"
-      ]
+      ],
+      "astuces": "📝 Ajouter ici des astuces et conseils de jeu pour ce personnage."
     }
   }
 
