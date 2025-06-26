@@ -42,6 +42,7 @@ class InfoCog(commands.Cog):
             name="🃏 Yu-Gi-Oh!",
             value=(
                 "\n"
+                "D'abord les commandes sur Yu-Gi-Oh en général, y'a surtout les deux minijeux question et illustration, et la commande carte pour voir les infos d'une carte YGO.\n"
                 "**• Question :** Devinez la carte avec sa description.\n"
                 "( Y'a aussi TestQuestion, une tentative d'ammélioration de la commande question, test. )\n"
                 "**• Illustration :** Devinez la carte avec son illustration.\n"
@@ -54,6 +55,7 @@ class InfoCog(commands.Cog):
         embed.add_field(
             name="🎮 VAACT",
             value=(
+                "Et les commandes pour le tournoi Yu-Gi-Oh VAACT pour voir quand est le prochain (si y'en a un de prévu) et les decks personnalisés manga/anime du tournoi."
                 "**• Tournoi :** Regardez si un tournoi VAACT est prévu et si oui sa date.\n"
                 "**• Deck :** Regardez les decks custom du tournoi version animé/manga (y'aura des astuces avec peut-être un jour)"
             ),
