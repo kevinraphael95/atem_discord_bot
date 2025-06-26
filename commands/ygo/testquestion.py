@@ -14,8 +14,6 @@ import random                                # 🎲 Choix aléatoires
 import asyncio                               # ⏳ Timeout & délais
 import re                                    # ✂️ Remplacement avec RegEx
 from supabase_client import supabase         # ☁️ Base de données Supabase
-from difflib import SequenceMatcher  # 📐 Similarité de chaînes
-
 
 # Réactions pour les 4 propositions
 REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
@@ -41,13 +39,6 @@ def common_word_score(name1, name2):
     words1 = set(name1.lower().split())
     words2 = set(name2.lower().split())
     return len(words1 & words2)
-
-
-# ────────────────────────────────────────────────────────────────
-# check mots en commun si cartye a pas de archetype, fausses réponses avec la bonne
-# ────────────────────────────────────────────────────────────────
-def similarity_ratio(str1, str2):
-    return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
 
 
 
