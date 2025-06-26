@@ -130,9 +130,11 @@ class DateStepView(View):
                     )
 
                     
-                    response = supabase.table("tournoi_info").update({
+                    response = supabase.table("tournoi_info").upsert({
+                        "id": 1,
                         "prochaine_date": dt.isoformat()
-                    }).eq("id", 1).execute()
+                    }).execute()
+
 
                     # Vérifie simplement si 'data' existe ou si c'est vide
                     if response.data:
