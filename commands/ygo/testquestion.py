@@ -57,7 +57,7 @@ def similarity_ratio(a: str, b: str) -> float:
 def is_clean_card(card):
     banned_keywords = [
         "@Ignister", "abc -", "abc-", "abyss", "ancient gear", "altergeist", "assaut de l'air", "air assault", "beetrouper", "branded", "cloudian", 
-        "crusadia", "cyber", "cynet", "D.D.", "dark magician", "dark world", "dinowrestler", 
+        "crusadia", "cyber", "cynet", "Danger !", "D.D.", "dark magician", "dark world", "dinowrestler", 
         "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "yeux de bleu", "f.a", "f.a.", 
         "floowandereeze", "fur hire", "gearfried", "genex", "harpie", 
         "hero", "héro", "héros", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
