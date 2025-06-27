@@ -192,6 +192,8 @@ class TestQuestion(commands.Cog):
 
             if not archetype:
                 name_words = set(main_card["name"].lower().split())
+
+                main_words = get_significant_words(main_card["name"])
                 candidates = [
                     c for c in sample
                     if c.get("name") != main_card["name"]
@@ -199,9 +201,9 @@ class TestQuestion(commands.Cog):
                     and c.get("type", "").lower() == main_type
                     and not c.get("archetype")
                     and is_clean_card(c)
-                    and name_words & set(c.get("name", "").lower().split())  # ← garde seulement si au moins un mot en commun
+                    and get_significant_words(c["name"]) & main_words  # au moins un mot en commun
                 ]
-                group = candidates
+
 
 
 
