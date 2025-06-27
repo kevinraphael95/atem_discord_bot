@@ -191,6 +191,7 @@ class TestQuestion(commands.Cog):
 
 
             if not archetype:
+                name_words = set(main_card["name"].lower().split())
                 candidates = [
                     c for c in sample
                     if c.get("name") != main_card["name"]
@@ -198,18 +199,10 @@ class TestQuestion(commands.Cog):
                     and c.get("type", "").lower() == main_type
                     and not c.get("archetype")
                     and is_clean_card(c)
+                    and name_words & set(c.get("name", "").lower().split())  # ← garde seulement si au moins un mot en commun
                 ]
+                group = candidates
 
-                # Tri avancé par score mots + similarité globale
-                candidates.sort(
-                    key=lambda c: (
-                        common_word_score(main_card["name"], c["name"]) * 2 +
-                        similarity_ratio(main_card["name"], c["name"])
-                    ),
-                    reverse=True
-                )
-
-                group = candidates[:10]
 
 
 
