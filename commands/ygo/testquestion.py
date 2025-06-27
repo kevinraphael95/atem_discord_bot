@@ -67,6 +67,11 @@ def censor_card_name(desc: str, name: str) -> str:
     # Remplace le nom exact de la carte dans sa description par [cette carte]
     return re.sub(re.escape(name), "[cette carte]", desc, flags=re.IGNORECASE)
 
+def get_significant_words(name):
+    # Récupère les mots de 3 lettres ou plus (exclut "de", "la", etc.)
+    return set(word.lower() for word in re.findall(r'\b\w{3,}\b', name))
+
+
 # ────────────────────────────────────────────────────────────────
 # 🔍 SÉLECTION D'UNE CARTE PRINCIPALE VALIDE
 # ────────────────────────────────────────────────────────────────
@@ -153,6 +158,7 @@ class TestQuestion(commands.Cog):
             group = []
             if not archetype:
                 # Si pas d'archétype, chercher des cartes du même type sans archétype et avec mots en commun
+                main_words = get_significant_words(main_card["name"])
                 candidates = [
                     c for c in sample
                     if c.get("name") != main_card["name"]
@@ -160,13 +166,9 @@ class TestQuestion(commands.Cog):
                     and c.get("type", "").lower() == main_type
                     and not c.get("archetype")
                     and is_clean_card(c)
+                    and get_significant_words(c["name"]) & main_words  # au moins un mot en commun
                 ]
-                candidates.sort(
-                    key=lambda c: (
-                        common_word_score(main_card["name"], c["name"]) * 2 + similarity_ratio(main_card["name"], c["name"])
-                    ),
-                    reverse=True
-                )
+
                 group = candidates[:10]
             else:
                 # Si archétype, récupérer d'autres cartes du même archétype
