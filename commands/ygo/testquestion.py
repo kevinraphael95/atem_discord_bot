@@ -47,9 +47,18 @@ def common_word_score(name1, name2):
 def is_clean_card(card):
     # Filtre les cartes contenant des mots bannis (métas, spams...)
     banned_keywords = [
-        "@Ignister", "abc -", "abyss", "altergeist", "assaut", "cyber", "dragonmaid",
-        "dark magician", "floowandereeze", "hero", "labrynth", "live☆twin", "punk",
-        "salamangreat", "traptrix", "zoodiac", "sky striker", "tri-brigade",
+        "@Ignister", "abc -", "abc-", "abyss", "ancient gear", "altergeist", "archfiend", "assaut de l'air", 
+        "air assault", "beetrouper", "branded", "cloudian", 
+        "crusadia", "cyber", "cynet", "D.D.", "dark magician", "dark world", "dinowrestler", 
+        "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "yeux de bleu", "f.a", "f.a.", 
+        "floowandereeze", "fur hire", "gearfried", "genex", "harpie", 
+        "hero", "héro", "héros", "hurricail", "infinitrack", "kaiser", "kozaky", 
+        "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
+        "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro", 
+        "oni", "Performapal", "phantasm spiral", "Phantom Knights", "pot", 
+        "prophecy", "psychic", "punk", "rescue", "rose dragon", 
+        "salamangreat", "six samurai", "sky striker", "usnavalon", "tierra", 
+        "Traptrix", "tri-brigade", "unchained", "zoodiac"
     ]
     name = card.get("name", "").lower()
     return all(kw.lower() not in name for kw in banned_keywords)
