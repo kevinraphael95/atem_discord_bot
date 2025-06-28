@@ -151,57 +151,70 @@ class TestQuestion(commands.Cog):
 
             # 🔍 Choix des fausses cartes
             group = []
-            if not archetype:
-                # Si pas d'archétype, chercher des cartes du même type sans archétype et avec mots en commun
-                candidates = [
-                    c for c in sample
-                    if c.get("name") != main_card["name"]
-                    and "desc" in c
-                    and c.get("type", "").lower() == main_type
-                    and not c.get("archetype")
-                    and is_clean_card(c)
-                ]
-                candidates.sort(
-                    key=lambda c: (
-                        common_word_score(main_card["name"], c["name"]) * 2 + similarity_ratio(main_card["name"], c["name"])
-                    ),
-                    reverse=True
-                )
-                group = candidates[:10]
-            else:
-                # Si archétype, récupérer d'autres cartes du même archétype
-                url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            arch_sample = data.get("data", [])
-                            group = [
-                                c for c in arch_sample
-                                if c.get("name") != main_card["name"]
-                                and "desc" in c
-                                and c.get("type", "").lower() == main_type
-                            ]
-                            if len(group) < 10:
-                                group += [
+            retry = 0
+            while len(group) < 3 and retry < 5:
+                group = []
+                retry += 1
+                if not archetype:
+                    # Si pas d'archétype, chercher des cartes du même type sans archétype et avec mots en commun
+                    candidates = [
+                        c for c in sample
+                        if c.get("name") != main_card["name"]
+                        and "desc" in c
+                        and c.get("type", "").lower() == main_type
+                        and not c.get("archetype")
+                        and is_clean_card(c)
+                    ]
+                    candidates.sort(
+                        key=lambda c: (
+                            common_word_score(main_card["name"], c["name"]) * 2 +
+                            similarity_ratio(main_card["name"], c["name"])
+                        ),
+                        reverse=True
+                    )
+                    group = candidates[:10]
+                else:
+                    # Si archétype, récupérer d'autres cartes du même archétype
+                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                arch_sample = data.get("data", [])
+                                group = [
                                     c for c in arch_sample
                                     if c.get("name") != main_card["name"]
                                     and "desc" in c
-                                    and type_group in c.get("type", "").lower()
-                                    and c not in group
+                                    and c.get("type", "").lower() == main_type
                                 ]
+                                if len(group) < 10:
+                                    group += [
+                                        c for c in arch_sample
+                                        if c.get("name") != main_card["name"]
+                                        and "desc" in c
+                                        and type_group in c.get("type", "").lower()
+                                        and c not in group
+                                    ]
 
+            # Fallback si toujours pas assez
             if len(group) < 3:
-                # Fallback : mêmes types globaux ou aléatoire si pas assez
                 group = [
                     c for c in sample
                     if c.get("name") != main_card["name"] and "desc" in c and type_group in c.get("type", "").lower()
                 ]
                 if len(group) < 3:
-                    group = random.sample([c for c in sample if c.get("name") != main_card["name"] and "desc" in c], 3)
+                    group = random.sample(
+                        [c for c in sample if c.get("name") != main_card["name"] and "desc" in c],
+                        min(10, len(sample))
+                    )
 
             group = [c for c in group if is_clean_card(c)]
-            wrongs = random.sample(group, 3)
+            wrongs = random.sample(group, min(3, len(group)))
+
+
+
+
+            
             all_choices = [main_card["name"]] + [c["name"] for c in wrongs]
             random.shuffle(all_choices)
 
