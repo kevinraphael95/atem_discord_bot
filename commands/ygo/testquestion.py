@@ -241,8 +241,9 @@ class TestQuestion(commands.Cog):
             # Fallback si toujours pas assez
             if len(group) < 3:
                 group = [
-                    c for c in sample
-                    if c.get("name") != main_card["name"] and "desc" in c and type_group in c.get("type", "").lower()
+                    c for c in sample                    
+                    get_type_group(c.get("type", "")) == type_group
+                    
                 ]
                 if len(group) < 3:
                     group = random.sample(
