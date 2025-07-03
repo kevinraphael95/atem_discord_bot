@@ -45,7 +45,7 @@ def common_word_score(name1, name2):
     return len(words1 & words2)
 
 def is_clean_card(card):
-    # Filtre les cartes contenant des mots bannis (métas, spams...)
+    # Filtre les cartes contenant des mots bannis pas pris en compte par le paramètre archétype de ygo pro deck
     banned_keywords = [
         "@Ignister", "abc -", "abc-", "abyss", "ancient gear", "altergeist", "archfiend", "assaut de l'air", 
         "air assault", "beetrouper", "branded", "cloudian", 
@@ -62,6 +62,9 @@ def is_clean_card(card):
     ]
     name = card.get("name", "").lower()
     return all(kw.lower() not in name for kw in banned_keywords)
+
+
+
 
 def censor_card_name(desc: str, name: str) -> str:
     # Remplace le nom exact de la carte dans sa description par [cette carte]
