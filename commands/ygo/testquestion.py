@@ -103,6 +103,17 @@ async def get_valid_card(sample, min_count=11):
             return card
     return None
 
+
+async def fetch_cards_by_keyword(keyword):
+    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr&fname={keyword}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                return []
+            data = await resp.json()
+            return data.get("data", [])
+
+
 # ────────────────────────────────────────────────────────────────
 # 🔄 MISE À JOUR DU STREAK DANS SUPABASE
 # ────────────────────────────────────────────────────────────────
@@ -156,9 +167,18 @@ class TestQuestion(commands.Cog):
                 group = []
                 retry += 1
                 if not archetype:
-                    # Si pas d'archétype, chercher des cartes du même type sans archétype et avec mots en commun
+                    # Extraire un mot-clé utile
+                    keywords = [
+                        word.lower() for word in main_card["name"].split()
+                        if len(word) > 3 and word.lower() not in ["carte", "de", "du", "des", "aux", "avec"]
+                    ]
+                    keyword = random.choice(keywords) if keywords else main_card["name"].split()[0].lower()
+
+                    # Requête ciblée à l'API avec ce mot-clé
+                    search_results = await fetch_cards_by_keyword(keyword)
+
                     candidates = [
-                        c for c in sample
+                        c for c in search_results
                         if c.get("name") != main_card["name"]
                         and "desc" in c
                         and c.get("type", "").lower() == main_type
@@ -173,6 +193,11 @@ class TestQuestion(commands.Cog):
                         reverse=True
                     )
                     group = candidates[:10]
+
+
+
+
+
                 else:
                     # Si archétype, récupérer d'autres cartes du même archétype
                     url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
