@@ -180,24 +180,28 @@ class TestQuestion(commands.Cog):
                 group = []
                 retry += 1
                 if not archetype:
-                    # Extraire un mot-clé utile
-                    keywords = [
-                        word.lower() for word in main_card["name"].split()
-                        if len(word) > 3 and word.lower() not in ["carte", "de", "du", "des", "aux", "avec"]
-                    ]
-                    keyword = random.choice(keywords) if keywords else main_card["name"].split()[0].lower()
+                # Extraire un mot-clé utile
+                keywords = [
+                    word.lower() for word in main_card["name"].split()
+                    if len(word) > 3 and word.lower() not in ["carte", "de", "du", "des", "aux", "avec"]
+                ]
+                keyword = random.choice(keywords) if keywords else main_card["name"].split()[0].lower()
 
-                    # Requête ciblée à l'API avec ce mot-clé
-                    search_results = await fetch_cards_by_keyword(keyword)
+                # Requête ciblée à l'API avec ce mot-clé
+                search_results = await fetch_cards_by_keyword(keyword)
 
-                    candidates = [
-                        c for c in search_results
-                        if c.get("name") != main_card["name"]
-                        and "desc" in c
-                        and c.get("type", "").lower() == main_type
-                        and not c.get("archetype")
-                        and is_clean_card(c)
-                    ]
+                main_attribute = main_card.get("attribute")  # Exemple: "LUMIÈRE", "TÉNÈBRES", etc.
+
+                candidates = [
+                    c for c in search_results
+                    if c.get("name") != main_card["name"]
+                    and "desc" in c
+                    and c.get("type", "").lower() == main_type
+                    and not c.get("archetype")
+                    and (type_group != "monstre" or c.get("attribute") == main_attribute)
+                    and is_clean_card(c)
+                ]
+
                     candidates.sort(
                         key=lambda c: (
                             common_word_score(main_card["name"], c["name"]) * 2 +
