@@ -64,6 +64,16 @@ def is_clean_card(card):
     return all(kw.lower() not in name for kw in banned_keywords)
 
 
+def get_type_group(card_type: str) -> str:
+    t = card_type.lower()
+    if "monstre" in t:
+        return "monstre"
+    if "magie" in t:
+        return "magie"
+    if "piège" in t:
+        return "piège"
+    return "autre"
+
 
 
 def censor_card_name(desc: str, name: str) -> str:
