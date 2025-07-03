@@ -238,18 +238,19 @@ class TestQuestion(commands.Cog):
                                         and c not in group
                                     ]
 
-            # Fallback si toujours pas assez
+            # 🔄 Fallback strict si toujours pas assez de fausses cartes valides
             if len(group) < 3:
+                main_attribute = main_card.get("attribute")
                 group = [
-                    c for c in sample                    
-                    if get_type_group(c.get("type", "")) == type_group
-                    
+                    c for c in sample
+                    if c.get("name") != main_card["name"]
+                    and "desc" in c
+                    and get_type_group(c.get("type", "")) == type_group
+                    and (type_group != "monstre" or c.get("attribute") == main_attribute)
+                    and (not c.get("archetype"))
+                    and is_clean_card(c)
                 ]
-                if len(group) < 3:
-                    group = random.sample(
-                        [c for c in sample if c.get("name") != main_card["name"] and "desc" in c],
-                        min(10, len(sample))
-                    )
+
 
             group = [c for c in group if is_clean_card(c)]
             wrongs = random.sample(group, min(3, len(group)))
