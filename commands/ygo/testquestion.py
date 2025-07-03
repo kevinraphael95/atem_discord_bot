@@ -196,7 +196,7 @@ class TestQuestion(commands.Cog):
                         c for c in search_results
                         if c.get("name") != main_card["name"]
                         and "desc" in c
-                        and c.get("type", "").lower() == main_type
+                        and get_type_group(c.get("type", "")) == main_type_group
                         and not c.get("archetype")
                         and (type_group != "monstre" or c.get("attribute") == main_attribute)
                         and is_clean_card(c)
