@@ -242,7 +242,7 @@ class TestQuestion(commands.Cog):
             if len(group) < 3:
                 group = [
                     c for c in sample                    
-                    get_type_group(c.get("type", "")) == type_group
+                    if get_type_group(c.get("type", "")) == type_group
                     
                 ]
                 if len(group) < 3:
