@@ -177,20 +177,24 @@ class TestQuestion(commands.Cog):
             group = []
             retry = 0
             while len(group) < 3 and retry < 5:
-                group = []
-                retry += 1
-                if not archetype:
-                    # Extraire un mot-clé utile
-                    keywords = [
-                        word.lower() for word in main_card["name"].split()
-                        if len(word) > 3 and word.lower() not in ["carte", "de", "du", "des", "aux", "avec"]
-                    ]
-                    keyword = random.choice(keywords) if keywords else main_card["name"].split()[0].lower()
+                  group = []
 
-                    # Requête ciblée à l'API avec ce mot-clé
+            if not archetype:
+                keywords = [
+                    word.lower() for word in main_card["name"].split()
+                    if len(word) > 3 and word.lower() not in ["carte", "de", "du", "des", "aux", "avec"]
+                ]
+                if not keywords:
+                    keywords = [main_card["name"].split()[0].lower()]
+
+                tried_keywords = set()
+                main_attribute = main_card.get("attribute")
+
+                while len(group) < 3 and len(tried_keywords) < len(keywords):
+                    keyword = random.choice([k for k in keywords if k not in tried_keywords])
+                    tried_keywords.add(keyword)
+
                     search_results = await fetch_cards_by_keyword(keyword)
-
-                    main_attribute = main_card.get("attribute")  # Exemple: "LUMIÈRE", "TÉNÈBRES", etc.
 
                     candidates = [
                         c for c in search_results
@@ -209,10 +213,8 @@ class TestQuestion(commands.Cog):
                         ),
                         reverse=True
                     )
+
                     group = candidates[:10]
-
-
-
 
 
                 else:
