@@ -100,79 +100,11 @@ class TestQuestion(commands.Cog):
         self.bot = bot
         self.active_sessions = {}
 
-    @commands.command(name="testquestion", aliases=["tq"], help="Devine une carte Yu-Gi-Oh")
+    @commands.group(name="testquestion", aliases=["tq"], invoke_without_command=True)
     @no_dm()
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
-    async def testquestion(self, ctx, mode: str = None):
-        
+    async def testquestion(self, ctx):
         guild_id = ctx.guild.id
-
-
-        if mode:
-            mode = mode.lower()
-            if mode in ("score", "streak"):
-                # Affiche la série actuelle de l’utilisateur
-                user_id = str(ctx.author.id)
-                try:
-                    response = supabase.table("ygo_streaks").select("current_streak", "best_streak").eq("user_id", user_id).execute()
-                    if response.data:
-                        streak = response.data[0]
-                        current = streak.get("current_streak", 0)
-                        best = streak.get("best_streak", 0)
-                        await ctx.send(
-                            f"🔥 **{ctx.author.display_name}**, ta série actuelle est de **{current}** 🔁\n"
-                            f"🏆 Ton record absolu est de **{best}** bonnes réponses consécutives !"
-                        )
-                    else:
-                        await ctx.send(
-                            "📉 Tu n'as pas encore commencé de série.\n"
-                            "Lance une question avec `!testquestion` pour démarrer ton streak !"
-                        )
-                except Exception as e:
-                    print("[ERREUR STREAK]", e)
-                    await ctx.send("🚨 Une erreur est survenue en récupérant ta série.")
-                return
-            elif mode == "top":
-                # Affiche le top 10 des meilleurs streaks
-                try:
-                    response = (
-                        supabase.table("ygo_streaks")
-                        .select("user_id, best_streak")
-                        .order("best_streak", desc=True)
-                        .limit(10)
-                        .execute()
-                    )
-                    if not response.data:
-                        await ctx.send("📉 Aucun streak enregistré pour le moment.")
-                        return
-                    leaderboard = []
-                    for index, row in enumerate(response.data, start=1):
-                        user_id = row["user_id"]
-                        best_streak = row.get("best_streak", 0)
-                        try:
-                            user = await self.bot.fetch_user(int(user_id))
-                            username = user.name if user else f"Utilisateur inconnu ({user_id})"
-                        except:
-                            username = f"Utilisateur inconnu ({user_id})"
-                        place = {1: "🥇", 2: "🥈", 3: "🥉"}.get(index, f"`#{index}`")
-                        leaderboard.append(f"{place} **{username}** : 🔥 {best_streak}")
-                    embed = discord.Embed(
-                        title="🏆 Top 10 – Meilleures Séries",
-                        description="\n".join(leaderboard),
-                        color=discord.Color.gold()
-                    )
-                    embed.set_footer(text="Classement basé sur la meilleure série atteinte.")
-                    await ctx.send(embed=embed)
-                except Exception as e:
-                    print("[ERREUR TOPQS]", e)
-                    await ctx.send("🚨 Une erreur est survenue lors du classement.")
-                return
-                
-
-
-
-
-        
         if self.active_sessions.get(guild_id):
             await ctx.reply("⚠️ Un quiz est déjà en cours.", mention_author=False)
             return
@@ -217,16 +149,17 @@ class TestQuestion(commands.Cog):
                 color=discord.Color.purple()
             )
             embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
+
             if main_type.lower().startswith("monstre"):
                 embed.add_field(name="💥 ATK", value=str(main_card.get("atk", "—")), inline=True)
                 embed.add_field(name="🛡️ DEF", value=str(main_card.get("def", "—")), inline=True)
                 embed.add_field(name="⚙️ Niveau", value=str(main_card.get("level", "—")), inline=True)
+
             options_text = "\n".join(f"{REACTIONS[i]} - **{name}**" for i, name in enumerate(all_choices))
             embed.add_field(name="Choix", value=options_text, inline=False)
 
             quiz_msg = await ctx.send(embed=embed)
             self.active_sessions[guild_id] = quiz_msg
-
             for emoji in REACTIONS[:len(all_choices)]:
                 try:
                     await quiz_msg.add_reaction(emoji)
@@ -266,10 +199,68 @@ class TestQuestion(commands.Cog):
             )
             await ctx.send(embed=result)
             self.active_sessions[guild_id] = None
-
         except Exception as e:
             self.active_sessions[guild_id] = None
             await ctx.send(f"❌ Erreur : `{e}`")
+
+    @testquestion.command(name="score", aliases=["streak", "s"])
+    async def testquestion_score(self, ctx):
+        user_id = str(ctx.author.id)
+        try:
+            response = supabase.table("ygo_streaks").select("current_streak", "best_streak").eq("user_id", user_id).execute()
+            if response.data:
+                streak = response.data[0]
+                current = streak.get("current_streak", 0)
+                best = streak.get("best_streak", 0)
+                await ctx.send(
+                    f"🔥 **{ctx.author.display_name}**, ta série actuelle est de **{current}** 🔁\n"
+                    f"🏆 Ton record absolu est de **{best}** bonnes réponses consécutives !"
+                )
+            else:
+                await ctx.send(
+                    "📉 Tu n'as pas encore commencé de série.\n"
+                    "Lance une question avec `!testquestion` pour démarrer ton streak !"
+                )
+        except Exception as e:
+            print("[ERREUR STREAK]", e)
+            await ctx.send("🚨 Une erreur est survenue en récupérant ta série.")
+
+    @testquestion.command(name="top", aliases=["t"])
+    async def testquestion_top(self, ctx):
+        try:
+            response = (
+                supabase.table("ygo_streaks")
+                .select("user_id, best_streak")
+                .order("best_streak", desc=True)
+                .limit(10)
+                .execute()
+            )
+            if not response.data:
+                await ctx.send("📉 Aucun streak enregistré pour le moment.")
+                return
+
+            leaderboard = []
+            for index, row in enumerate(response.data, start=1):
+                user_id = row["user_id"]
+                best_streak = row.get("best_streak", 0)
+                try:
+                    user = await self.bot.fetch_user(int(user_id))
+                    username = user.name if user else f"Utilisateur inconnu ({user_id})"
+                except:
+                    username = f"Utilisateur inconnu ({user_id})"
+                place = {1: "🥇", 2: "🥈", 3: "🥉"}.get(index, f"`#{index}`")
+                leaderboard.append(f"{place} **{username}** : 🔥 {best_streak}")
+
+            embed = discord.Embed(
+                title="🏆 Top 10 – Meilleures Séries",
+                description="\n".join(leaderboard),
+                color=discord.Color.gold()
+            )
+            embed.set_footer(text="Classement basé sur la meilleure série atteinte.")
+            await ctx.send(embed=embed)
+        except Exception as e:
+            print("[ERREUR TOPQS]", e)
+            await ctx.send("🚨 Une erreur est survenue lors du classement.")
 
 # ─────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du cog
