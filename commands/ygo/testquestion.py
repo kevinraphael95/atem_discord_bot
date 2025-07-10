@@ -103,7 +103,8 @@ class TestQuestion(commands.Cog):
     @commands.command(name="testquestion", aliases=["tq"], help="Devine une carte Yu-Gi-Oh")
     @no_dm()
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
-    async def testquestion(self, ctx):
+    async def testquestion(self, ctx, mode: str = None):
+        
         guild_id = ctx.guild.id
 
 
