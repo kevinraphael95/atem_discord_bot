@@ -109,6 +109,10 @@ class TestQuestion(commands.Cog):
         self.bot = bot
         self.active_sessions = {}
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # test question
+    # ─────────────────────────────────────────────────────────────────────────
+    
     @commands.group(name="testquestion", aliases=["tq"], invoke_without_command=True)
     @no_dm()
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
@@ -212,6 +216,9 @@ class TestQuestion(commands.Cog):
             self.active_sessions[guild_id] = None
             await ctx.send(f"❌ Erreur : `{e}`")
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # score
+    # ─────────────────────────────────────────────────────────────────────────
     @testquestion.command(name="score", aliases=["streak", "s"])
     async def testquestion_score(self, ctx):
         user_id = str(ctx.author.id)
@@ -221,19 +228,31 @@ class TestQuestion(commands.Cog):
                 streak = response.data[0]
                 current = streak.get("current_streak", 0)
                 best = streak.get("best_streak", 0)
-                await ctx.send(
-                    f"🔥 **{ctx.author.display_name}**, ta série actuelle est de **{current}** 🔁\n"
-                    f"🏆 Ton record absolu est de **{best}** bonnes réponses consécutives !"
+
+                embed = discord.Embed(
+                    title=f"🔥 Série de {ctx.author.display_name}",
+                    color=discord.Color.blurple()
                 )
+                embed.add_field(name="Série actuelle", value=f"**{current}** bonnes réponses 🔁", inline=False)
+                embed.add_field(name="Record absolu", value=f"**{best}** bonnes réponses consécutives 🏆", inline=False)
+                embed.set_footer(text="Continue à répondre correctement pour augmenter ta série !")
+
+                await ctx.send(embed=embed)
             else:
-                await ctx.send(
-                    "📉 Tu n'as pas encore commencé de série.\n"
-                    "Lance une question avec `!testquestion` pour démarrer ton streak !"
+                embed = discord.Embed(
+                    title="📉 Pas encore de série",
+                    description="Tu n'as pas encore commencé de série.\nLance une question avec `!testquestion` pour démarrer ton streak !",
+                    color=discord.Color.red()
                 )
+                await ctx.send(embed=embed)
         except Exception as e:
             print("[ERREUR STREAK]", e)
             await ctx.send("🚨 Une erreur est survenue en récupérant ta série.")
 
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # top
+    # ─────────────────────────────────────────────────────────────────────────
     @testquestion.command(name="top", aliases=["t"])
     async def testquestion_top(self, ctx):
         try:
