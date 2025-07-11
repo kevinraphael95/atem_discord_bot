@@ -113,7 +113,7 @@ class TestQuestion(commands.Cog):
     # test question
     # ─────────────────────────────────────────────────────────────────────────
     
-    @commands.group(name="testquestion", aliases=["tq"], invoke_without_command=True)
+    @commands.group(name="testquestion", aliases=["tq"], help="Devinez le nom de la carte grâce à sa description. Multijoueur", invoke_without_command=True)
     @no_dm()
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
     async def testquestion(self, ctx):
