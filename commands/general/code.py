@@ -27,7 +27,7 @@ class Code(commands.Cog):
         help="💻 Affiche le lien vers le dépôt GitHub du bot.",
         description="Envoie un embed avec le lien du dépôt GitHub."
     )
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
+    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)  # 🧊 Anti-spam : 5 secondes
     async def code(self, ctx: commands.Context):
         """Commande principale !code"""
         try:
