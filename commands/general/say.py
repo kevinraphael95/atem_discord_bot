@@ -21,7 +21,7 @@ class SayCommand(commands.Cog):
     @commands.command(
         help="Fait répéter un message par le bot et supprime le message d'origine."
     )
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 3 secondes
+    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)  # 🧊 Anti-spam : 5 secondes
     async def say(self, ctx: commands.Context, *, message: str):
         # 🧽 Tente de supprimer le message original
         try:
