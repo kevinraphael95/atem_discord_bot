@@ -28,7 +28,7 @@ class RedemarrageCommand(commands.Cog):
         description="Commande réservée aux administrateurs pour annoncer un redémarrage imminent."
     )
     @commands.has_permissions(administrator=True)
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
+    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)  # 🧊 Anti-spam : 5 secondes
     async def re(self, ctx: commands.Context):
         """Envoie un message embed pour signaler le redémarrage du bot."""
         try:
