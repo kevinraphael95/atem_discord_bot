@@ -132,7 +132,7 @@ class Help(commands.Cog):
             "- Avec un nom : détails complets de la commande"
         )
     )
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
+    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)  # 🧊 Anti-spam : 5 secondes
     async def help_func(self, ctx: commands.Context, commande: str = None):
         prefix = os.getenv("COMMAND_PREFIX", "!")
 
