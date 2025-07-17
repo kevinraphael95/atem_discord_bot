@@ -1,3 +1,10 @@
+# ────────────────────────────────────────────────────────────────────────────────
+# 📌 bot.py — Script principal du bot Discord
+# Objectif : Initialisation, gestion des commandes et événements du bot
+# Catégorie : Général
+# Accès : Public
+# ────────────────────────────────────────────────────────────────────────────────
+
 # ──────────────────────────────────────────────────────────────
 # 🟢 Serveur Keep-Alive (Render)
 # ──────────────────────────────────────────────────────────────
@@ -25,11 +32,11 @@ from dateutil import parser
 # 📦 Modules internes
 # ──────────────────────────────────────────────────────────────
 from supabase_client import supabase
+from utils.discord_utils import safe_send  # ✅ Utilitaires anti-429
 
 # ──────────────────────────────────────────────────────────────
 # 🔧 Initialisation de l’environnement
 # ──────────────────────────────────────────────────────────────
-
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv()
 
@@ -87,7 +94,6 @@ async def verify_lock_loop():
                 os._exit(0)
         except Exception as e:
             print(f"⚠️ Erreur dans la vérification du verrou (ignorée) : {e}")
-            # On continue quand même, failover
 
 # ──────────────────────────────────────────────────────────────
 # 🔔 On Ready : présence + verrouillage + surveillance
@@ -107,14 +113,12 @@ async def on_ready():
 
         print(f"🔐 Verrou mis à jour pour cette instance : {INSTANCE_ID}")
         bot.is_main_instance = True
-
-        # Démarrer la tâche de surveillance du verrou
         bot.loop.create_task(verify_lock_loop())
 
     except Exception as e:
         print(f"⚠️ Impossible de se connecter à Supabase : {e}")
         print("🔓 Aucune gestion de verrou — le bot démarre quand même.")
-        bot.is_main_instance = True  # ⚠️ Optionnel : on active tout de même
+        bot.is_main_instance = True
 
 # ──────────────────────────────────────────────────────────────
 # 📩 Message reçu : réagir aux mots-clés et lancer les commandes
@@ -128,12 +132,9 @@ async def on_message(message):
                 return
     except Exception as e:
         print(f"⚠️ Erreur lors de la vérification du lock (ignorée) : {e}")
-        # Le message passe quand même
 
     if message.author.bot:
         return
-
-    contenu = message.content.lower()
 
     if bot.user in message.mentions and len(message.mentions) == 1:
         prefix = get_prefix(bot, message)
@@ -142,7 +143,8 @@ async def on_message(message):
             title="Coucou ! 🃏",
             description=(
                 f"Bonjour ! Je suis **Atem**, un bot discord inspiré du manga Yu-Gi-Oh.\n"
-                f"• Utilise la commande `{prefix}help` pour avoir la liste des commandes du bot du bot ou `{prefix}help + le nom d'une commande` pour en avoir une description."
+                f"• Utilise la commande `{prefix}help` pour avoir la liste des commandes du bot "
+                f"ou `{prefix}help + le nom d'une commande` pour en avoir une description."
             ),
             color=discord.Color.red()
         )
@@ -153,7 +155,7 @@ async def on_message(message):
         else:
             embed.set_thumbnail(url=bot.user.default_avatar.url)
 
-        await message.channel.send(embed=embed)
+        await safe_send(message.channel, embed=embed)
         return
 
     await bot.process_commands(message)
@@ -165,11 +167,11 @@ async def on_message(message):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         retry = round(error.retry_after, 1)
-        await ctx.send(f"⏳ Cette commande est en cooldown. Réessaie dans `{retry}` secondes.")
+        await safe_send(ctx.channel, f"⏳ Cette commande est en cooldown. Réessaie dans `{retry}` secondes.")
     elif isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌ Tu n'as pas les permissions pour cette commande.")
+        await safe_send(ctx.channel, "❌ Tu n'as pas les permissions pour cette commande.")
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("⚠️ Il manque un argument à cette commande.")
+        await safe_send(ctx.channel, "⚠️ Il manque un argument à cette commande.")
     elif isinstance(error, commands.CommandNotFound):
         return
     else:
