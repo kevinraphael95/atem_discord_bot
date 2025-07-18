@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 help.py — Commande interactive !help
-# Objectif : Afficher dynamiquement l’aide des commandes avec menu déroulant par catégorie et pagination
-# Catégorie : Général
+# Objectif : Afficher dynamiquement l’aide des commandes avec menu et pagination
+# Catégorie : 📚 Général
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -11,11 +11,12 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Select, Button
+from bot import get_prefix  # 🔧 Fonction utilitaire pour le préfixe
 import math
-import os
+from utils.discord_utils import safe_send, safe_edit, safe_respond  # <-- Ajout
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Menu déroulant de sélection de catégorie
+# 🎛️ UI — Sélecteur de catégorie
 # ────────────────────────────────────────────────────────────────────────────────
 class HelpCategoryView(View):
     def __init__(self, bot, categories, prefix):
@@ -44,10 +45,12 @@ class HelpCategorySelect(Select):
             selected_cat,
             commands_in_cat,
             self.parent_view.prefix,
-            self.parent_view  # Pour pouvoir revenir au menu catégories
+            self.parent_view  # Pour réafficher le sélecteur ensuite
         )
 
-        await interaction.response.edit_message(
+        # Utilisation de safe_edit pour éditer le message d'interaction
+        await safe_edit(
+            interaction.message,
             content=f"📂 Catégorie sélectionnée : **{selected_cat}**",
             embed=paginator.create_embed(),
             view=paginator
@@ -58,7 +61,7 @@ class HelpCategorySelect(Select):
 # ────────────────────────────────────────────────────────────────────────────────
 class HelpPaginatorView(View):
     def __init__(self, bot, category, commands_list, prefix, parent_view):
-        super().__init__(timeout=None)
+        super().__init__(timeout=None)  # Pas de timeout
         self.bot = bot
         self.category = category
         self.commands = commands_list
@@ -66,14 +69,12 @@ class HelpPaginatorView(View):
         self.parent_view = parent_view
         self.page = 0
         self.per_page = 10
-        self.total_pages = math.ceil(len(self.commands) / self.per_page)
+        self.total_pages = max(1, math.ceil(len(self.commands) / self.per_page))
 
         if self.total_pages > 1:
             self.add_item(PrevButton(self))
             self.add_item(NextButton(self))
-
-        # On remet le menu déroulant pour changer de catégorie
-        self.add_item(HelpCategorySelect(self.parent_view))
+        self.add_item(HelpCategorySelect(self.parent_view))  # Pour permettre le changement de catégorie
 
     def create_embed(self):
         embed = discord.Embed(
@@ -99,7 +100,11 @@ class PrevButton(Button):
     async def callback(self, interaction: discord.Interaction):
         if self.paginator.page > 0:
             self.paginator.page -= 1
-            await interaction.response.edit_message(embed=self.paginator.create_embed(), view=self.paginator)
+            await safe_edit(
+                interaction.message,
+                embed=self.paginator.create_embed(),
+                view=self.paginator
+            )
 
 class NextButton(Button):
     def __init__(self, paginator):
@@ -109,51 +114,58 @@ class NextButton(Button):
     async def callback(self, interaction: discord.Interaction):
         if self.paginator.page < self.paginator.total_pages - 1:
             self.paginator.page += 1
-            await interaction.response.edit_message(embed=self.paginator.create_embed(), view=self.paginator)
+            await safe_edit(
+                interaction.message,
+                embed=self.paginator.create_embed(),
+                view=self.paginator
+            )
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal — Help
+# 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class Help(commands.Cog):
+class HelpCommand(commands.Cog):
     """
-    📚 Commande !help : système d’aide contextuelle avec menu déroulant
+    Commande !help — Affiche les commandes du bot, classées par catégories.
     """
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
         self.bot = bot
+
+    def get_commands(self):
+        # Cette méthode est appelée dans bot.py, assure-toi qu'elle existe
+        return self.bot.commands
 
     @commands.command(
         name="help",
-        aliases=["aide", "h"],
-        help="Affiche la liste des commandes ou les infos d’une commande spécifique.",
-        description=(
-            "📌 Utilisation : `!help` ou `!help <commande>`\n"
-            "- Sans argument : liste complète des commandes avec menu déroulant\n"
-            "- Avec un nom : détails complets de la commande"
-        )
+        aliases=["h"],
+        help="Affiche la liste des commandes ou les infos sur une commande spécifique.",
+        description="Utilise !help <commande> pour obtenir l’aide détaillée d’une commande."
     )
-    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)  # 🧊 Anti-spam : 5 secondes
+    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
     async def help_func(self, ctx: commands.Context, commande: str = None):
-        prefix = os.getenv("COMMAND_PREFIX", "!")
+        prefix = get_prefix(self.bot, ctx.message)
 
+        # 🔍 Aide spécifique
         if commande:
             cmd = self.bot.get_command(commande)
-            if not cmd:
-                await ctx.send(f"❌ La commande `{commande}` n’existe pas.")
+            if cmd is None:
+                await safe_send(ctx.channel, f"❌ La commande `{commande}` n'existe pas.")
                 return
 
             embed = discord.Embed(
-                title=f"ℹ️ Aide pour : `{prefix}{cmd.name}`",
-                color=discord.Color.blue()
+                title=f"ℹ️ Aide pour `{prefix}{cmd.name}`",
+                color=discord.Color.green()
             )
-            embed.add_field(name="📝 Description", value=cmd.help or "Pas de description disponible.", inline=False)
+            embed.add_field(name="📄 Description", value=cmd.help or "Pas de description.", inline=False)
             if cmd.aliases:
-                embed.add_field(name="🔁 Alias", value=", ".join(f"`{a}`" for a in cmd.aliases), inline=False)
-            embed.set_footer(text="📌 <obligatoire> — [optionnel]")
-            await ctx.send(embed=embed)
+                aliases = ", ".join(f"`{a}`" for a in cmd.aliases)
+                embed.add_field(name="🔁 Alias", value=aliases, inline=False)
+
+            embed.set_footer(text="📌 Syntaxe : <obligatoire> [optionnel]")
+            await safe_send(ctx.channel, embed=embed)
             return
 
-        # Sans argument, affichage interactif par catégories
+        # 📜 Liste des commandes groupées par catégorie
         categories = {}
         for cmd in self.bot.commands:
             if cmd.hidden:
@@ -162,14 +174,18 @@ class Help(commands.Cog):
             categories.setdefault(cat, []).append(cmd)
 
         view = HelpCategoryView(self.bot, categories, prefix)
-        await ctx.send("📌 Sélectionne une catégorie pour voir ses commandes :", view=view)
+        await safe_send(ctx.channel, "📌 Sélectionne une catégorie pour voir ses commandes :", view=view)
+
+    def cog_load(self):
+        self.help_func.category = "Général"
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
-    cog = Help(bot)
+    cog = HelpCommand(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
             command.category = "Général"
     await bot.add_cog(cog)
+    print("✅ Cog chargé : HelpCommand (catégorie = Général)")
