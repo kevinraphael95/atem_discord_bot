@@ -10,6 +10,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
+from utils.discord_utils import safe_send  # ✅ Anti 429
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ Cog principal
@@ -28,7 +29,7 @@ class RedemarrageCommand(commands.Cog):
         description="Commande réservée aux administrateurs pour annoncer un redémarrage imminent."
     )
     @commands.has_permissions(administrator=True)
-    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)  # 🧊 Anti-spam : 5 secondes
+    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
     async def re(self, ctx: commands.Context):
         """Envoie un message embed pour signaler le redémarrage du bot."""
         try:
@@ -41,7 +42,7 @@ class RedemarrageCommand(commands.Cog):
             description="Le bot va redémarrer sous peu.",
             color=discord.Color.red()
         )
-        await ctx.send(embed=embed)
+        await safe_send(ctx, embed=embed)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
@@ -49,5 +50,5 @@ class RedemarrageCommand(commands.Cog):
 async def setup(bot: commands.Bot):
     cog = RedemarrageCommand(bot)
     for command in cog.get_commands():
-        command.category = "Général"
+        command.category = "Admin"
     await bot.add_cog(cog)
