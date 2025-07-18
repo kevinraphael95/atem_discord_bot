@@ -13,13 +13,15 @@ from discord.ext import commands
 import json
 import os
 
+from utils.discord_utils import safe_send, safe_edit, safe_respond
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Chargement des données JSON
 # ────────────────────────────────────────────────────────────────────────────────
 VOCAB_PATH = os.path.join("data", "vocabulaire.json")
 
-def load_vocab():
-    """Charge le vocabulaire depuis le fichier JSON."""
+def load_data():
+    """Charge le lexique depuis le fichier JSON."""
     with open(VOCAB_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -45,9 +47,9 @@ class VocabulaireCommand(commands.Cog):
     async def vocabulaire(self, ctx: commands.Context, *, mot_cle: str = None):
         """Commande principale !vocabulaire avec système de pagination par réactions."""
         try:
-            vocabulaire = load_vocab()
+            vocabulaire = load_data()
         except Exception as e:
-            await ctx.send(f"❌ Erreur lors du chargement du fichier : {e}")
+            await safe_send(ctx, f"❌ Erreur lors du chargement du fichier : {e}")
             return
 
         definitions = []
@@ -63,14 +65,13 @@ class VocabulaireCommand(commands.Cog):
                 definitions.append((terme, definition))
 
         if not definitions:
-            await ctx.send("❌ Aucun terme trouvé correspondant à ta recherche.")
+            await safe_send(ctx, "❌ Aucun terme trouvé correspondant à ta recherche.")
             return
 
-        # Tri alphabétique sur les termes
         definitions.sort(key=lambda x: x[0].lower())
 
-        pages = []
         max_par_page = 5
+        pages = []
         total_pages = (len(definitions) - 1) // max_par_page + 1
 
         for i in range(0, len(definitions), max_par_page):
@@ -89,7 +90,8 @@ class VocabulaireCommand(commands.Cog):
             embed.set_footer(text=f"📄 Page {len(pages) + 1}/{total_pages}")
             pages.append(embed)
 
-        message = await ctx.send(embed=pages[0])
+        message = await safe_send(ctx, embed=pages[0])
+
         if len(pages) <= 1:
             return
 
@@ -98,9 +100,9 @@ class VocabulaireCommand(commands.Cog):
 
         def check(reaction, user):
             return (
-                user == ctx.author and
-                reaction.message.id == message.id and
-                str(reaction.emoji) in ["◀️", "▶️"]
+                user == ctx.author
+                and reaction.message.id == message.id
+                and str(reaction.emoji) in ["◀️", "▶️"]
             )
 
         index = 0
@@ -114,7 +116,7 @@ class VocabulaireCommand(commands.Cog):
                 elif str(reaction.emoji) == "◀️":
                     index = (index - 1) % len(pages)
 
-                await message.edit(embed=pages[index])
+                await safe_edit(message, embed=pages[index])
 
             except Exception:
                 break  # Timeout ou erreur
