@@ -14,12 +14,14 @@ from discord.ui import View, Select
 import json
 import os
 
+from utils.discord_utils import safe_send, safe_edit, safe_respond
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Chargement des données JSON — deck_data.json
 # ────────────────────────────────────────────────────────────────────────────────
 DECK_JSON_PATH = os.path.join("data", "deck_data.json")
 
-def load_deck_data():
+def load_data():
     with open(DECK_JSON_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -51,10 +53,11 @@ class SaisonSelect(Select):
             await interaction.response.defer()
             return
         new_view = DeckSelectView(self.parent_view.bot, self.parent_view.deck_data, saison)
-        await interaction.response.edit_message(
+        await safe_respond(
+            interaction,
             content=f"🎴 Saison choisie : **{saison}**\nSélectionne un deck :",
-            view=new_view,
-            embed=None
+            embed=None,
+            view=new_view
         )
 
 class DuellisteSelect(Select):
@@ -89,14 +92,15 @@ class DuellisteSelect(Select):
         embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
         embed.add_field(name="💡 Astuces", value=astuces_text, inline=False)
 
-        await interaction.response.edit_message(
+        await safe_respond(
+            interaction,
             content=f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :",
             embed=embed,
             view=DeckSelectView(self.parent_view.bot, self.parent_view.deck_data, saison, duelliste)
         )
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Classe principale du Cog — Deck
+# 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Deck(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -107,18 +111,18 @@ class Deck(commands.Cog):
         help="Affiche les decks du tournoi VAACT, organisés par saison.",
         description="Affiche une interface interactive pour choisir une saison et un duelliste."
     )
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)  # 🧊 Anti-spam : 1 appel / 3s / utilisateur
+    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def deck(self, ctx: commands.Context):
         try:
-            deck_data = load_deck_data()
+            deck_data = load_data()
             view = DeckSelectView(self.bot, deck_data)
-            await ctx.send("📦 Choisis une saison :", view=view)
+            await safe_send(ctx, "📦 Choisis une saison :", view=view)
         except Exception as e:
             print("[ERREUR DECK]", e)
-            await ctx.send("❌ Une erreur est survenue lors du chargement des decks.")
+            await safe_send(ctx, "❌ Une erreur est survenue lors du chargement des decks.")
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔌 Fonction de setup du Cog
+# 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = Deck(bot)
