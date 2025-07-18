@@ -1,19 +1,22 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 TournoiDate.py — Commande interactive !TournoiDate
+# 📌 tournoi_date.py — Commande interactive !tournoidate
 # Objectif : Modifier la date du tournoi enregistrée sur Supabase via menus déroulants
-# Catégorie : VAACT
+# Catégorie : 🧠 VAACT
 # Accès : Modérateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
+import os
+from datetime import datetime
+
 import discord
 from discord.ext import commands
 from discord.ui import View, Select
-from datetime import datetime
-import os
 from supabase import create_client, Client  # pip install supabase
+
+from utils.discord_utils import safe_send, safe_respond  # ✅ Utilisation sécurisée
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Configuration Supabase
@@ -22,10 +25,14 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Vue interactive pour sélectionner la date
+# 🎛️ UI — Sélecteurs en étapes pour construire la date
 # ────────────────────────────────────────────────────────────────────────────────
 class DateStepView(View):
+    """
+    Vue interactive pour sélectionner année → mois → plage de jours → jour → heure.
+    """
     def __init__(self, bot, ctx, selected=None, step="year"):
         super().__init__(timeout=180)
         self.bot = bot
@@ -34,93 +41,109 @@ class DateStepView(View):
         self.step = step
 
         now = datetime.now()
-
         if step == "year":
             years = [str(y) for y in range(now.year, now.year + 3)]
-            self.add_item(self.YearSelect(years))
+            self.add_item(self._make_year_select(years))
         elif step == "month":
             months = [str(m) for m in range(1, 13)]
-            self.add_item(self.MonthSelect(months))
+            self.add_item(self._make_month_select(months))
         elif step == "day_range":
-            self.add_item(self.DayRangeSelect())
+            self.add_item(self._make_day_range_select())
         elif step == "day":
             if self.selected.get("day_range") == "1-15":
                 days = list(range(1, 16))
             else:
                 days = list(range(16, 32))
-            self.add_item(self.DaySelect(days))
+            self.add_item(self._make_day_select(days))
         elif step == "hour":
             hours = [str(h) for h in range(0, 24)]
-            self.add_item(self.HourSelect(hours))
+            self.add_item(self._make_hour_select(hours))
 
-    def YearSelect(self, years):
-        class _Select(Select):
-            def __init__(s):
-                super().__init__(placeholder="Choisis une année",
-                                 options=[discord.SelectOption(label=y, value=y) for y in years])
+    def _make_year_select(self, years):
+        class YearSelect(Select):
+            def __init__(inner):
+                super().__init__(
+                    placeholder="Choisis une année",
+                    options=[discord.SelectOption(label=y, value=y) for y in years]
+                )
 
-            async def callback(s, interaction):
-                self.selected["year"] = int(s.values[0])
-                await interaction.response.edit_message(
-                    content=f"Année sélectionnée : {s.values[0]}",
+            async def callback(inner, interaction: discord.Interaction):
+                self.selected["year"] = int(inner.values[0])
+                await safe_respond(
+                    interaction,
+                    content=f"🗓️ Année sélectionnée : **{inner.values[0]}**",
                     view=DateStepView(self.bot, self.ctx, self.selected, step="month")
                 )
 
-        return _Select()
+        return YearSelect()
 
-    def MonthSelect(self, months):
-        class _Select(Select):
-            def __init__(s):
-                super().__init__(placeholder="Choisis un mois",
-                                 options=[discord.SelectOption(label=m, value=m) for m in months])
+    def _make_month_select(self, months):
+        class MonthSelect(Select):
+            def __init__(inner):
+                super().__init__(
+                    placeholder="Choisis un mois",
+                    options=[discord.SelectOption(label=m, value=m) for m in months]
+                )
 
-            async def callback(s, interaction):
-                self.selected["month"] = int(s.values[0])
-                await interaction.response.edit_message(
-                    content=f"{self.selected['year']} - Mois sélectionné : {s.values[0]}",
+            async def callback(inner, interaction: discord.Interaction):
+                self.selected["month"] = int(inner.values[0])
+                await safe_respond(
+                    interaction,
+                    content=f"🗓️ {self.selected['year']} – Mois sélectionné : **{inner.values[0]}**",
                     view=DateStepView(self.bot, self.ctx, self.selected, step="day_range")
                 )
-        return _Select()
 
-    def DayRangeSelect(self):
-        class _Select(Select):
-            def __init__(s):
-                super().__init__(placeholder="Plage de jours",
-                                 options=[
-                                     discord.SelectOption(label="Jours 1-15", value="1-15"),
-                                     discord.SelectOption(label="Jours 16-31", value="16-31"),
-                                 ])
+        return MonthSelect()
 
-            async def callback(s, interaction):
-                self.selected["day_range"] = s.values[0]
-                await interaction.response.edit_message(
-                    content=f"{self.selected['year']}-{self.selected['month']} — Plage : {s.values[0]}",
+    def _make_day_range_select(self):
+        class DayRangeSelect(Select):
+            def __init__(inner):
+                super().__init__(
+                    placeholder="Plage de jours",
+                    options=[
+                        discord.SelectOption(label="Jours 1-15", value="1-15"),
+                        discord.SelectOption(label="Jours 16-31", value="16-31"),
+                    ]
+                )
+
+            async def callback(inner, interaction: discord.Interaction):
+                self.selected["day_range"] = inner.values[0]
+                await safe_respond(
+                    interaction,
+                    content=f"🗓️ {self.selected['year']}-{self.selected['month']} — Plage : **{inner.values[0]}**",
                     view=DateStepView(self.bot, self.ctx, self.selected, step="day")
                 )
-        return _Select()
 
-    def DaySelect(self, days):
-        class _Select(Select):
-            def __init__(s):
-                super().__init__(placeholder="Jour",
-                                 options=[discord.SelectOption(label=str(d), value=str(d)) for d in days])
+        return DayRangeSelect()
 
-            async def callback(s, interaction):
-                self.selected["day"] = int(s.values[0])
-                await interaction.response.edit_message(
-                    content=f"{self.selected['year']}-{self.selected['month']}-{self.selected['day']}",
+    def _make_day_select(self, days):
+        class DaySelect(Select):
+            def __init__(inner):
+                super().__init__(
+                    placeholder="Choisis un jour",
+                    options=[discord.SelectOption(label=str(d), value=str(d)) for d in days]
+                )
+
+            async def callback(inner, interaction: discord.Interaction):
+                self.selected["day"] = int(inner.values[0])
+                await safe_respond(
+                    interaction,
+                    content=f"🗓️ {self.selected['year']}-{self.selected['month']}-{self.selected['day']}",
                     view=DateStepView(self.bot, self.ctx, self.selected, step="hour")
                 )
-        return _Select()
 
-    def HourSelect(self, hours):
-        class _Select(Select):
-            def __init__(s):
-                super().__init__(placeholder="Heure (24h)",
-                                 options=[discord.SelectOption(label=h, value=h) for h in hours])
+        return DaySelect()
 
-            async def callback(s, interaction):
-                self.selected["hour"] = int(s.values[0])
+    def _make_hour_select(self, hours):
+        class HourSelect(Select):
+            def __init__(inner):
+                super().__init__(
+                    placeholder="Choisis une heure (24h)",
+                    options=[discord.SelectOption(label=h, value=h) for h in hours]
+                )
+
+            async def callback(inner, interaction: discord.Interaction):
+                self.selected["hour"] = int(inner.values[0])
                 try:
                     dt = datetime(
                         self.selected["year"],
@@ -128,36 +151,28 @@ class DateStepView(View):
                         self.selected["day"],
                         self.selected["hour"]
                     )
-
-                    
-                    response = supabase.table("tournoi_info").upsert({
+                    resp = supabase.table("tournoi_info").upsert({
                         "id": 1,
                         "prochaine_date": dt.isoformat()
                     }).execute()
 
-
-                    # Vérifie simplement si 'data' existe ou si c'est vide
-                    if response.data:
-                        await interaction.response.edit_message(
-                            content=f"✅ Date mise à jour : {dt.strftime('%d/%m/%Y %Hh')}",
+                    if resp.data:
+                        await safe_respond(
+                            interaction,
+                            content=f"✅ Date mise à jour : **{dt.strftime('%d/%m/%Y %Hh')}**",
                             view=None
                         )
                     else:
-                        await interaction.response.edit_message(
-                            content=f"❌ Erreur Supabase : mise à jour échouée",
+                        await safe_respond(
+                            interaction,
+                            content="❌ Erreur Supabase : mise à jour échouée.",
                             view=None
                         )
 
-
-
-
-
                 except Exception as e:
-                    await interaction.response.edit_message(
-                        content=f"❌ Erreur : {e}",
-                        view=None
-                    )
-        return _Select()
+                    await safe_respond(interaction, content=f"❌ Erreur : `{e}`", view=None)
+
+        return HourSelect()
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -165,22 +180,28 @@ class DateStepView(View):
 # ────────────────────────────────────────────────────────────────────────────────
 class TournoiDate(commands.Cog):
     """
-    Commande !TournoiDate — Permet à un modérateur de définir la date du tournoi via menus déroulants
+    Commande !tournoidate — Permet à un modérateur de définir la date du tournoi.
     """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(name="tournoidate", aliases=["settournoi"], description="Changer la date du prochain tournoi VAACT.")
+    @commands.command(
+        name="tournoidate",
+        aliases=["settournoi"],
+        help="🛠️ Change la date du prochain tournoi VAACT.",
+        description="Permet de sélectionner année/mois/jour/heure via menus déroulants."
+    )
     @commands.has_permissions(administrator=True)
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
-    async def TournoiDate(self, ctx):
+    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
+    async def tournoidate(self, ctx: commands.Context):
+        """Démarre l’interface de sélection de date."""
         try:
             view = DateStepView(self.bot, ctx)
-            await ctx.send("🗓️ Choisis la date du tournoi VAACT :", view=view)
+            await safe_send(ctx, "🗓️ Choisis la date du tournoi :", view=view)
         except Exception as e:
             print(f"[ERREUR TournoiDate] {e}")
-            await ctx.send(f"❌ Une erreur est survenue : `{e}`")
+            await safe_send(ctx, f"❌ Une erreur est survenue : `{e}`")
 
 
 # ────────────────────────────────────────────────────────────────────────────────
