@@ -11,12 +11,14 @@
 import discord
 from discord.ext import commands
 
+from utils.discord_utils import safe_send  # ✅ Sécurise l'envoi (anti-429)
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Ping(commands.Cog):
     """
-    Commande !ping — Vérifie la latence du bot
+    Commande !ping — Vérifie la latence du bot.
     """
 
     def __init__(self, bot: commands.Bot):
@@ -28,15 +30,15 @@ class Ping(commands.Cog):
         help="Affiche la latence actuelle du bot.",
         description="Affiche la latence actuelle du bot en millisecondes."
     )
-    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)  # 🧊 Anti-spam : 5 secondes
+    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
     async def ping(self, ctx: commands.Context):
-        """Commande simple pour tester la réactivité du bot."""
+        """Répond avec la latence actuelle du bot."""
         try:
             latence = round(self.bot.latency * 1000)
-            await ctx.send(f"🏓 Pong ! Latence : {latence} ms")
+            await safe_send(ctx, f"🏓 Pong ! Latence : **{latence} ms**")
         except Exception as e:
             print("[ERREUR ping]", e)
-            await ctx.send("❌ Une erreur est survenue lors de l'exécution de la commande.")
+            await safe_send(ctx, "❌ Une erreur est survenue lors de l'exécution de la commande.")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
