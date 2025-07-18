@@ -46,8 +46,14 @@ def common_word_score(a, b):
 
 def is_clean_card(card):
     banned_keywords = [
-        "@Ignister", "abc -", "abyss", "ancient gear", # …
-        "salamangreat", "sky striker", "tri-brigade", "unchained"
+        "@Ignister", "abc -", "abc-", "abyss", "ancient gear", "altergeist", "beetrouper", "branded", "cloudian", 
+        "crusadia", "cyber", "D.D.", "dark magician", "dark world", "dinowrestler", 
+        "dragonmaid", "dragon ruler", "dragunity", "exosister", "eyes of blue", "f.a", "f.a.", 
+        "floowandereeze", "fur hire", "harpie", 
+        "hero", "hurricail", "infinitrack", "kaiser", "kozaky", "labrynth", "live☆twin", "lunar light", "madolche", "marincess",
+        "Mekk-Knight", "metalfoes", "naturia", "noble knight", "number", "numero", "numéro", 
+        "oni", "Performapal", "phantasm spiral", "pot", "prophecy", "psychic", "punk", "rescue", "rose dragon", 
+        "salamangreat", "sky striker", "tierra", "tri-brigade", "unchained"
     ]
     name = card.get("name", "").lower()
     return all(kw not in name for kw in banned_keywords)
