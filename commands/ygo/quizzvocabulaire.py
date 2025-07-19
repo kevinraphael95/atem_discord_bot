@@ -115,5 +115,5 @@ async def setup(bot: commands.Bot):
     cog = QuizzVocabulaire(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Yu-Gi-Oh"
+            command.category = "🎴 Yu-Gi-Oh"
     await bot.add_cog(cog)
