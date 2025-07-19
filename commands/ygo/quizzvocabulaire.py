@@ -4,8 +4,6 @@
 # Catégorie : Yu-Gi-Oh
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
-
-# ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
@@ -29,12 +27,12 @@ def load_vocab_quiz():
 # 🎛️ UI — Vue interactive du quiz
 # ────────────────────────────────────────────────────────────────────────────────
 class QuizButton(Button):
-    def __init__(self, label, is_correct, view):
+    def __init__(self, label, is_correct):
         super().__init__(label=label, style=discord.ButtonStyle.primary)
         self.is_correct = is_correct
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction):
+        # Désactivation de tous les boutons après clic
         for child in self.view.children:
             child.disabled = True
             if isinstance(child, QuizButton):
@@ -43,10 +41,7 @@ class QuizButton(Button):
                 elif child.label == self.label:
                     child.style = discord.ButtonStyle.danger
 
-        if self.is_correct:
-            result = "✅ Bonne réponse !"
-        else:
-            result = "❌ Mauvaise réponse."
+        result = "✅ Bonne réponse !" if self.is_correct else "❌ Mauvaise réponse."
 
         await safe_edit(
             interaction.message,
@@ -61,7 +56,7 @@ class QuizView(View):
         super().__init__(timeout=30)
         for choice in choices:
             is_correct = (choice == correct_answer)
-            self.add_item(QuizButton(choice, is_correct, self))
+            self.add_item(QuizButton(choice, is_correct))
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -82,7 +77,6 @@ class Vocabulaire(commands.Cog):
         """Commande principale de quiz vocabulaire."""
         try:
             data = load_vocab_quiz()
-
             # data est un dict où chaque clé est un terme,
             # et la valeur est un dict contenant "definition" et "synonymes"
             terme_correct = random.choice(list(data.keys()))
@@ -104,7 +98,6 @@ class Vocabulaire(commands.Cog):
                 description=f"📘 **Définition :**\n{definition}",
                 color=discord.Color.gold()
             )
-
             view = QuizView(definition, options, terme_correct)
             await safe_send(ctx.channel, embed=embed, view=view)
 
