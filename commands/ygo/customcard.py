@@ -10,7 +10,7 @@ from discord.ext import commands
 import random
 import hashlib
 import json
-import os
+import io
 from utils.discord_utils import safe_send  # ou remplace par ctx.send si besoin
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -94,19 +94,20 @@ class CustomCard(commands.Cog):
         embed.add_field(name="💬 Effet", value=card["effect"], inline=False)
         embed.set_footer(text=f"ID Discord : {card['creator_id']}")
 
-        json_data = json.dumps(card, indent=2)
-        file = discord.File(fp=bytes(json_data, encoding="utf-8"), filename="custom_card.json")
+        # Conversion du dict en JSON et création d'un fichier Discord utilisable
+        json_data = json.dumps(card, indent=2, ensure_ascii=False)
+        file_obj = io.BytesIO(json_data.encode('utf-8'))
+        file = discord.File(fp=file_obj, filename="custom_card.json")
 
+        # Envoi via safe_send pour gérer ratelimits 429
         await safe_send(ctx.channel, embed=embed, file=file)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = CustomCard(bot)
     for command in cog.get_commands():
         command.category = "🃏 Yu-Gi-Oh!"
     await bot.add_cog(cog)
-
-
