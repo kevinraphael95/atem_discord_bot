@@ -56,7 +56,7 @@ class PackOpeningCog(commands.Cog):
                 # 🔹 4. Embed d'affichage
                 embed = discord.Embed(
                     title=f"🎴 Booster ouvert : {set_name}",
-                    description="Voici les cartes que tu as obtenues (🇫🇷 en français) :",
+                    description="Voici les cartes que tu as obtenues :",
                     color=discord.Color.gold()
                 )
 
