@@ -45,26 +45,24 @@ class Randeck(commands.Cog):
         """Commande principale pour afficher un deck random."""
         try:
             data = load_data()
-            personnages = []
+            decks = []
 
-            for saison in data.values():
-                for perso, infos in saison.items():
+            for saison, persos in data.items():
+                for duelliste, infos in persos.items():
                     if "deck" in infos and infos["deck"]:
-                        personnages.append((perso, infos))
+                        decks.append((saison, duelliste, random.choice(infos["deck"])))
 
-            if not personnages:
+            if not decks:
                 return await safe_send(ctx, "❌ Aucun deck n'est disponible.")
 
-            nom, infos = random.choice(personnages)
-            lien_deck = random.choice(infos["deck"])
+            saison, duelliste, lien = random.choice(decks)
 
-            embed = discord.Embed(
-                title=f"🎲 Deck aléatoire : {nom}",
-                description=f"[Voir le deck ici]({lien_deck})",
-                color=discord.Color.random()
+            message = (
+                "🎲 **Deck aléatoire tiré !**\n\n"
+                f"👤 Duelliste : **{duelliste}** *(Saison {saison})*\n"
+                f"📘 Deck : {lien}"
             )
-
-            await safe_send(ctx.channel, embed=embed)
+            await safe_send(ctx.channel, message)
 
         except Exception as e:
             print(f"[ERREUR randeck] {e}")
