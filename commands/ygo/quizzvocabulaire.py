@@ -74,7 +74,7 @@ class Vocabulaire(commands.Cog):
         self.bot = bot
 
     @commands.command(
-        name="quizzvocabulaire", aliases=["qv"],
+        name="vocabulaire",
         help="Teste tes connaissances sur le vocabulaire Yu-Gi-Oh!",
         description="Affiche une définition et propose plusieurs termes au choix."
     )
@@ -82,12 +82,21 @@ class Vocabulaire(commands.Cog):
         """Commande principale de quiz vocabulaire."""
         try:
             data = load_vocab_quiz()
-            question = random.choice(data)
 
-            definition = question["definition"]
-            correct = question["terme"]
-            autres = question["autres"]
-            options = autres + [correct]
+            # data est un dict où chaque clé est un terme,
+            # et la valeur est un dict contenant "definition" et "synonymes"
+            terme_correct = random.choice(list(data.keys()))
+            definition = data[terme_correct]["definition"]
+
+            # On prépare les mauvaises réponses (synonymes exclus du choix)
+            autres_termes = list(data.keys())
+            autres_termes.remove(terme_correct)
+
+            # On tire 3 mauvaises réponses au hasard
+            autres_choix = random.sample(autres_termes, k=3)
+
+            # Les options sont mélangées (3 mauvaises + 1 bonne)
+            options = autres_choix + [terme_correct]
             random.shuffle(options)
 
             embed = discord.Embed(
@@ -95,8 +104,8 @@ class Vocabulaire(commands.Cog):
                 description=f"📘 **Définition :**\n{definition}",
                 color=discord.Color.gold()
             )
-            view = QuizView(definition, options, correct)
 
+            view = QuizView(definition, options, terme_correct)
             await safe_send(ctx.channel, embed=embed, view=view)
 
         except Exception as e:
@@ -110,5 +119,5 @@ async def setup(bot: commands.Bot):
     cog = Vocabulaire(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Yu-Gi-Oh"
+            command.category = "🎴 Yu-Gi-Oh"
     await bot.add_cog(cog)
