@@ -10,7 +10,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
-from discord.ui import View, Select
+from discord.ui import View, Button
 import json
 import os
 import random
@@ -27,34 +27,41 @@ def load_vocabulaire():
         return json.load(f)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Menu du quiz (select des réponses)
+# 🎛️ UI — Bouton de réponse
 # ────────────────────────────────────────────────────────────────────────────────
-class QuizSelect(Select):
-    def __init__(self, parent_view: "QuizView", options_list: List[str], correct_answer: str):
-        self.parent_view = parent_view
+class AnswerButton(Button):
+    def __init__(self, label: str, correct_answer: str, parent_view: "QuizView"):
+        super().__init__(label=label, style=discord.ButtonStyle.secondary)
         self.correct_answer = correct_answer
-        select_options = [discord.SelectOption(label=opt, value=opt) for opt in options_list]
-        super().__init__(placeholder="Choisis la bonne réponse", options=select_options, max_values=1)
+        self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        selected = self.values[0]
-        if selected == self.correct_answer:
-            content = f"✅ Bravo ! **{selected}** est la bonne réponse."
-        else:
-            content = f"❌ Mauvaise réponse... La bonne réponse était **{self.correct_answer}**."
+        if self.disabled:
+            return
 
-        self.parent_view.clear_items()
-        await interaction.response.defer()  # ⚠️ Nécessaire
-        await safe_edit(interaction.message, content=content, embed=None, view=None)
+        self.parent_view.disable_all_items()
+        await interaction.response.edit_message(view=self.parent_view)
+
+        if self.label == self.correct_answer:
+            response = f"✅ Bravo ! **{self.label}** est la bonne réponse."
+        else:
+            response = f"❌ Mauvaise réponse... La bonne réponse était **{self.correct_answer}**."
+
+        await safe_send(interaction.channel, response)
         self.parent_view.stop()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Vue du quiz
 # ────────────────────────────────────────────────────────────────────────────────
 class QuizView(View):
-    def __init__(self, question: str, options_list: List[str], correct_answer: str):
+    def __init__(self, options_list: List[str], correct_answer: str):
         super().__init__(timeout=60)
-        self.add_item(QuizSelect(self, options_list, correct_answer))
+        for opt in options_list:
+            self.add_item(AnswerButton(label=opt, correct_answer=correct_answer, parent_view=self))
+
+    def disable_all_items(self):
+        for item in self.children:
+            item.disabled = True
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -73,7 +80,7 @@ class QuizzVocabulaire(commands.Cog):
         description="Donne une définition et propose 4 termes, trouve le bon."
     )
     async def quizzvocabulaire(self, ctx: commands.Context):
-        """Commande principale avec menu interactif de quiz."""
+        """Commande principale avec boutons pour répondre au quiz."""
         try:
             if len(self.vocabulaire) < 4:
                 raise ValueError("Pas assez de données pour lancer un quiz.")
@@ -81,7 +88,6 @@ class QuizzVocabulaire(commands.Cog):
             terme, infos = random.choice(list(self.vocabulaire.items()))
             definition = infos.get("definition", "Définition indisponible.")
 
-            # Construction des options (1 bonne réponse + 3 mauvaises)
             autres_termes = [k for k in self.vocabulaire.keys() if k != terme]
             if len(autres_termes) < 3:
                 raise ValueError("Pas assez de termes différents pour générer des choix.")
@@ -92,10 +98,10 @@ class QuizzVocabulaire(commands.Cog):
 
             embed = discord.Embed(
                 title="📘 Quizz Vocabulaire Yu-Gi-Oh!",
-                description=f"**Définition :**\n{definition}\n\nSélectionne le terme correspondant :",
+                description=f"**Définition :**\n{definition}\n\nClique sur le bon terme :",
                 color=discord.Color.dark_orange()
             )
-            view = QuizView(definition, choix, terme)
+            view = QuizView(choix, terme)
             await safe_send(ctx.channel, embed=embed, view=view)
 
         except Exception as e:
