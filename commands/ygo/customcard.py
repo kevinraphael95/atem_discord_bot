@@ -11,7 +11,7 @@ import random
 import hashlib
 import json
 import io
-from utils.discord_utils import safe_send  # ou remplace par ctx.send si besoin
+from utils.discord_utils import safe_send  # assure-toi que safe_send gère await et 429
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔢 Données de base chargées depuis le JSON externe
@@ -94,14 +94,14 @@ class CustomCard(commands.Cog):
         embed.add_field(name="💬 Effet", value=card["effect"], inline=False)
         embed.set_footer(text=f"ID Discord : {card['creator_id']}")
 
-        # Conversion du dict en JSON et création d'un fichier Discord utilisable
+        # Préparation du fichier JSON en mémoire (BytesIO)
         json_data = json.dumps(card, indent=2, ensure_ascii=False)
         file_obj = io.BytesIO(json_data.encode('utf-8'))
+        file_obj.seek(0)
         file = discord.File(fp=file_obj, filename="custom_card.json")
 
-        # Envoi via safe_send pour gérer ratelimits 429
+        # Envoi avec safe_send, qui doit await et gérer les 429
         await safe_send(ctx.channel, embed=embed, file=file)
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
