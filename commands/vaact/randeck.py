@@ -57,12 +57,16 @@ class Randeck(commands.Cog):
 
             saison, duelliste, lien = random.choice(decks)
 
-            message = (
-                "🎲 **Deck aléatoire tiré !**\n\n"
-                f"👤 Duelliste : **{duelliste}** *(Saison {saison})*\n"
-                f"📘 Deck : {lien}"
+            # ─ Embed stylé ─
+            embed = discord.Embed(
+                title="🎲 Deck Aléatoire Tiré !",
+                color=discord.Color.random()
             )
-            await safe_send(ctx.channel, message)
+            embed.add_field(name="👤 Duelliste", value=f"**{duelliste}** *(Saison {saison})*", inline=False)
+            embed.add_field(name="📘 Deck", value=lien, inline=False)
+            embed.set_footer(text=f"Tiré par {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+
+            await safe_send(ctx.channel, embed=embed)
 
         except Exception as e:
             print(f"[ERREUR randeck] {e}")
