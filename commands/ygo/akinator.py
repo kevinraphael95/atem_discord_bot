@@ -146,7 +146,7 @@ class AkinatorCog(commands.Cog):
         self.questions = load_questions()
 
     @commands.command(
-        name="akinator", aliases=["ygonator"],
+        name="akinator",
         help="Deviner une carte Yu-Gi-Oh! via questions Oui/Non/Je sais pas.",
         description="Pose des questions pour deviner la carte à laquelle tu penses."
     )
