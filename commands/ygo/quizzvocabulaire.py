@@ -75,7 +75,7 @@ class QuizzVocabulaire(commands.Cog):
         self.vocabulaire = load_vocabulaire()
 
     @commands.command(
-        name="quizzvocabulaire",
+        name="quizzvocabulaire", aliases=["qv"],
         help="Fais un quiz interactif sur le vocabulaire Yu-Gi-Oh!",
         description="Donne une définition et propose 4 termes, trouve le bon."
     )
