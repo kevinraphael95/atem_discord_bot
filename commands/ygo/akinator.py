@@ -40,12 +40,8 @@ class AkinatorView(View):
         self.card_candidates = None
 
     async def send_next_question(self):
-        if self.question_num < len(self.questions):
-            question = self.questions[self.question_num]
-            embed = discord.Embed(title=f"Question {self.question_num + 1}", description=question, color=discord.Color.blue())
-            await safe_send(self.ctx.channel, embed=embed, view=self)
-        else:
-            # Dès la 6e question, on charge les cartes filtrées (limité à 100)
+        # Dès la 6e question (index 5), on charge les cartes filtrées (limité à 100)
+        if self.question_num >= 5:
             await self.load_cards()
             if self.card_candidates:
                 card = self.card_candidates[0]
@@ -53,6 +49,12 @@ class AkinatorView(View):
             else:
                 await safe_send(self.ctx.channel, "❌ Je n'ai pas réussi à trouver une carte correspondant aux critères.")
             self.stop()
+            return
+
+        if self.question_num < len(self.questions):
+            question = self.questions[self.question_num]
+            embed = discord.Embed(title=f"Question {self.question_num + 1}", description=question, color=discord.Color.blue())
+            await safe_send(self.ctx.channel, embed=embed, view=self)
 
     async def load_cards(self):
         base_url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
@@ -144,7 +146,7 @@ class AkinatorCog(commands.Cog):
         self.questions = load_questions()
 
     @commands.command(
-        name="akinator",
+        name="akinator", aliases=["ygonator"],
         help="Deviner une carte Yu-Gi-Oh! via questions Oui/Non/Je sais pas.",
         description="Pose des questions pour deviner la carte à laquelle tu penses."
     )
@@ -165,5 +167,5 @@ async def setup(bot: commands.Bot):
     cog = AkinatorCog(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🃏 Yu-Gi-Oh"
+            command.category = "🃏 Yu-Gi-Oh!"
     await bot.add_cog(cog)
