@@ -52,10 +52,8 @@ class QuizSelect(Select):
 # 🎛️ UI — Vue du quiz
 # ────────────────────────────────────────────────────────────────────────────────
 class QuizView(View):
-    def __init__(self, bot, question: str, options_list: List[str], correct_answer: str):
+    def __init__(self, question: str, options_list: List[str], correct_answer: str):
         super().__init__(timeout=60)
-        self.bot = bot
-        self.question = question
         self.add_item(QuizSelect(self, options_list, correct_answer))
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -92,15 +90,12 @@ class QuizzVocabulaire(commands.Cog):
             choix.append(terme)
             random.shuffle(choix)
 
-            # Debug print
-            print(f"[QUIZZ] Terme: {terme} | Choix: {choix}")
-
             embed = discord.Embed(
                 title="📘 Quizz Vocabulaire Yu-Gi-Oh!",
                 description=f"**Définition :**\n{definition}\n\nSélectionne le terme correspondant :",
                 color=discord.Color.dark_orange()
             )
-            view = QuizView(self.bot, definition, choix, terme)
+            view = QuizView(definition, choix, terme)
             await safe_send(ctx.channel, embed=embed, view=view)
 
         except Exception as e:
