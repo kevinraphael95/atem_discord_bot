@@ -117,16 +117,17 @@ class AkinatorView(View):
             card = self.remaining[0]
             embed = discord.Embed(
                 title="Je pense à cette carte !",
-                description=f"**{card['name']}**",
+                description=f"**{card['name']}**\nEst-ce bien ta carte ?",
                 color=discord.Color.green()
             )
-            # Si image dispo
             if 'card_images' in card and len(card['card_images']) > 0:
                 embed.set_image(url=card['card_images'][0]['image_url'])
-            await safe_edit(self.message, content=None, embed=embed, view=None)
+
+            await safe_edit(self.message, content=None, embed=embed, view=ConfirmGuessView(self))
         else:
             await safe_edit(self.message, content="❌ Je n'ai pas trouvé de carte correspondante.", embed=None, view=None)
-        self.stop()
+            self.stop()
+
 
     @discord.ui.button(label="Oui", style=discord.ButtonStyle.success)
     async def yes(self, interaction: discord.Interaction, button: Button):
@@ -142,6 +143,28 @@ class AkinatorView(View):
     async def idk(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         await self.process_answer("idk")
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ Vue interactive bouton pour dire si c'est la bonne carte ou non
+# ────────────────────────────────────────────────────────────────────────────────
+
+class ConfirmGuessView(View):
+    def __init__(self, akinator_view):
+        super().__init__(timeout=60)
+        self.akinator_view = akinator_view
+
+    @discord.ui.button(label="Oui, c'est la bonne carte", style=discord.ButtonStyle.success)
+    async def confirm(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.edit_message(content="🎉 Super ! J'ai trouvé ta carte !", view=None, embed=None)
+        self.akinator_view.stop()
+
+    @discord.ui.button(label="Non, essaie encore", style=discord.ButtonStyle.danger)
+    async def deny(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.defer()
+        self.akinator_view.max_questions += 20
+        await self.akinator_view.update_question()
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Cog principal
