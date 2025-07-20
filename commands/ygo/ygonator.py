@@ -19,7 +19,7 @@ from utils.discord_utils import safe_send, safe_edit
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Chargement des questions JSON enrichies (texte + filtre associé)
 # ────────────────────────────────────────────────────────────────────────────────
-DATA_QUESTIONS_PATH = os.path.join("data", "akinator_questions.json")
+DATA_QUESTIONS_PATH = os.path.join("data", "akiquestions.json")
 
 def load_questions():
     with open(DATA_QUESTIONS_PATH, "r", encoding="utf-8") as f:
