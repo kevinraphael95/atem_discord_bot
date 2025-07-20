@@ -39,7 +39,7 @@ class AkinatorView(View):
         self.message = message
         self.used_questions = []
         self.current_q = None
-        self.max_questions = 10
+        self.max_questions = 20
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user == self.ctx.author
@@ -168,7 +168,7 @@ class AkinatorCog(commands.Cog):
                     cards = data.get("data", [])
             embed = discord.Embed(
                 title="Akinator Yu-Gi-Oh!",
-                description="Je vais deviner à quoi tu penses en 10 questions maximum.",
+                description="Je vais deviner à quoi tu penses en 20 questions maximum.",
                 color=discord.Color.dark_red()
             )
             msg = await safe_send(ctx, embed=embed)
