@@ -37,16 +37,19 @@ class CarteFav(commands.Cog):
         user_id = str(user.id)
 
         try:
+            # ✅ Requête asynchrone avec supabase-py v2
             response = await supabase.table("favorites").select("cartefav").eq("user_id", user_id).execute()
 
-            if not response.data:
+            cartes_data = response.data if hasattr(response, "data") else None
+
+            if not cartes_data:
                 if user == ctx.author:
                     await safe_send(ctx.channel, "❌ Vous n’avez pas encore de carte favorite.")
                 else:
                     await safe_send(ctx.channel, f"❌ {user.display_name} n’a pas encore de carte favorite.")
                 return
 
-            cartes = [entry["cartefav"] for entry in response.data]
+            cartes = [entry["cartefav"] for entry in cartes_data]
 
             cartes_str = "\n".join(f"• {c}" for c in cartes)
             embed = discord.Embed(
