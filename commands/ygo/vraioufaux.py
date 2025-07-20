@@ -13,6 +13,7 @@ from discord.ext import commands
 from discord.ui import View, Button
 import json
 import os
+import random
 from utils.discord_utils import safe_send, safe_edit  # Utilisation des safe_
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -78,7 +79,7 @@ class TrueFalse(commands.Cog):
         description="Pose une question Vrai ou Faux avec boutons interactifs."
     )
     async def vrai_ou_faux(self, ctx: commands.Context):
-        question = self.questions[discord.utils.random.randint(0, len(self.questions) - 1)]
+        question = self.questions[random.randint(0, len(self.questions) - 1)]
         view = TrueFalseView(ctx, question["statement"], question["answer"])
         await safe_send(ctx.channel, f"**Vrai ou Faux ?**\n{question['statement']}", view=view)
 
