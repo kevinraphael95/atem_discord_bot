@@ -32,11 +32,15 @@ class CarteFavoriteButton(View):
             await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
             return
         try:
+            # Supprimer l'ancienne carte favorite de cet utilisateur avant d'ajouter la nouvelle
+            supabase.table("favorites").delete().eq("user_id", str(interaction.user.id)).execute()
+
             supabase.table("favorites").insert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
                 "cartefav": self.carte_name
             }).execute()
+
             await interaction.response.send_message(f"✅ **{self.carte_name}** ajoutée à tes cartes favorites !", ephemeral=True)
         except Exception as e:
             print(f"[ERREUR Supabase] {e}")
