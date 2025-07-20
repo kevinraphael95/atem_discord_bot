@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 cartefav.py — Commande interactive !cartefav
-# Objectif : Afficher les cartes favorites d’un utilisateur Discord
+# Objectif : Afficher les cartes favorites d’un utilisateur avec infos détaillées Yu-Gi-Oh!
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -10,16 +10,18 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
-from utils.discord_utils import safe_send  # ✅ Utilisation des safe_
-
-from supabase_client import supabase  # Client Supabase déjà configuré
+import aiohttp
+import urllib.parse
+from utils.discord_utils import safe_send  # ✅ Utilisation des fonctions safe_
+from supabase_client import supabase        # Client Supabase déjà configuré
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class CarteFav(commands.Cog):
     """
-    Commande !cartefav — Affiche les cartes favorites d’un utilisateur Discord.
+    Commande !cartefav — Affiche les cartes favorites d’un utilisateur Discord,
+    avec la même présentation que la commande !carte.
     Usage : !cartefav [@utilisateur]
     """
 
@@ -29,18 +31,16 @@ class CarteFav(commands.Cog):
     @commands.command(
         name="cartefav",
         help="⭐ Affiche les cartes favorites de l’utilisateur mentionné ou de vous-même.",
-        description="Affiche la liste des cartes favorites stockées pour un utilisateur."
+        description="Affiche les infos détaillées des cartes favorites d’un utilisateur."
     )
     async def cartefav(self, ctx: commands.Context, user: discord.User = None):
-        """Affiche les cartes favorites d’un utilisateur Discord"""
         user = user or ctx.author
         user_id = str(user.id)
 
         try:
-            # ✅ Requête asynchrone avec supabase-py v2
-            response = await supabase.table("favorites").select("cartefav").eq("user_id", user_id).execute()
-
-            cartes_data = response.data if hasattr(response, "data") else None
+            # Récupérer toutes les cartes favorites de l’utilisateur
+            response = supabase.table("favorites").select("cartefav").eq("user_id", user_id).execute()
+            cartes_data = response.data
 
             if not cartes_data:
                 if user == ctx.author:
@@ -49,15 +49,50 @@ class CarteFav(commands.Cog):
                     await safe_send(ctx.channel, f"❌ {user.display_name} n’a pas encore de carte favorite.")
                 return
 
-            cartes = [entry["cartefav"] for entry in cartes_data]
+            async with aiohttp.ClientSession() as session:
+                for entry in cartes_data:
+                    nom_carte = entry["cartefav"]
+                    nom_encode = urllib.parse.quote(nom_carte)
+                    carte = None
+                    langue_detectee = "?"
 
-            cartes_str = "\n".join(f"• {c}" for c in cartes)
-            embed = discord.Embed(
-                title=f"⭐ Cartes favorites de {user.display_name}",
-                description=cartes_str,
-                color=discord.Color.gold()
-            )
-            await safe_send(ctx.channel, embed=embed)
+                    # Recherche API ygoprodeck (fr puis en)
+                    for code in ["fr", ""]:
+                        if code:
+                            url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
+                        else:
+                            url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
+
+                        async with session.get(url) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                if "data" in data and len(data["data"]) > 0:
+                                    carte = data["data"][0]
+                                    langue_detectee = code if code else "en"
+                                    break
+
+                    if not carte:
+                        await safe_send(ctx.channel, f"❌ Carte favorite `{nom_carte}` introuvable via l’API.")
+                        continue
+
+                    # Création embed (comme dans !carte)
+                    embed = discord.Embed(
+                        title=f"{carte.get('name', 'Carte inconnue')} ({langue_detectee.upper()})",
+                        description=carte.get("desc", "Pas de description disponible."),
+                        color=discord.Color.red()
+                    )
+
+                    embed.add_field(name="🧪 Type", value=carte.get("type", "?"), inline=True)
+
+                    if carte.get("type", "").lower().startswith("monstre"):
+                        embed.add_field(name="⚔️ ATK / DEF", value=f"{carte.get('atk', '?')} / {carte.get('def', '?')}", inline=True)
+                        embed.add_field(name="⭐ Niveau / Rang", value=str(carte.get("level", "?")), inline=True)
+                        embed.add_field(name="🌪️ Attribut", value=carte.get("attribute", "?"), inline=True)
+                        embed.add_field(name="👹 Race", value=carte.get("race", "?"), inline=True)
+
+                    embed.set_image(url=carte["card_images"][0]["image_url"])
+
+                    await safe_send(ctx.channel, embed=embed)
 
         except Exception as e:
             print(f"[ERREUR cartefav] {e}")
