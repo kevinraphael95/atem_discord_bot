@@ -14,155 +14,178 @@ from discord.ui import View, Button
 import aiohttp
 import json
 import os
-from utils.discord_utils import safe_send, safe_edit, safe_respond  # ✅ Utilisation des safe_
+import random
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📂 Chargement des questions JSON
-# ────────────────────────────────────────────────────────────────────────────────
+from utils.discord_utils import safe_send, safe_edit, safe_respond
+
 DATA_QUESTIONS_PATH = os.path.join("data", "akiquestions.json")
+
 
 def load_questions():
     with open(DATA_QUESTIONS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Vue interactive avec boutons Oui / Non / Je sais pas
-# ────────────────────────────────────────────────────────────────────────────────
+
 class AkinatorView(View):
-    def __init__(self, bot, ctx, questions, message):
+    def __init__(self, bot, ctx, all_cards, questions, message):
         super().__init__(timeout=180)
         self.bot = bot
         self.ctx = ctx
+        self.all_cards = all_cards
+        self.remaining = all_cards[:]
         self.questions = questions
         self.message = message
-        self.question_num = 0
-        self.filters = {}
-        self.answers = []
-        self.card_candidates = None
+        self.used_questions = []
+        self.filters_applied = []  # historique des filtres
+        self.current_q = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user == self.ctx.author
 
     async def on_timeout(self):
-        await safe_edit(self.message, content="⏰ Temps écoulé, la partie est terminée.", embed=None, view=None)
+        await safe_edit(self.message, content="⏰ Temps écoulé.", embed=None, view=None)
         self.stop()
 
-    async def update_embed(self):
+    async def update_question(self):
+        if len(self.remaining) <= 1 or len(self.used_questions) >= len(self.questions):
+            await self.finish_game()
+            return
+
+        self.current_q = self.select_best_question()
+        if not self.current_q:
+            await self.finish_game()
+            return
+
+        self.used_questions.append(self.current_q)
         embed = discord.Embed(
-            title=f"Question {self.question_num + 1}",
-            description=self.questions[self.question_num],
-            color=discord.Color.blue()
+            title=f"Question {len(self.used_questions)}",
+            description=self.current_q['text'],
+            color=discord.Color.dark_gold()
         )
+        embed.set_footer(text=f"{len(self.remaining)} carte(s) restante(s)")
         await safe_edit(self.message, embed=embed, view=self)
 
-    async def finish_game(self):
-        await self.load_cards()
-        if self.card_candidates:
-            card = self.card_candidates[0]
-            await safe_edit(self.message, content=f"🧠 Je pense que c'est : **{card['name']}**", embed=None, view=None)
-        else:
-            await safe_edit(self.message, content="❌ Je n'ai pas trouvé de carte correspondant aux réponses.", embed=None, view=None)
-        self.stop()
-
-    async def load_cards(self):
-        base_url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
-        params = []
-
-        if "type" in self.filters:
-            if self.filters["type"] == "Monster":
-                params.append("type=Normal Monster,Effect Monster,Fusion Monster,Synchro Monster,Xyz Monster,Ritual Monster,Link Monster")
-            elif self.filters["type"] == "SpellTrap":
-                params.append("type=Spell Card,Trap Card")
-
-        if "race" in self.filters:
-            params.append(f"race={self.filters['race']}")
-
-        params.append("num=100")  # max 100 cartes
-
-        url = base_url + "?" + "&".join(params)
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    self.card_candidates = data.get("data", [])
+    def select_best_question(self):
+        best_q = None
+        best_split = len(self.remaining)
+        for q in self.questions:
+            if q in self.used_questions:
+                continue
+            yes, no = 0, 0
+            for c in self.remaining:
+                if self.match_filter(c, q):
+                    yes += 1
                 else:
-                    self.card_candidates = []
+                    no += 1
+            if yes + no == 0:
+                continue  # question inutile
+            max_split = max(yes, no)
+            if max_split < best_split:
+                best_split = max_split
+                best_q = q
+        return best_q
+
+    def match_filter(self, card, question):
+        key, value = question['filter_key'], question['filter_value']
+        if key not in card:
+            return False
+        return value.lower() in str(card[key]).lower()
 
     async def process_answer(self, answer):
-        q = self.questions[self.question_num]
-
-        if "monstre" in q.lower() and self.question_num == 0:
-            if answer == "oui":
-                self.filters["type"] = "Monster"
-            elif answer == "non":
-                self.filters["type"] = "SpellTrap"
+        if answer == "idk":
+            pass
         else:
-            races = ["dragon", "guerrier", "magicien", "machine", "zombie", "bête", "bête ailée",
-                     "dinosaure", "elfe", "psy", "aqua", "roche", "insecte", "serpent de mer", "plante", "tonnerre",
-                     "pyro", "démon", "ange"]
-            for race in races:
-                if race in q.lower():
-                    if answer == "oui":
-                        self.filters["race"] = race.capitalize()
-                    break
+            self.filters_applied.append((self.current_q, answer))
+            keep = []
+            for c in self.remaining:
+                match = self.match_filter(c, self.current_q)
+                if (answer == "oui" and match) or (answer == "non" and not match):
+                    keep.append(c)
+            self.remaining = keep
 
-        self.answers.append(answer)
-        self.question_num += 1
+        if not self.remaining:
+            await self.refetch_filtered_cards()
+        await self.update_question()
 
-        if self.question_num >= 5:
-            await self.finish_game()
+    async def refetch_filtered_cards(self):
+        async with aiohttp.ClientSession() as session:
+            url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?"
+            query_params = []
+            for q, a in self.filters_applied:
+                if a == "oui":
+                    query_params.append(f"{q['filter_key']}={q['filter_value']}")
+            full_url = url + "&".join(query_params) if query_params else url
+            async with session.get(full_url) as resp:
+                data = await resp.json()
+                new_cards = data.get("data", [])
+
+        # Filtrage des non
+        for q, a in self.filters_applied:
+            if a == "non":
+                new_cards = [
+                    c for c in new_cards
+                    if not self.match_filter(c, q)
+                ]
+
+        self.remaining = new_cards
+
+    async def finish_game(self):
+        if self.remaining:
+            card = self.remaining[0]
+            embed = discord.Embed(
+                title="🧠 Je pense à...",
+                description=f"**{card['name']}**",
+                color=discord.Color.green()
+            )
+            if 'card_images' in card and card['card_images']:
+                embed.set_image(url=card['card_images'][0]['image_url'])
+            await safe_edit(self.message, embed=embed, view=None)
         else:
-            await self.update_embed()
+            await safe_edit(self.message, content="❌ Je n'ai pas trouvé la carte.", embed=None, view=None)
+        self.stop()
 
-    @discord.ui.button(label="Oui", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="Oui", style=discord.ButtonStyle.success)
     async def yes(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         await self.process_answer("oui")
 
-    @discord.ui.button(label="Non", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Non", style=discord.ButtonStyle.danger)
     async def no(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         await self.process_answer("non")
 
-    @discord.ui.button(label="Je sais pas", style=discord.ButtonStyle.grey)
+    @discord.ui.button(label="Je sais pas", style=discord.ButtonStyle.secondary)
     async def idk(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
-        await self.process_answer("je sais pas")
+        await self.process_answer("idk")
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+
 class AkinatorCog(commands.Cog):
-    """
-    Commande !akinator — Deviner une carte Yu-Gi-Oh! via questions Oui/Non/Je sais pas chargées depuis un JSON.
-    """
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.questions = load_questions()
 
-    @commands.command(
-        name="akinator", aliases=["ygonator"],
-        help="Devine une carte Yu-Gi-Oh! en posant des questions Oui/Non/Je sais pas.",
-        description="Pose des questions pour deviner à quoi tu penses."
-    )
+    @commands.command(name="akinator", help="Devine une carte Yu-Gi-Oh! à laquelle tu penses.")
     async def akinator(self, ctx: commands.Context):
-        """Commande principale !akinator avec questions sur un seul message."""
         try:
+            await safe_send(ctx, "🔍 Chargement des cartes...")
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://db.ygoprodeck.com/api/v7/cardinfo.php?num=300") as resp:
+                    data = await resp.json()
+                    cards = data.get("data", [])
             embed = discord.Embed(
-                title="Question 1",
-                description=self.questions[0],
-                color=discord.Color.blue()
+                title="Akinator Yu-Gi-Oh!",
+                description="Pense à une carte Yu-Gi-Oh!, je vais deviner laquelle en 10 questions maximum.",
+                color=discord.Color.dark_red()
             )
-            msg = await safe_send(ctx.channel, "Je vais essayer de deviner à quoi tu penses.", embed=embed)
-            view = AkinatorView(self.bot, ctx, self.questions, msg)
-            await msg.edit(view=view)
+            msg = await safe_send(ctx, embed=embed)
+            view = AkinatorView(self.bot, ctx, cards, self.questions, msg)
+            await view.update_question()
         except Exception as e:
-            print(f"[ERREUR akinator] {e}")
-            await safe_send(ctx.channel, "❌ Une erreur est survenue pendant la partie.")
+            await safe_send(ctx, f"❌ Une erreur est survenue : {e}")
 
-# ────────────────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
