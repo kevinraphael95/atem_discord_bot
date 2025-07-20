@@ -78,7 +78,7 @@
     {"statement": "Les monstres Lien n'ont pas de points de défense.", "answer": true},
     {"statement": "Les monstres de type Zombie sont faibles contre les monstres de type Lumière.", "answer": false},
     {"statement": "Les cartes Piège peuvent être activées uniquement durant le tour de l'adversaire.", "answer": false},
-    {"statement": "Les cartes Magie Rapides peuvent être activées en réponse à d'autres cartes.", "answer": true},
+    {"statement": "Les cartes Magie Rapides peuvent être activées en réponse à d'autres cartes.", "answer": true}
     
   ]
 }
