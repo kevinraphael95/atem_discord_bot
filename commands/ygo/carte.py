@@ -14,20 +14,41 @@ import aiohttp
 import asyncio
 import urllib.parse
 
-from utils.discord_utils import safe_send, safe_edit  # ✅ Protection 429
+from utils.discord_utils import safe_send  # ✅ Protection 429
+from supabase_client import supabase       # Import du client Supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
+class CarteFavoriteButton(discord.ui.View):
+    def __init__(self, carte_name: str, user: discord.User):
+        super().__init__(timeout=120)
+        self.carte_name = carte_name
+        self.user = user
+
+    @discord.ui.button(label="⭐ Carte favorite", style=discord.ButtonStyle.primary, emoji="⭐")
+    async def favorite(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user.id:
+            return await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+        try:
+            supabase.table("favorites").insert({
+                "user_id": str(interaction.user.id),
+                "username": interaction.user.name,
+                "cartefav": self.carte_name
+            }).execute()
+            await interaction.response.send_message(f"✅ **{self.carte_name}** ajoutée à tes cartes favorites !", ephemeral=True)
+        except Exception as e:
+            print(f"[ERREUR Supabase] {e}")
+            await interaction.response.send_message("❌ Erreur lors de l’ajout à Supabase.", ephemeral=True)
+
 class Carte(commands.Cog):
     """
     Commande !carte — Rechercher une carte Yu-Gi-Oh! et afficher ses informations.
-    Réagit avec 💶 pour proposer un lien Cardmarket.
+    Affiche un bouton "⭐ Carte favorite" pour enregistrer la carte en favoris.
     """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self._message_carte_cache = {}
 
     @commands.command(
         name="carte",
@@ -37,7 +58,6 @@ class Carte(commands.Cog):
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
-        """Commande principale pour chercher une carte Yu-Gi-Oh!"""
         lang_codes = ["fr", ""]
         nom_encode = urllib.parse.quote(nom)
         carte = None
@@ -57,7 +77,6 @@ class Carte(commands.Cog):
                                 nom_corrige = carte.get("name", nom)
                                 break
 
-                # 🔁 Suggestion si aucune carte trouvée
                 if not carte:
                     url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
                     async with session.get(url_fuzzy) as resp_fuzzy:
@@ -93,47 +112,9 @@ class Carte(commands.Cog):
             embed.add_field(name="👹 Race", value=carte.get("race", "?"), inline=True)
 
         embed.set_thumbnail(url=carte["card_images"][0]["image_url"])
-        message = await safe_send(ctx.channel, embed=embed)
 
-        await message.add_reaction("💶")
-        self._message_carte_cache[message.id] = carte
-
-        async def cleanup(msg_id):
-            await asyncio.sleep(300)
-            self._message_carte_cache.pop(msg_id, None)
-
-        self.bot.loop.create_task(cleanup(message.id))
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔁 Listener — Ajout de réaction 💶
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.Cog.listener()
-    async def on_reaction_add(self, reaction: discord.Reaction, user: discord.User):
-        if user.bot or reaction.emoji != "💶":
-            return
-
-        message = reaction.message
-        if message.id not in self._message_carte_cache:
-            return
-
-        carte = self._message_carte_cache[message.id]
-
-        try:
-            await message.remove_reaction("💶", user)
-        except discord.Forbidden:
-            pass
-
-        nom_cm = urllib.parse.quote(carte["name"])
-        langue_cm = "FR" if carte.get("lang", "en") == "fr" else "EN"
-        url = f"https://www.cardmarket.com/{langue_cm}/YuGiOh/Products/Search?searchString={nom_cm}"
-
-        embed = discord.Embed(
-            title=f"💶 Voir les offres Cardmarket pour {carte['name']}",
-            description=f"[🔗 Cliquez ici pour voir sur Cardmarket]({url})",
-            color=discord.Color.gold()
-        )
-
-        await safe_send(message.channel, embed=embed)
+        view = CarteFavoriteButton(carte["name"], ctx.author)
+        await safe_send(ctx.channel, embed=embed, view=view)
 
     def cog_load(self):
         self.carte.category = "🃏 Yu-Gi-Oh!"
