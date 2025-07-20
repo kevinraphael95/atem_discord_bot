@@ -54,7 +54,7 @@
     {"statement": "Le 'Draw Phase' peut être sauté si un effet l'interdit.", "answer": true},
     {"statement": "Les monstres Lien ont tous 0 en défense.", "answer": false},
     {"statement": "Le terme 'Boost' signifie augmenter les points d'attaque ou de défense.", "answer": true},
-    {"statement": "Une carte Piège ne peut jamais être activée depuis la main.", "answer": },
+    {"statement": "Une carte Piège ne peut jamais être activée depuis la main.", "answer": false},
     {"statement": "Un duel se termine automatiquement après 20 tours.", "answer": false},
     {"statement": "Les 'Chaines' se résolvent du dernier effet ajouté au premier.", "answer": true},
     {"statement": "Le monstre 'Slifer le Dragon Céleste' change d'ATK en fonction des cartes en main.", "answer": true},
