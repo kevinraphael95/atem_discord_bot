@@ -44,10 +44,11 @@ class TrueFalseView(View):
         if self.answered:
             return await interaction.response.defer()
         self.answered = True
+
         if self.answer is True:
-            await interaction.response.edit_message(content="✅ Correct !", view=None)
+            await interaction.response.send_message("✅ Correct !", ephemeral=True)
         else:
-            await interaction.response.edit_message(content="❌ Faux !", view=None)
+            await interaction.response.send_message("❌ Faux !", ephemeral=True)
 
     @discord.ui.button(label="Faux", style=discord.ButtonStyle.red)
     async def false_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -56,10 +57,11 @@ class TrueFalseView(View):
         if self.answered:
             return await interaction.response.defer()
         self.answered = True
+
         if self.answer is False:
-            await interaction.response.edit_message(content="✅ Correct !", view=None)
+            await interaction.response.send_message("✅ Correct !", ephemeral=True)
         else:
-            await interaction.response.edit_message(content="❌ Faux !", view=None)
+            await interaction.response.send_message("❌ Faux !", ephemeral=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -80,8 +82,15 @@ class TrueFalse(commands.Cog):
     )
     async def vrai_ou_faux(self, ctx: commands.Context):
         question = self.questions[random.randint(0, len(self.questions) - 1)]
+
+        embed = discord.Embed(
+            title="🃏 Quiz Yu-Gi-Oh! : Vrai ou Faux ?",
+            description=question["statement"],
+            color=discord.Color.blue()
+        )
+
         view = TrueFalseView(ctx, question["statement"], question["answer"])
-        await safe_send(ctx.channel, f"**Vrai ou Faux ?**\n{question['statement']}", view=view)
+        await safe_send(ctx.channel, embed=embed, view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
