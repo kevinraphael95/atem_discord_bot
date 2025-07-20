@@ -156,14 +156,26 @@ class ConfirmGuessView(View):
 
     @discord.ui.button(label="Oui, c'est la bonne carte", style=discord.ButtonStyle.success)
     async def confirm(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.edit_message(content="🎉 Super ! J'ai trouvé ta carte !", view=None, embed=None)
+        await interaction.followup.send(
+            content="🎉 **Super ! J'ai trouvé ta carte !** Merci d'avoir joué à Akinator Yu-Gi-Oh!",
+            ephemeral=False
+        )
+        await interaction.message.edit(view=None)  # Supprime les boutons du message précédent
         self.akinator_view.stop()
+
 
     @discord.ui.button(label="Non, essaie encore", style=discord.ButtonStyle.danger)
     async def deny(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         self.akinator_view.max_questions += 20
+        await safe_edit(
+            self.akinator_view.message,
+            content=None,
+            embed=None,
+            view=None
+        )
         await self.akinator_view.update_question()
+
 
 
 # ────────────────────────────────────────────────────────────────────────────────
