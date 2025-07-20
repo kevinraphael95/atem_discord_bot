@@ -168,13 +168,14 @@ class ConfirmGuessView(View):
     async def deny(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
         self.akinator_view.max_questions += 20
+        self.akinator_view.used_questions = []  # Optionnel : réinitialiser les questions déjà posées
         await safe_edit(
             self.akinator_view.message,
-            content=None,
             embed=None,
-            view=None
+            view=self.akinator_view  # Réactive les boutons Oui / Non / Je sais pas
         )
         await self.akinator_view.update_question()
+
 
 
 
