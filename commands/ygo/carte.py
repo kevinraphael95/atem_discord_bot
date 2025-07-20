@@ -129,7 +129,7 @@ class Carte(commands.Cog):
             embed.add_field(name="🌪️ Attribut", value=carte.get("attribute", "?"), inline=True)
             embed.add_field(name="👹 Race", value=carte.get("race", "?"), inline=True)
 
-        embed.set_thumbnail(url=carte["card_images"][0]["image_url"])
+        embed.set_image(url=carte["card_images"][0]["image_url"])
 
         view = CarteFavoriteButton(carte["name"], ctx.author)
         await safe_send(ctx.channel, embed=embed, view=view)
