@@ -136,7 +136,9 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    if bot.user in message.mentions and len(message.mentions) == 1:
+    if message.content.strip() == f"<@!{bot.user.id}>" or message.content.strip() == f"<@{bot.user.id}>":
+    # répond uniquement si le message est exactement la mention du bot
+
         prefix = get_prefix(bot, message)
 
         embed = discord.Embed(
