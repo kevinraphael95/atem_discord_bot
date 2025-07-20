@@ -21,7 +21,7 @@ from supabase_client import supabase        # Client Supabase déjà configuré
 class CarteFav(commands.Cog):
     """
     Commande !cartefav — Affiche les cartes favorites d’un utilisateur Discord,
-    avec la même présentation que la commande !carte.
+    avec une présentation simplifiée : message + image de la carte.
     Usage : !cartefav [@utilisateur]
     """
 
@@ -31,7 +31,7 @@ class CarteFav(commands.Cog):
     @commands.command(
         name="cartefav",
         help="⭐ Affiche les cartes favorites de l’utilisateur mentionné ou de vous-même.",
-        description="Affiche les infos détaillées des cartes favorites d’un utilisateur."
+        description="Affiche l’image des cartes favorites d’un utilisateur avec un message simple."
     )
     async def cartefav(self, ctx: commands.Context, user: discord.User = None):
         user = user or ctx.author
@@ -54,7 +54,6 @@ class CarteFav(commands.Cog):
                     nom_carte = entry["cartefav"]
                     nom_encode = urllib.parse.quote(nom_carte)
                     carte = None
-                    langue_detectee = "?"
 
                     # Recherche API ygoprodeck (fr puis en)
                     for code in ["fr", ""]:
@@ -68,28 +67,16 @@ class CarteFav(commands.Cog):
                                 data = await resp.json()
                                 if "data" in data and len(data["data"]) > 0:
                                     carte = data["data"][0]
-                                    langue_detectee = code if code else "en"
                                     break
 
                     if not carte:
                         await safe_send(ctx.channel, f"❌ Carte favorite `{nom_carte}` introuvable via l’API.")
                         continue
 
-                    # Création embed (comme dans !carte)
                     embed = discord.Embed(
-                        title=f"{carte.get('name', 'Carte inconnue')} ({langue_detectee.upper()})",
-                        description=carte.get("desc", "Pas de description disponible."),
+                        description=f"La carte favorite de **{user.display_name}** est :",
                         color=discord.Color.red()
                     )
-
-                    embed.add_field(name="🧪 Type", value=carte.get("type", "?"), inline=True)
-
-                    if carte.get("type", "").lower().startswith("monstre"):
-                        embed.add_field(name="⚔️ ATK / DEF", value=f"{carte.get('atk', '?')} / {carte.get('def', '?')}", inline=True)
-                        embed.add_field(name="⭐ Niveau / Rang", value=str(carte.get("level", "?")), inline=True)
-                        embed.add_field(name="🌪️ Attribut", value=carte.get("attribute", "?"), inline=True)
-                        embed.add_field(name="👹 Race", value=carte.get("race", "?"), inline=True)
-
                     embed.set_image(url=carte["card_images"][0]["image_url"])
 
                     await safe_send(ctx.channel, embed=embed)
