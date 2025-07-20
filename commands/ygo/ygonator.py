@@ -40,6 +40,7 @@ class AkinatorView(View):
         self.used_questions = []
         self.current_q = None
         self.max_questions = 20
+        self.proposed_cards = set()  # <-- ici on stocke les IDs des cartes déjà proposées
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user == self.ctx.author
@@ -49,6 +50,9 @@ class AkinatorView(View):
         self.stop()
 
     async def update_question(self):
+        # Retirer cartes déjà proposées
+        self.remaining = [c for c in self.remaining if (c.get('id') or c.get('card_id') or c.get('name')) not in self.proposed_cards]
+
         # Fin si 1 carte ou max questions atteintes
         if len(self.remaining) <= 1 or len(self.used_questions) >= self.max_questions:
             await self.finish_game()
@@ -115,6 +119,13 @@ class AkinatorView(View):
     async def finish_game(self):
         if self.remaining:
             card = self.remaining[0]
+            # Retirer cette carte des propositions futures
+            card_id = card.get('id') or card.get('card_id') or card.get('name')  # selon clé dispo
+            if card_id:
+                self.proposed_cards.add(card_id)
+                # Et retirer la carte des remaining
+                self.remaining = [c for c in self.remaining if (c.get('id') or c.get('card_id') or c.get('name')) != card_id]
+
             embed = discord.Embed(
                 title="Je pense à cette carte !",
                 description=f"**{card['name']}**\nEst-ce bien ta carte ?",
@@ -127,6 +138,7 @@ class AkinatorView(View):
         else:
             await safe_edit(self.message, content="❌ Je n'ai pas trouvé de carte correspondante.", embed=None, view=None)
             self.stop()
+
 
 
     @discord.ui.button(label="Oui", style=discord.ButtonStyle.success)
