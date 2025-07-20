@@ -112,19 +112,3 @@
   {"text": "Est-ce que ta carte est de rareté 'Common' ?", "filter_key": "rarity", "filter_value": "Common"},
   {"text": "Est-ce que ta carte est de rareté 'Rare' ?", "filter_key": "rarity", "filter_value": "Rare"}
 ]
-   "Est-ce un monstre Xyz ?",
-    "Est-ce un monstre Lien ?",
-    "Est-ce un monstre Fusion ?",
-    "Est-ce un monstre Rituel ?",
-    "Est-ce un monstre avec un effet ?",
-    "Est-ce une carte très rare ?",
-    "Est-ce une carte limitée dans les tournois ?",
-    "Est-ce une carte bannie dans les tournois ?",
-    "Est-ce une carte sortie avant 2010 ?",
-    "Est-ce une carte sortie après 2010 ?",
-    "Est-ce une carte d'un archétype connu (ex: \"Dragonmaid\") ?",
-    "Est-ce une carte d’un archétype basé sur les dragons ?",
-    "Est-ce une carte d’un archétype basé sur les magiciens ?",
-    "Est-ce une carte qui invoque d’autres monstres ?",
-    "Est-ce une carte qui détruit les cartes adverses ?"
-]
