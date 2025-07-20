@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
-# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! dans plusieurs langues
+# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! dans plusieurs langues avec un bouton pour ajouter en favoris
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -10,26 +10,27 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
+from discord.ui import View, Button
 import aiohttp
-import asyncio
 import urllib.parse
 
 from utils.discord_utils import safe_send  # ✅ Protection 429
-from supabase_client import supabase       # Import du client Supabase
+from supabase_client import supabase       # Client Supabase déjà configuré
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
+# 🎛️ UI — Bouton Ajouter Carte Favorite
 # ────────────────────────────────────────────────────────────────────────────────
-class CarteFavoriteButton(discord.ui.View):
+class CarteFavoriteButton(View):
     def __init__(self, carte_name: str, user: discord.User):
         super().__init__(timeout=120)
         self.carte_name = carte_name
         self.user = user
 
     @discord.ui.button(label="⭐ Carte favorite", style=discord.ButtonStyle.primary, emoji="⭐")
-    async def favorite(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def add_favorite(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.user.id:
-            return await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            return
         try:
             supabase.table("favorites").insert({
                 "user_id": str(interaction.user.id),
@@ -41,6 +42,9 @@ class CarteFavoriteButton(discord.ui.View):
             print(f"[ERREUR Supabase] {e}")
             await interaction.response.send_message("❌ Erreur lors de l’ajout à Supabase.", ephemeral=True)
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 🧠 Cog principal
+# ────────────────────────────────────────────────────────────────────────────────
 class Carte(commands.Cog):
     """
     Commande !carte — Rechercher une carte Yu-Gi-Oh! et afficher ses informations.
@@ -58,25 +62,31 @@ class Carte(commands.Cog):
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
-        lang_codes = ["fr", ""]
+        """Commande principale pour rechercher et afficher une carte Yu-Gi-Oh!"""
+        lang_codes = ["fr", ""]  # fr puis en (vide = défaut)
         nom_encode = urllib.parse.quote(nom)
         carte = None
-        langue_detectee, nom_corrige = "?", nom
+        langue_detectee = "?"
+        nom_corrige = nom
 
         try:
             async with aiohttp.ClientSession() as session:
                 for code in lang_codes:
-                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}" if code else \
-                          f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
+                    if code:
+                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
+                    else:
+                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
+
                     async with session.get(url) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            if "data" in data:
+                            if "data" in data and len(data["data"]) > 0:
                                 carte = data["data"][0]
                                 langue_detectee = code if code else "en"
                                 nom_corrige = carte.get("name", nom)
                                 break
 
+                # Recherche floue si pas trouvé
                 if not carte:
                     url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
                     async with session.get(url_fuzzy) as resp_fuzzy:
@@ -86,13 +96,17 @@ class Carte(commands.Cog):
                             if suggestions:
                                 noms = [c.get("name") for c in suggestions[:3]]
                                 suggestion_msg = "\n".join(f"• **{n}**" for n in noms)
-                                return await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.\n🔎 Suggestions :\n{suggestion_msg}")
+                                await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.\n🔎 Suggestions :\n{suggestion_msg}")
+                                return
+
         except Exception as e:
             print(f"[ERREUR carte] {e}")
-            return await safe_send(ctx.channel, "🚨 Une erreur est survenue lors de la recherche.")
+            await safe_send(ctx.channel, "🚨 Une erreur est survenue lors de la recherche.")
+            return
 
         if not carte:
-            return await safe_send(ctx.channel, f"❌ Carte introuvable. Vérifie l’orthographe exacte : `{nom}`.")
+            await safe_send(ctx.channel, f"❌ Carte introuvable. Vérifie l’orthographe exacte : `{nom}`.")
+            return
 
         if nom_corrige.lower() != nom.lower():
             await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}** ({langue_detectee.upper()})")
