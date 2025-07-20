@@ -73,7 +73,7 @@ class TrueFalse(commands.Cog):
         self.questions = load_questions()
 
     @commands.command(
-        name="vraioufaux",
+        name="vraioufaux", aliases=["vof"],
         help="Lance un quiz Vrai ou Faux sur Yu-Gi-Oh!",
         description="Pose une question Vrai ou Faux avec boutons interactifs."
     )
