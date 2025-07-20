@@ -37,18 +37,16 @@ class CarteFav(commands.Cog):
         user_id = str(user.id)
 
         try:
-            response = supabase.table("favorites").select("cartefav").eq("user_id", user_id).execute()
-            if response.status_code != 200:
-                return await safe_send(ctx.channel, "❌ Erreur lors de la récupération des cartes favorites.")
+            response = await supabase.table("favorites").select("cartefav").eq("user_id", user_id).execute()
 
-            cartes = [entry["cartefav"] for entry in response.data]
-
-            if not cartes:
+            if not response.data:
                 if user == ctx.author:
                     await safe_send(ctx.channel, "❌ Vous n’avez pas encore de carte favorite.")
                 else:
                     await safe_send(ctx.channel, f"❌ {user.display_name} n’a pas encore de carte favorite.")
                 return
+
+            cartes = [entry["cartefav"] for entry in response.data]
 
             cartes_str = "\n".join(f"• {c}" for c in cartes)
             embed = discord.Embed(
