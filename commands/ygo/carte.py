@@ -26,7 +26,7 @@ class CarteFavoriteButton(View):
         self.carte_name = carte_name
         self.user = user
 
-    @discord.ui.button(label="⭐ Carte favorite", style=discord.ButtonStyle.primary, emoji="⭐")
+    @discord.ui.button(label="Carte favorite", style=discord.ButtonStyle.primary, emoji="⭐")
     async def add_favorite(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.user.id:
             await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
