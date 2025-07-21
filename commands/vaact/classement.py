@@ -53,7 +53,7 @@ class Classement(commands.Cog):
                 return
 
             classement = []
-            for row in rows[1:]:  # saute l’en-tête
+            for row in rows[2:]:  # saute l’en-tête
                 # arrêt si ligne vide ou nom vide en colonne 3 (index 2)
                 if len(row) < 3 or not row[2].strip():
                     break
@@ -71,7 +71,7 @@ class Classement(commands.Cog):
             )
             medals = ["🥇", "🥈", "🥉"]
 
-            for i, (joueur, pts) in enumerate(classement[:10]):
+            for i, (joueur, pts) in enumerate(classement):
                 prefix = medals[i] if i < 3 else f"{i+1} -"
                 embed.add_field(
                     name=f"{prefix} {joueur}",
