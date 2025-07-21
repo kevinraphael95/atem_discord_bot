@@ -14,7 +14,9 @@ from discord.ui import View, Button
 import aiohttp
 import csv
 import io
-from utils.discord_utils import safe_send, safe_edit  # ✅ Utilisation des safe_
+import os
+
+from utils.discord_utils import safe_send, safe_edit
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -26,11 +28,7 @@ class Classement(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.sheet_csv_url = (
-            "https://docs.google.com/spreadsheets/"
-            "d/15xP7G1F_oty5pn2nOVG2GwtiEZoccKB_oA7-2nT44l8/export?"
-            "format=csv&gid=2118626088"
-        )
+        self.sheet_csv_url = os.getenv("VAACT_CLASSEMENT_SHEET")
 
     async def fetch_csv(self):
         async with aiohttp.ClientSession() as session:
@@ -41,21 +39,19 @@ class Classement(commands.Cog):
             return list(csv.reader(io.StringIO(text)))
 
     def create_embed(self, classement, page, page_size=10):
+        total_pages = (len(classement) - 1) // page_size + 1
         embed = discord.Embed(
-            title=f"🏆 Classement VAACT — Page {page+1}/{(len(classement)-1)//page_size + 1}",
+            title=f"🏆 Classement VAACT — Page {page+1}/{total_pages}",
             color=discord.Color.gold()
         )
         medals = ["🥇", "🥈", "🥉"]
 
         start = page * page_size
         end = start + page_size
-        for i, (joueur, pts) in enumerate(classement[start:end], start=start):
-            prefix = medals[i] if i < 3 else f"{i+1} -"
-            embed.add_field(
-                name=f"{prefix} {joueur}",
-                value=f"({pts} pts)",
-                inline=False
-            )
+        for i, (joueur, _) in enumerate(classement[start:end], start=start):
+            prefix = medals[i] if i < 3 else f"{i+1}ᵉ"
+            embed.add_field(name=f"{prefix} {joueur}", value="\u200b", inline=False)
+
         return embed
 
     @commands.command(
@@ -74,8 +70,8 @@ class Classement(commands.Cog):
             for row in rows[2:]:  # On saute les 2 premières lignes
                 if len(row) < 6 or not row[2].strip():
                     break
-                joueur = row[2].strip()        # Nom en colonne 3 (index 2)
-                pts = row[5].strip() or "0"   # Points en colonne 6 (index 5)
+                joueur = row[2].strip()
+                pts = row[5].strip() or "0"
                 classement.append((joueur, pts))
 
             if not classement:
@@ -93,12 +89,11 @@ class Classement(commands.Cog):
                     self.classement = classement
                     self.page = page
                     self.page_size = page_size
-                    self.user_id = user_id  # ID de l’utilisateur autorisé
+                    self.user_id = user_id
                     self.prev_button.disabled = (self.page == 0)
                     self.next_button.disabled = (self.page >= (len(self.classement)-1)//self.page_size)
 
                 async def interaction_check(self, interaction: discord.Interaction) -> bool:
-                    # Seul l'utilisateur qui a lancé la commande peut interagir
                     if interaction.user.id != self.user_id:
                         await interaction.response.send_message(
                             "❌ Tu n'es pas autorisé à utiliser ces boutons.",
@@ -127,7 +122,6 @@ class Classement(commands.Cog):
                         await safe_edit(interaction.message, embed=embed, view=self)
 
             PaginationView.parent = self
-
             view = PaginationView(self.bot, classement, ctx.author.id, page, page_size)
             await safe_send(ctx.channel, embed=embed, view=view)
 
@@ -142,5 +136,5 @@ async def setup(bot: commands.Bot):
     cog = Classement(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🃏 Yu-Gi-Oh"
+            command.category = "VAACT"
     await bot.add_cog(cog)
