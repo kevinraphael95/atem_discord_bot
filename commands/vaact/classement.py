@@ -39,7 +39,7 @@ class Classement(commands.Cog):
 
     @commands.command(
         name="classement",
-        help="Affiche le classement du tournoi en cours.",
+        help="Affiche le classement des tournois VAACT.",
         description="Récupère le classement depuis Google Sheets et l’affiche en embed."
     )
     async def classement(self, ctx: commands.Context):
