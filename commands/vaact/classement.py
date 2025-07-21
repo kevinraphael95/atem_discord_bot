@@ -26,7 +26,7 @@ class Classement(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Remplace par ton export CSV public
+        # Export CSV public du Google Sheets
         self.sheet_csv_url = "https://docs.google.com/spreadsheets/d/15xP7G1F_oty5pn2nOVG2GwtiEZoccKB_oA7-2nT44l8/export?format=csv"
 
     async def fetch_csv(self):
@@ -40,7 +40,7 @@ class Classement(commands.Cog):
     @commands.command(
         name="classement",
         help="Affiche le classement du tournoi en cours.",
-        description="Récupère le classement depuis Google Sheets et l’affiche en embed."
+        description="Récupère le classement depuis Google Sheets et l’affiche joliment."
     )
     async def classement(self, ctx: commands.Context):
         try:
@@ -49,19 +49,27 @@ class Classement(commands.Cog):
                 await safe_send(ctx.channel, "❌ Impossible de récupérer ou le classement est vide.")
                 return
 
-            # Supposons que la première ligne contient les en-têtes : ["Rang","Joueur","Points"]
+            # En-têtes + données
             headers = rows[0]
-            data = rows[1:6]  # top 5
+            data = rows[1:10]  # Top 10
+
+            lines = []
+            for i, row in enumerate(data):
+                nom = row[1].strip()
+                if i == 0:
+                    lines.append(f"🥇 {nom}")
+                elif i == 1:
+                    lines.append(f"🥈 {nom}")
+                elif i == 2:
+                    lines.append(f"🥉 {nom}")
+                else:
+                    lines.append(f"{i+1} - {nom}")
 
             embed = discord.Embed(
-                title="🏆 Classement du tournoi",
+                title="🏆 Classement VAACT",
+                description="\n".join(lines),
                 color=discord.Color.purple()
             )
-            for row in data:
-                rank = row[0]
-                player = row[1]
-                pts = row[2]
-                embed.add_field(name=f"{rank}. {player}", value=f"{pts} pts", inline=False)
 
             await safe_send(ctx.channel, embed=embed)
 
@@ -76,5 +84,5 @@ async def setup(bot: commands.Bot):
     cog = Classement(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🃏 Yu-Gi-Oh!"
+            command.category = "VAACT"
     await bot.add_cog(cog)
