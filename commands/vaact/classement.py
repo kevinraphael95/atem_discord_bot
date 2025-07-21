@@ -1,24 +1,17 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 classement.py — Commande interactive !classement
 # Objectif : Afficher le classement du tournoi à partir du Google Sheets
-# Catégorie : Yu‑Gi‑Oh
+# Catégorie : Yu-Gi-Oh
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
 import aiohttp
 import csv
 import io
 from utils.discord_utils import safe_send  # ✅ Utilisation des safe_
-# ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
 class Classement(commands.Cog):
     """
     Commande !classement — Montre le classement actuel du tournoi depuis Google Sheets.
@@ -26,8 +19,7 @@ class Classement(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Utilise l'ID du bon onglet et l'export CSV (à vérifier sur ton Google Sheet)
-        self.sheet_csv_url = "https://docs.google.com/spreadsheets/d/15xP7G1F_oty5pn2nOVG2GwtiEZoccKB_oA7-2nT44l8/export?format=csv&gid=2118626088"
+        self.sheet_csv_url = "https://docs.google.com/spreadsheets/d/15xP7G1F_oty5pn2nOVG2GwtiEZoccKB_oA7-2nT44l8/export?format=csv"
 
     async def fetch_csv(self):
         async with aiohttp.ClientSession() as session:
@@ -39,35 +31,41 @@ class Classement(commands.Cog):
 
     @commands.command(
         name="classement",
-        help="Affiche le classement des tournois VAACT.",
-        description="Récupère le classement depuis Google Sheets et l’affiche en embed."
+        help="Affiche le classement du tournoi en cours.",
+        description="Récupère le classement depuis Google Sheets et l’affiche joliment."
     )
     async def classement(self, ctx: commands.Context):
         try:
             rows = await self.fetch_csv()
             if not rows or len(rows) < 2:
-                await safe_send(ctx.channel, "❌ Impossible de récupérer ou classement vide.")
+                await safe_send(ctx.channel, "❌ Impossible de récupérer le classement.")
                 return
 
-            # Supposons que le sheet ait 3 colonnes : Rang / Joueur / Points
-            # et commence dès la première ligne.
-            # Adapte si tes colonnes diffèrent ou si l’ordre est différent.
+            classement = []
+            for row in rows[1:]:  # On saute l'en-tête
+                if not row or all(cell.strip() == "" for cell in row):
+                    break  # On s'arrête à la première ligne vide
+                joueur = row[0].strip()
+                points = row[1].strip() if len(row) > 1 else "0"
+                classement.append((joueur, points))
 
-            # On prend tout le classement
-            data = rows[1:]  # exclut l’en-tête
+            if not classement:
+                await safe_send(ctx.channel, "❌ Aucun joueur trouvé dans le classement.")
+                return
 
-            # Embed avec icônes pour les 3 premiers
             embed = discord.Embed(
-                title="🏆 Classement du tournoi",
-                color=discord.Color.purple()
+                title="🏆 Classement VAACT",
+                color=discord.Color.gold()
             )
 
-            medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-            for i, row in enumerate(data, start=1):
-                rank_txt = medals.get(i, f"{i}.")
-                name = row[1]
-                pts = row[2] if len(row) > 2 else ""
-                embed.add_field(name=f"{rank_txt} {name}", value=f"{pts} pts", inline=False)
+            medals = ["🥇", "🥈", "🥉"]
+            for i, (joueur, points) in enumerate(classement[:10]):
+                rang = f"{medals[i]}" if i < 3 else f"{i+1} -"
+                embed.add_field(
+                    name=f"{rang} {joueur}",
+                    value=f"{points} pts",
+                    inline=False
+                )
 
             await safe_send(ctx.channel, embed=embed)
 
@@ -75,12 +73,10 @@ class Classement(commands.Cog):
             print(f"[ERREUR classement] {e}")
             await safe_send(ctx.channel, "❌ Une erreur est survenue lors de la récupération du classement.")
 
-# ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = Classement(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "VAACT"
+            command.category = "🃏 Yu-Gi-Oh!"
     await bot.add_cog(cog)
