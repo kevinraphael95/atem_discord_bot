@@ -149,8 +149,8 @@ class BannisOuGarde(commands.Cog):
                 description=premiere_carte['desc'][:1000],
                 color=discord.Color.blue()
             )
-            if carte.get("image"):
-                embed.set_image(url=carte["image"])
+            if premiere_carte.get("image"):
+                embed.set_image(url=premiere_carte["image"])
             embed.set_footer(text="Choisis le statut de cette carte : 🗑️ Bannir, 🔥 Garder, 👎 Limiter")
 
             await safe_send(ctx.channel, embed=embed, view=view)
