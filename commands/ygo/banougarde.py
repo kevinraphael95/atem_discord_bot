@@ -43,6 +43,8 @@ class ChoixCarteView(View):
             description=carte["desc"][:1000],
             color=discord.Color.blue()
         )
+        if carte.get("image"):
+            embed.set_image(url=carte["image"])
         await safe_edit(interaction.message, content="Choisis le statut de cette carte :", embed=embed, view=self)
 
     async def avance(self, interaction, choix):
@@ -117,7 +119,15 @@ class BannisOuGarde(commands.Cog):
                 if len(all_cards) < 3:
                     return None
                 sample = random.sample(all_cards, 3)
-                return [{"name": c["name"], "desc": c["desc"]} for c in sample]
+                return [
+                    {
+                        "name": c["name"],
+                        "desc": c["desc"],
+                        "image": c.get("card_images", [{}])[0].get("image_url")
+                    }
+                    for c in sample
+                ]
+
 
     @commands.command(
         name="bannisougarde", aliases=["bog"],
@@ -139,6 +149,8 @@ class BannisOuGarde(commands.Cog):
                 description=premiere_carte['desc'][:1000],
                 color=discord.Color.blue()
             )
+            if carte.get("image"):
+                embed.set_image(url=carte["image"])
             embed.set_footer(text="Choisis le statut de cette carte : 🗑️ Bannir, 🔥 Garder, 👎 Limiter")
 
             await safe_send(ctx.channel, embed=embed, view=view)
