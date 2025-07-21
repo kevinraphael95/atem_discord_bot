@@ -286,7 +286,33 @@
         "Extra : https://www.duelingbook.com/deck?id=17086268"
       ],
       "astuces": "📝 Ajouter ici des astuces et conseils de jeu pour ce personnage."
+    },
+    "Atticus Rhodes" : {
+      "deck" : [
+        "Deck: https://www.duelingbook.com/deck?id=17009554"
+      ],
+      "astuces": "📝 Ajouter ici des astuces et conseils de jeu pour ce personnage."
+    },
+    "Midori Hibiki" : {
+      "deck" : [
+        "Deck: https://www.duelingbook.com/deck?id=17021197"
+      ],
+      "astuces": "📝 Ajouter ici des astuces et conseils de jeu pour ce personnage."
+    },
+    "Midori Hibiki" : {
+      "deck" : [
+        "Deck: https://www.duelingbook.com/deck?id=16999879"
+      ],
+      "astuces": "📝 Ajouter ici des astuces et conseils de jeu pour ce personnage."
+    },
+    "Blue Maiden" : {
+      "deck" : [
+        "Deck: https://www.duelingbook.com/deck?id=17049558"
+      ],
+      "astuces": "📝 Ajouter ici des astuces et conseils de jeu pour ce personnage."
     }
+
+    
   }
 
 }
