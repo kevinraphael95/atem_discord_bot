@@ -1,10 +1,13 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 classement.py — Commande interactive !classement
 # Objectif : Afficher le classement du tournoi à partir du Google Sheets
-# Catégorie : Yu-Gi-Oh
+# Catégorie : 🃏 Yu-Gi-Oh
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 📦 Imports nécessaires
+# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
 import aiohttp
@@ -12,6 +15,9 @@ import csv
 import io
 from utils.discord_utils import safe_send  # ✅ Utilisation des safe_
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 🧠 Cog principal
+# ────────────────────────────────────────────────────────────────────────────────
 class Classement(commands.Cog):
     """
     Commande !classement — Montre le classement actuel du tournoi depuis Google Sheets.
@@ -19,7 +25,12 @@ class Classement(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.sheet_csv_url = "https://docs.google.com/spreadsheets/d/15xP7G1F_oty5pn2nOVG2GwtiEZoccKB_oA7-2nT44l8/export?format=csv"
+        # URL d’export CSV public du premier onglet
+        self.sheet_csv_url = (
+            "https://docs.google.com/spreadsheets/"
+            "d/15xP7G1F_oty5pn2nOVG2GwtiEZoccKB_oA7-2nT44l8/export?"
+            "format=csv&gid=2118626088"
+        )
 
     async def fetch_csv(self):
         async with aiohttp.ClientSession() as session:
@@ -42,12 +53,13 @@ class Classement(commands.Cog):
                 return
 
             classement = []
-            for row in rows[1:]:  # On saute l'en-tête
-                if not row or all(cell.strip() == "" for cell in row):
-                    break  # On s'arrête à la première ligne vide
-                joueur = row[0].strip()
-                points = row[1].strip() if len(row) > 1 else "0"
-                classement.append((joueur, points))
+            for row in rows[1:]:  # saute l’en-tête
+                # arrêt si ligne vide ou nom vide en colonne 3 (index 2)
+                if len(row) < 3 or not row[2].strip():
+                    break
+                joueur = row[2].strip()
+                pts = row[3].strip() if len(row) > 3 and row[3].strip() else "0"
+                classement.append((joueur, pts))
 
             if not classement:
                 await safe_send(ctx.channel, "❌ Aucun joueur trouvé dans le classement.")
@@ -57,13 +69,13 @@ class Classement(commands.Cog):
                 title="🏆 Classement VAACT",
                 color=discord.Color.gold()
             )
-
             medals = ["🥇", "🥈", "🥉"]
-            for i, (joueur, points) in enumerate(classement[:10]):
-                rang = f"{medals[i]}" if i < 3 else f"{i+1} -"
+
+            for i, (joueur, pts) in enumerate(classement[:10]):
+                prefix = medals[i] if i < 3 else f"{i+1} -"
                 embed.add_field(
-                    name=f"{rang} {joueur}",
-                    value=f"{points} pts",
+                    name=f"{prefix} {joueur}",
+                    value=f"{pts} pts",
                     inline=False
                 )
 
@@ -73,7 +85,9 @@ class Classement(commands.Cog):
             print(f"[ERREUR classement] {e}")
             await safe_send(ctx.channel, "❌ Une erreur est survenue lors de la récupération du classement.")
 
+# ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
+# ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = Classement(bot)
     for command in cog.get_commands():
