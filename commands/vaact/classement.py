@@ -44,14 +44,16 @@ class Classement(commands.Cog):
             title=f"🏆 Classement VAACT — Page {page+1}/{total_pages}",
             color=discord.Color.gold()
         )
-        medals = ["🥇", "🥈", "🥉"]
 
+        medals = ["🥇", "🥈", "🥉"]
         start = page * page_size
         end = start + page_size
-        for i, (joueur, _) in enumerate(classement[start:end], start=start):
+        lignes = []
+        for i, (joueur, pts) in enumerate(classement[start:end], start=start):
             prefix = medals[i] if i < 3 else f"{i+1}ᵉ"
-            embed.add_field(name=f"{prefix} {joueur}", value="\u200b", inline=False)
+            lignes.append(f"**{prefix}** {joueur} — {pts} pts")
 
+        embed.add_field(name="Joueurs", value="\n".join(lignes), inline=False)
         return embed
 
     @commands.command(
