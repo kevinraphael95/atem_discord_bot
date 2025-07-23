@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 true_false.py — Commande interactive !vraioufaux avec boutons Vrai/Faux
 # Objectif : Mini-quiz interactif Vrai ou Faux sur Yu-Gi-Oh!
-# Catégorie : Fun / Apprentissage / Yu-Gi-Oh!
+# Catégorie : Minijeux
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -99,5 +99,5 @@ async def setup(bot: commands.Bot):
     cog = TrueFalse(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🃏 Yu-Gi-Oh!"
+            command.category = "Minijeux"
     await bot.add_cog(cog)
