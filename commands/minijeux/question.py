@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 testquestion.py — Commande interactive !testquestion
 # Objectif : Deviner une carte Yu-Gi-Oh à partir de sa description
-# Catégorie : 🃏 Yu-Gi-Oh!
+# Catégorie : Minijeux
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -314,5 +314,5 @@ class TestQuestion(commands.Cog):
 async def setup(bot: commands.Bot):
     cog = TestQuestion(bot)
     for command in cog.get_commands():
-        command.category = "🃏 Yu-Gi-Oh!"
+        command.category = "Minijeux"
     await bot.add_cog(cog)
