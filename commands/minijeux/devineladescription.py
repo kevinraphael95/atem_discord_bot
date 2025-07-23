@@ -124,9 +124,9 @@ class TestQuestion(commands.Cog):
     # 💬 COMMANDE : !testquestion (quiz)
     # ────────────────────────────────────────────────────────────────────────────
     @commands.group(
-        name="testquestion",
-        aliases=["tq"],
-        help="🧠 Quiz : devinez le nom de la carte via sa description (multijoueur)",
+        name="devineladescription",
+        aliases=["devinedescription" "dd"],
+        help="Devinez la carte avec sa description (multijoueur)",
         invoke_without_command=True
     )
     @no_dm()
