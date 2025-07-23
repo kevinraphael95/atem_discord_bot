@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 illustration.py — Commande interactive !illustration
 # Objectif : Jeu pour deviner une carte Yu-Gi-Oh! à partir de son image croppée.
-# Catégorie : 🃏 Yu-Gi-Oh!
+# Catégorie : Minijeux
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -188,5 +188,5 @@ async def setup(bot: commands.Bot):
     cog = IllustrationCommand(bot)
     for cmd in cog.get_commands():
         if not hasattr(cmd, "category"):
-            cmd.category = "🃏 Yu-Gi-Oh!"
+            cmd.category = "Minijeux"
     await bot.add_cog(cog)
