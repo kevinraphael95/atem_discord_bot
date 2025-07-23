@@ -63,8 +63,8 @@ class IllustrationCommand(commands.Cog):
         return random.sample(group, k=min(3, len(group))) if group else []
 
     @commands.command(
-        name="illustration",
-        aliases=["illu", "i"],
+        name="devinelillustration",
+        aliases=["di"],
         help="🖼️ Devine une carte Yu-Gi-Oh! à partir de son illustration. (multijoueur)",
         description="Affiche un quiz interactif à partir d’une image croppée de carte."
     )
