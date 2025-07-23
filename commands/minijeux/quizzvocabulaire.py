@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 quizzvocabulaire.py — Commande interactive !quizzvocabulaire
 # Objectif : Quiz interactif sur le vocabulaire Yu-Gi-Oh! (définition + choix)
-# Catégorie : Yu-Gi-Oh
+# Catégorie : Minijeux
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -115,5 +115,5 @@ async def setup(bot: commands.Bot):
     cog = QuizzVocabulaire(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🃏 Yu-Gi-Oh!"
+            command.category = "Minijeux"
     await bot.add_cog(cog)
