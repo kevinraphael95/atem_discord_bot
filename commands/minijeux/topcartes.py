@@ -148,7 +148,7 @@ class TopCarte(commands.Cog):
         help="Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l’aveugle.",
         description="Le bot te montre 5 cartes une à une, tu les places dans ton top."
     )
-    async def topcarte(self, ctx: commands.Context):
+    async def topcartes(self, ctx: commands.Context):
         """Commande principale du mini-jeu."""
         try:
             cartes = await self.get_random_cards()
