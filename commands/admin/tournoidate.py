@@ -189,7 +189,7 @@ class TournoiDate(commands.Cog):
     @commands.command(
         name="tournoidate",
         aliases=["settournoi"],
-        help="🛠️ Change la date du prochain tournoi VAACT.",
+        help="(Admin) 🛠️ Change la date du prochain tournoi VAACT.",
         description="Permet de sélectionner année/mois/jour/heure via menus déroulants."
     )
     @commands.has_permissions(administrator=True)
