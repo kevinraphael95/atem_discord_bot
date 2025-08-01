@@ -26,7 +26,7 @@ class RedemarrageCommand(commands.Cog):
     @commands.command(
         name="re",
         help="(Admin) Préviens les membres du redémarrage du bot.",
-        description="Commande réservée aux administrateurs pour annoncer un redémarrage imminent."
+        description="(Admin) Annoncer un redémarrage imminent."
     )
     @commands.has_permissions(administrator=True)
     @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
