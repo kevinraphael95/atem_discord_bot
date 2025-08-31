@@ -1,67 +1,32 @@
-{
-"CARDTYPE": {
-"prompt": "Ta carte est-elle une carte {value} ?",
-"filter\_key": "frameType",
-"options": \["Normal", "Effect", "Ritual", "Fusion", "Synchro", "Xyz", "Link", "Spell", "Trap"],
-"alternatives": \["On est sur une carte {value} ?", "Est-ce une {value} ?", "Cette carte est-elle {value} ?"]
-},
-
-"RACE": {
-"prompt": "Ton monstre est-il de type {value} ?",
-"filter\_key": "race",
-"options": \[
-"Dragon", "Guerrier", "Magicien", "Machine", "Démon", "Fée", "Bête", "Bête-Guerrier", "Zombie", "Psychique", "Foudre",
-"Rocher", "Aqua", "Pyro", "Plante", "Dinosaure", "Insecte", "Serpent de mer", "Bête ailée", "Reptile", "Divine",
-"Cyberse", "Psycho", "Thunder", "Fiend", "Warrior", "Beast-Warrior", "Beast", "Fairy"
-],
-"alternatives": \["Est-ce un {value} ?", "Ton monstre est de type {value} ?"]
-},
-
-"ATTRIBUTE": {
-"prompt": "L'attribut de ta carte est-il {value} ?",
-"filter\_key": "attribute",
-"options": \["LUMIÈRE", "TÉNÈBRES", "TERRE", "VENT", "EAU", "FEU", "DIVIN"]
-},
-
-"ATK": {
-"prompt": "Les points d'ATK de ta carte sont-ils entre {min} et {max} ?",
-"filter\_key": "atk",
-"ranges": \[
-{"min":0,"max":499}, {"min":500,"max":999}, {"min":1000,"max":1499}, {"min":1500,"max":1999},
-{"min":2000,"max":2499}, {"min":2500,"max":2999}, {"min":3000,"max":3499}, {"min":3500,"max":99999}
+[
+    {
+        "text": "Est-ce que la carte est de type Monstre ?",
+        "filter_key": "type",
+        "filter_value": "Monster"
+    },
+    {
+        "text": "Est-ce que la carte est de type Magie ?",
+        "filter_key": "type",
+        "filter_value": "Spell"
+    },
+    {
+        "text": "Est-ce que la carte est de type Piège ?",
+        "filter_key": "type",
+        "filter_value": "Trap"
+    },
+    {
+        "text": "Est-ce que la carte appartient à l'attribut Lumière ?",
+        "filter_key": "attribute",
+        "filter_value": "LIGHT"
+    },
+    {
+        "text": "Est-ce que la carte appartient à l'attribut Ténèbres ?",
+        "filter_key": "attribute",
+        "filter_value": "DARK"
+    },
+    {
+        "text": "Est-ce que la carte a plus de 2000 ATK ?",
+        "filter_key": "atk",
+        "filter_value": "2000"
+    }
 ]
-},
-
-"DEF": {
-"prompt": "Les points de DEF de ta carte sont-ils entre {min} et {max} ?",
-"filter\_key": "def",
-"ranges": \[
-{"min":0,"max":499}, {"min":500,"max":999}, {"min":1000,"max":1499}, {"min":1500,"max":1999},
-{"min":2000,"max":2499}, {"min":2500,"max":2999}, {"min":3000,"max":3499}, {"min":3500,"max":99999}
-]
-},
-
-"LEVEL": {
-"prompt": "Le niveau/rang de ta carte est-il {value} ?",
-"filter\_key": "level",
-"options": \[1,2,3,4,5,6,7,8,9,10,11,12]
-},
-
-"ARCHETYPE": {
-"prompt": "Ta carte appartient-elle à l’archétype {value} ?",
-"filter\_key": "archetype",
-"options": \[
-"Blue-Eyes", "Dark Magician", "Red-Eyes", "Elemental HERO", "Toon", "Cyber Dragon", "Blackwing", "Shaddoll",
-"Raidraptor", "Bujin", "Fabled", "Altergeist", "Sky Striker", "Salamangreat", "Zoodiac", "Pendulum Magician",
-"Gouki", "Magician Girl", "Lightsworn", "Tri-Brigade", "Dinomist", "Prank-Kids", "Dogmatika", "Invoked"
-],
-"alternatives": \["Est-ce une carte {value} ?", "Cette carte fait partie de l’archétype {value} ?"]
-},
-
-"EFFECT\_KEYWORD": {
-"prompt": "Ta carte possède-t-elle l'effet {value} ?",
-"filter\_key": "effectKeywords",
-"options": \["Draw", "Destroy", "Burn", "Negate", "Search", "Special Summon", "Equip", "Mill", "Bounce", "Token Summon", "Pierce", "Halve Life"],
-"alternatives": \["Cette carte peut {value} ?", "Elle a l'effet {value} ?"]
-}
-}
