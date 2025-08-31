@@ -2,7 +2,11 @@
     {
         "text": "Est-ce que le type ou sous-type de la carte est {value} ?",
         "filter_key": "type_subtype",
-        "filter_value": ["Monster","Spell","Trap","Normal","Effect","Fusion","Ritual","Synchro","Xyz","Pendulum","Link","Toon","Token","Spirit","Union"]
+        "filter_value": [
+            "Monster","Spell","Trap","Normal","Effect","Fusion","Ritual","Synchro","Xyz",
+            "Pendulum","Link","Toon","Token","Spirit","Union","Gemini","Flip","Tuner",
+            "Union","Fusion Effect","Ritual Effect","Synchro Effect","Xyz Effect","Pendulum Effect","Link Effect"
+        ]
     },
     {
         "text": "Est-ce que l'attribut du monstre est {value} ?",
@@ -10,18 +14,32 @@
         "filter_value": ["FIRE","WATER","WIND","EARTH","LIGHT","DARK","DIVINE"]
     },
     {
-        "text": "La carte a-t-elle des statistiques ou un niveau élevé correspondant à {value} ?",
-        "filter_key": "stats",
-        "filter_value": ["ATK>=2000","DEF>=2000","Level>=7"]
-    },
-    {
         "text": "Est-ce que la carte appartient à l'archétype {value} ?",
         "filter_key": "archetype",
-        "filter_value": ["Dragon","Magician","Warrior","Zombie","HERO","Cyber","Dark Magician","Blue-Eyes","Pendulum","Xyz","Synchro","Toon","Exodia","Blackwing","Lightsworn","Elemental HERO","Shaddoll","Altergeist","Tri-Brigade","Salamangreat","Drytron"]
+        "filter_value": [
+            "Dragon","Magician","Warrior","Zombie","HERO","Cyber","Dark Magician","Blue-Eyes",
+            "Toon","Exodia","Blackwing","Lightsworn","Elemental HERO","Shaddoll","Altergeist",
+            "Tri-Brigade","Salamangreat","Drytron","Nekroz","Gouki","Phantom Knights","D/D/D",
+            "Madolche","PSY-Frame","Hundered Eyes","Sky Striker","Dogmatika","Prank-Kids",
+            "Spright","Tearlaments","Runick","Adamancipator","Floowandereeze"
+        ]
     },
     {
-        "text": "Est-ce que la carte possède un effet ou une mécanique {value} ?",
+        "text": "La carte a-t-elle un effet ou une mécanique {value} ?",
         "filter_key": "effect",
-        "filter_value": ["Fusion","Ritual","Special Summon","Continuous","Equip","Field","Quick-Play","Token","Pendulum","Link","Synchro","Xyz","Flip","Union","Spirit"]
+        "filter_value": [
+            "Fusion","Ritual","Special Summon","Continuous","Equip","Field","Quick-Play",
+            "Token","Pendulum","Link","Synchro","Xyz","Flip","Union","Spirit",
+            "Draw","Destroy","Negate","ATK modification","DEF modification","Search",
+            "Recycle","Mill","Tribute","Burn","Life Point Gain","Piercing","Direct Attack"
+        ]
+    },
+    {
+        "text": "La carte a-t-elle des statistiques ou un niveau correspondant à {value} ?",
+        "filter_key": "stats",
+        "filter_value": [
+            "ATK>=1000","ATK>=1500","ATK>=2000","ATK>=2500","DEF>=1000","DEF>=1500",
+            "DEF>=2000","DEF>=2500","Level>=4","Level>=5","Level>=6","Level>=7","Level>=8","Level>=10"
+        ]
     }
 ]
