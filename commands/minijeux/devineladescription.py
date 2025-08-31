@@ -16,7 +16,7 @@ import random
 import re
 from difflib import SequenceMatcher
 
-from supabase_client import supabase
+from utils.supabase_client import supabase
 from utils.discord_utils import safe_send, safe_reply  # ✅ Utilisation des safe_
 
 # ────────────────────────────────────────────────────────────────────────────────
