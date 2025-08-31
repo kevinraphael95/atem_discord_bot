@@ -35,7 +35,7 @@ class CodeCommand(commands.Cog):
             color=discord.Color.blurple()
         )
         embed.set_thumbnail(url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png")
-        embed.set_footer(text="Kisuke Urahara")
+        embed.set_footer(text="Atem")
 
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label="🔗 Voir sur GitHub", url=self.github_url, style=discord.ButtonStyle.link))
