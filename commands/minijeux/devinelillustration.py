@@ -17,7 +17,7 @@ import asyncio
 import urllib.parse
 import traceback
 
-from supabase_client import supabase
+from utils.supabase_client import supabase
 from utils.discord_utils import safe_send, safe_edit  # ✅ Protection 429
 
 # ────────────────────────────────────────────────────────────────────────────────
