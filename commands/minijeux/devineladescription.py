@@ -3,6 +3,7 @@
 # Objectif : Deviner une carte Yu-Gi-Oh à partir de sa description
 # Catégorie : Minijeux
 # Accès : Public
+# Cooldown : 1 utilisation / 8 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -10,6 +11,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
+from discord.ui import View, Button
 import aiohttp
 import asyncio
 import random
@@ -17,12 +19,7 @@ import re
 from difflib import SequenceMatcher
 
 from utils.supabase_client import supabase
-from utils.discord_utils import safe_send, safe_reply  # ✅ Utilisation des safe_
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔹 Constantes
-# ────────────────────────────────────────────────────────────────────────────────
-REACTIONS = ["🇦", "🇧", "🇨", "🇩"]
+from utils.discord_utils import safe_send, safe_reply  
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔒 Empêcher l'utilisation en MP
@@ -113,7 +110,7 @@ async def update_streak(user_id: str, correct: bool):
 # ────────────────────────────────────────────────────────────────────────────────
 class TestQuestion(commands.Cog):
     """
-    Commande !testquestion — Devinez une carte Yu-Gi-Oh! à partir de sa description. (multijoueur)
+    Commande /testquestion et !testquestion — Devinez une carte Yu-Gi-Oh! à partir de sa description.
     """
 
     def __init__(self, bot):
@@ -121,11 +118,42 @@ class TestQuestion(commands.Cog):
         self.active_sessions = {}  # guild_id → message en cours
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 💬 COMMANDE : !testquestion (quiz)
+    # 🔹 View et Button pour le quiz
+    # ────────────────────────────────────────────────────────────────────────────
+    class QuizView(View):
+        def __init__(self, bot, choices, main_name):
+            super().__init__(timeout=60)  # ⏳ 1 minute
+            self.bot = bot
+            self.choices = choices
+            self.main_name = main_name
+            self.answers = {}  # user_id → choix
+            for idx, name in enumerate(choices):
+                self.add_item(TestQuestion.QuizButton(label=name, idx=idx, parent_view=self))
+
+        async def on_timeout(self):
+            for child in self.children:
+                child.disabled = True
+            if hasattr(self, "message"):
+                await safe_edit(self.message, view=self)
+
+    class QuizButton(Button):
+        def __init__(self, label, idx, parent_view):
+            super().__init__(label=label, style=discord.ButtonStyle.primary)
+            self.parent_view = parent_view
+            self.idx = idx
+
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user.id not in self.parent_view.answers:
+                self.parent_view.answers[interaction.user.id] = self.idx
+                await update_streak(str(interaction.user.id), self.parent_view.choices[self.idx] == self.parent_view.main_name)
+            await interaction.response.send_message(f"✅ Réponse enregistrée : **{self.label}**", ephemeral=True)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 💬 Commande principale
     # ────────────────────────────────────────────────────────────────────────────
     @commands.group(
         name="devineladescription",
-        aliases=["devinedescription", "dd"],
+        aliases=["devinedescription", "dd", "description", "d"],
         help="Devinez la carte avec sa description (multijoueur)",
         invoke_without_command=True
     )
@@ -135,7 +163,6 @@ class TestQuestion(commands.Cog):
         guild_id = ctx.guild.id
         if self.active_sessions.get(guild_id):
             return await safe_reply(ctx, "⚠️ Un quiz est déjà en cours.", mention_author=False)
-
         self.active_sessions[guild_id] = True
 
         try:
@@ -145,10 +172,10 @@ class TestQuestion(commands.Cog):
                 self.active_sessions[guild_id] = None
                 return await safe_send(ctx, "❌ Aucune carte valide trouvée.")
 
-            archetype = main_card.get("archetype")
             main_name = main_card["name"]
             main_desc = censor_card_name(main_card["desc"], main_name)
             main_type = main_card.get("type", "")
+            archetype = main_card.get("archetype")
             type_group = get_type_group(main_type)
 
             if archetype:
@@ -162,8 +189,7 @@ class TestQuestion(commands.Cog):
                     and get_type_group(c.get("type", "")) == type_group
                     and is_clean_card(c)
                 ]
-                group.sort(key=lambda c: common_word_score(main_name, c["name"]) 
-                                    + similarity_ratio(main_name, c["name"]), reverse=True)
+                group.sort(key=lambda c: common_word_score(main_name, c["name"]) + similarity_ratio(main_name, c["name"]), reverse=True)
 
             if len(group) < 3:
                 self.active_sessions[guild_id] = None
@@ -173,7 +199,6 @@ class TestQuestion(commands.Cog):
             choices = [main_name] + [c["name"] for c in wrongs]
             random.shuffle(choices)
 
-            # Création de l'embed du quiz
             embed = discord.Embed(
                 title="🧠 Quelle est cette carte ?",
                 description=(
@@ -189,52 +214,18 @@ class TestQuestion(commands.Cog):
                 embed.add_field(name="🛡️ DEF", value=str(main_card.get("def", "—")), inline=True)
                 embed.add_field(name="⚙️ Niveau", value=str(main_card.get("level", "—")), inline=True)
 
-            options_text = "\n".join(f"{REACTIONS[i]} – **{name}**" for i, name in enumerate(choices))
-            embed.add_field(name="Choix", value=options_text, inline=False)
+            view = self.QuizView(self.bot, choices, main_name)
+            view.message = await safe_send(ctx, embed=embed, view=view)
 
-            quiz_msg = await safe_send(ctx, embed=embed)
-            self.active_sessions[guild_id] = quiz_msg
+            # attendre la fin du quiz
+            await view.wait()
 
-            # Ajout des réactions
-            for emoji in REACTIONS[:len(choices)]:
-                try:
-                    await quiz_msg.add_reaction(emoji)
-                    await asyncio.sleep(0.4)
-                except discord.HTTPException:
-                    pass
-
-            answers = {}
-            winners = set()
-
-            def check(reaction, user):
-                return (
-                    reaction.message.id == quiz_msg.id
-                    and reaction.emoji in REACTIONS[:len(choices)]
-                    and not user.bot
-                    and user.id not in answers
-                )
-
-            # Collecte des réponses pendant 60s
-            try:
-                while True:
-                    reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
-                    idx = REACTIONS.index(reaction.emoji)
-                    chosen = choices[idx]
-                    answers[user.id] = chosen
-                    if chosen == main_name:
-                        winners.add(user)
-                    await update_streak(str(user.id), chosen == main_name)
-            except asyncio.TimeoutError:
-                pass
-
-            # Temps écoulé, affichage des résultats
-            correct_emoji = REACTIONS[choices.index(main_name)]
+            winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if choices[idx] == main_name]
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
                 description=(
-                    f"✅ Réponse : {correct_emoji} **{main_name}**\n\n"
-                    + (f"🎉 Gagnants : {', '.join(w.mention for w in winners)}"
-                       if winners else "😢 Personne n'a trouvé...")
+                    f"✅ Réponse : **{main_name}**\n"
+                    + (f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}" if winners else "😢 Personne n'a trouvé...")
                 ),
                 color=discord.Color.green() if winners else discord.Color.red()
             )
@@ -246,16 +237,13 @@ class TestQuestion(commands.Cog):
             self.active_sessions[guild_id] = None
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 📊 SOUS-COMMANDE : !testquestion score
+    # 📊 Commande score
     # ────────────────────────────────────────────────────────────────────────────
     @testquestion.command(name="score", aliases=["streak", "s"])
     async def testquestion_score(self, ctx: commands.Context):
         user_id = str(ctx.author.id)
         try:
-            resp = supabase.table("ygo_streaks")\
-                           .select("current_streak,best_streak")\
-                           .eq("user_id", user_id)\
-                           .execute()
+            resp = supabase.table("ygo_streaks").select("current_streak,best_streak").eq("user_id", user_id).execute()
             if resp.data:
                 cur = resp.data[0].get("current_streak", 0)
                 best = resp.data[0].get("best_streak", 0)
@@ -274,20 +262,16 @@ class TestQuestion(commands.Cog):
                         color=discord.Color.red()
                     )
                 )
-        except Exception as e:
+        except Exception:
             await safe_send(ctx, "🚨 Erreur lors de la récupération de ta série.")
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🏆 SOUS-COMMANDE : !testquestion top
+    # 🏆 Commande top
     # ────────────────────────────────────────────────────────────────────────────
     @testquestion.command(name="top", aliases=["t"])
     async def testquestion_top(self, ctx: commands.Context):
         try:
-            resp = supabase.table("ygo_streaks")\
-                           .select("user_id,best_streak")\
-                           .order("best_streak", desc=True)\
-                           .limit(10)\
-                           .execute()
+            resp = supabase.table("ygo_streaks").select("user_id,best_streak").order("best_streak", desc=True).limit(10).execute()
             data = resp.data
             if not data:
                 return await safe_send(ctx, "📉 Aucun streak enregistré.")
@@ -305,7 +289,7 @@ class TestQuestion(commands.Cog):
                 color=discord.Color.gold()
             )
             await safe_send(ctx, embed=embed)
-        except Exception as e:
+        except Exception:
             await safe_send(ctx, "🚨 Erreur lors du classement.")
 
 # ────────────────────────────────────────────────────────────────────────────────
