@@ -77,12 +77,8 @@ class AkinatorView(View):
 
         self.current_question = self.select_best_question()
         if not self.current_question:
-            # Si aucune question n'est optimale, prendre la prochaine non utilisée
-            unused = [q for q in self.questions if q not in self.used_questions]
-            self.current_question = unused[0] if unused else None
-            if not self.current_question:
-                await self.finish_game()
-                return
+            await self.finish_game()
+            return
 
         self.used_questions.append(self.current_question)
         embed = discord.Embed(
@@ -103,8 +99,8 @@ class AkinatorView(View):
             no_count = len(self.remaining) - yes_count
             if yes_count == 0 or no_count == 0:
                 continue
-            if abs(yes_count - no_count) < best_split:
-                best_split = abs(yes_count - no_count)
+            if max(yes_count, no_count) < best_split:
+                best_split = max(yes_count, no_count)
                 best_question = q
         return best_question
 
@@ -170,7 +166,7 @@ class AkinatorView(View):
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ Vue interactive pour confirmation
-# ────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────
 class ConfirmGuessView(View):
     def __init__(self, akinator_view):
         super().__init__(timeout=60)
@@ -214,7 +210,7 @@ class AkinatorCog(commands.Cog):
                     cards = data.get("data", [])
 
             view = AkinatorView(self.bot, ctx, cards, self.questions)
-            await view.start()  # démarre correctement le premier cycle
+            await view.start()  # <-- démarre correctement le premier cycle
         except Exception as e:
             await safe_send(ctx, f"❌ Une erreur est survenue : {e}")
 
