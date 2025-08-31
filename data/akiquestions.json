@@ -1,34 +1,27 @@
 [
     {
-        "text": "Quel est le type ou sous-type de la carte ? (Monster, Spell, Trap, Normal, Effect, Fusion, Ritual, Synchro, Xyz, Pendulum, Link, Toon, Token, Spirit, Union)",
+        "text": "Est-ce que le type ou sous-type de la carte est {value} ?",
         "filter_key": "type_subtype",
-        "filter_value": [
-            "Monster","Spell","Trap",
-            "Normal","Effect","Fusion","Ritual","Synchro","Xyz","Pendulum","Link","Toon","Token","Spirit","Union"
-        ]
+        "filter_value": ["Monster","Spell","Trap","Normal","Effect","Fusion","Ritual","Synchro","Xyz","Pendulum","Link","Toon","Token","Spirit","Union"]
     },
     {
-        "text": "Quel est l'attribut du monstre ? (FIRE, WATER, WIND, EARTH, LIGHT, DARK, DIVINE)",
+        "text": "Est-ce que l'attribut du monstre est {value} ?",
         "filter_key": "attribute",
         "filter_value": ["FIRE","WATER","WIND","EARTH","LIGHT","DARK","DIVINE"]
     },
     {
-        "text": "La carte a-t-elle des statistiques ou un niveau élevé ? (ATK>=2000, DEF>=2000, Level>=7)",
+        "text": "La carte a-t-elle des statistiques ou un niveau élevé correspondant à {value} ?",
         "filter_key": "stats",
         "filter_value": ["ATK>=2000","DEF>=2000","Level>=7"]
     },
     {
-        "text": "À quel archétype appartient la carte ? (Dragon, Magician, Warrior, Zombie, HERO, Cyber, Dark Magician, Blue-Eyes, Pendulum, Xyz, Synchro, Toon, Exodia, Blackwing, Lightsworn, Elemental HERO, Shaddoll, Altergeist, Tri-Brigade, Salamangreat, Drytron, etc.)",
+        "text": "Est-ce que la carte appartient à l'archétype {value} ?",
         "filter_key": "archetype",
-        "filter_value": [
-            "Dragon","Magician","Warrior","Zombie","HERO","Cyber","Dark Magician","Blue-Eyes","Pendulum","Xyz","Synchro","Toon","Exodia","Blackwing","Lightsworn","Elemental HERO","Shaddoll","Altergeist","Tri-Brigade","Salamangreat","Drytron"
-        ]
+        "filter_value": ["Dragon","Magician","Warrior","Zombie","HERO","Cyber","Dark Magician","Blue-Eyes","Pendulum","Xyz","Synchro","Toon","Exodia","Blackwing","Lightsworn","Elemental HERO","Shaddoll","Altergeist","Tri-Brigade","Salamangreat","Drytron"]
     },
     {
-        "text": "Quel type d'effet ou de mécanique possède la carte ? (Fusion, Ritual, Special Summon, Continuous, Equip, Field, Quick-Play, Token, Pendulum, Link, Synchro, Xyz, Flip, Union, Spirit)",
+        "text": "Est-ce que la carte possède un effet ou une mécanique {value} ?",
         "filter_key": "effect",
-        "filter_value": [
-            "Fusion","Ritual","Special Summon","Continuous","Equip","Field","Quick-Play","Token","Pendulum","Link","Synchro","Xyz","Flip","Union","Spirit"
-        ]
+        "filter_value": ["Fusion","Ritual","Special Summon","Continuous","Equip","Field","Quick-Play","Token","Pendulum","Link","Synchro","Xyz","Flip","Union","Spirit"]
     }
 ]
