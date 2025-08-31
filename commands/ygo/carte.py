@@ -15,7 +15,7 @@ import aiohttp
 import urllib.parse
 
 from utils.discord_utils import safe_send  # ✅ Protection 429
-from supabase_client import supabase       # Client Supabase déjà configuré
+from utils.supabase_client import supabase       # Client Supabase déjà configuré
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Bouton Ajouter Carte Favorite
