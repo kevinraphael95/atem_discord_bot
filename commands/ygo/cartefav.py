@@ -13,7 +13,7 @@ from discord.ext import commands
 import aiohttp
 import urllib.parse
 from utils.discord_utils import safe_send  # ✅ Utilisation des fonctions safe_
-from supabase_client import supabase        # Client Supabase déjà configuré
+from utils.supabase_client import supabase        # Client Supabase déjà configuré
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
