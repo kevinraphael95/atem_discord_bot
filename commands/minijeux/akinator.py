@@ -17,9 +17,6 @@ import json
 import os
 from utils.discord_utils import safe_send, safe_edit
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📂 Chargement des questions JSON
-# ────────────────────────────────────────────────────────────────────────────────
 DATA_JSON_PATH = os.path.join("data", "akiquestions.json")
 
 def load_questions():
@@ -30,9 +27,6 @@ def load_questions():
         print(f"[ERREUR JSON] Impossible de charger {DATA_JSON_PATH} : {e}")
         return []
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ Vue interactive Akinator
-# ────────────────────────────────────────────────────────────────────────────────
 class AkinatorView(View):
     def __init__(self, bot, ctx, cards, questions, message=None):
         super().__init__(timeout=180)
@@ -55,7 +49,6 @@ class AkinatorView(View):
         self.stop()
 
     async def start(self):
-        """Démarre le jeu en posant la première question."""
         if not self.message:
             embed = discord.Embed(
                 title="Akinator Yu-Gi-Oh!",
@@ -66,7 +59,6 @@ class AkinatorView(View):
         await self.ask_next_question()
 
     async def ask_next_question(self):
-        """Sélectionne et affiche la prochaine question intelligente."""
         self.remaining = [
             c for c in self.remaining
             if (c.get('id') or c.get('card_id') or c.get('name')) not in self.proposed_cards
@@ -76,26 +68,32 @@ class AkinatorView(View):
             await self.finish_game()
             return
 
-        # Sélection intelligente de la question
+        # Sélection intelligente
         self.current_question = self.select_best_question()
         if not self.current_question:
             await self.finish_game()
             return
 
-        self.used_questions.append(self.current_question)
-
-        # Choisir une valeur aléatoire pour la question
         question_data = self.current_question
-        if "options" in question_data:
-            import random
-            value = random.choice(question_data["options"])
-            question_text = question_data.get("prompt", "").replace("{value}", str(value))
-            question_data["filter_value"] = value
-        elif "ranges" in question_data:
-            import random
-            rng = random.choice(question_data["ranges"])
-            question_text = question_data.get("prompt", "").replace("{min}", str(rng["min"])).replace("{max}", str(rng["max"]))
-            question_data["filter_value"] = rng  # stocke la range complète pour le filtre
+
+        # Définir filter_value si pas encore fait
+        import random
+        if "filter_value" not in question_data:
+            if "options" in question_data:
+                question_data["filter_value"] = random.choice(question_data["options"])
+            elif "ranges" in question_data:
+                question_data["filter_value"] = random.choice(question_data["ranges"])
+
+        # Générer texte de question
+        fv = question_data["filter_value"]
+        question_text = question_data.get("prompt", "")
+        if isinstance(fv, dict):
+            question_text = question_text.replace("{min}", str(fv["min"])).replace("{max}", str(fv["max"]))
+        else:
+            question_text = question_text.replace("{value}", str(fv))
+
+        question_data["text"] = question_text
+        self.used_questions.append(question_data)
 
         embed = discord.Embed(
             title=f"Question {len(self.used_questions)} / {self.max_questions}",
@@ -105,7 +103,6 @@ class AkinatorView(View):
         await safe_edit(self.message, embed=embed, view=self)
 
     def select_best_question(self):
-        """Choisit la question qui divise le mieux les cartes restantes."""
         best_q = None
         best_score = -1
         for q in self.questions.values():
@@ -126,7 +123,7 @@ class AkinatorView(View):
         value = question['filter_value']
         if key not in card:
             return False
-        if isinstance(value, dict):  # range
+        if isinstance(value, dict):
             return value["min"] <= card.get(key, 0) <= value["max"]
         return str(value).lower() in str(card[key]).lower()
 
@@ -167,9 +164,6 @@ class AkinatorView(View):
             await safe_edit(self.message, content="❌ Je n'ai pas trouvé de carte correspondante.", embed=None, view=None)
             self.stop()
 
-    # ────────────────────────────────────────────────────────────
-    # 🔹 Boutons Oui / Non / Je sais pas
-    # ────────────────────────────────────────────────────────────
     @discord.ui.button(label="Oui", style=discord.ButtonStyle.success)
     async def yes(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
@@ -186,9 +180,6 @@ class AkinatorView(View):
         await self.process_answer("idk")
 
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ Vue interactive pour confirmation
-# ────────────────────────────────────────────────────────────────
 class ConfirmGuessView(View):
     def __init__(self, akinator_view):
         super().__init__(timeout=60)
@@ -212,9 +203,6 @@ class ConfirmGuessView(View):
         await self.akinator_view.ask_next_question()
 
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────
 class AkinatorCog(commands.Cog):
     """
     Commande /akinator et !akinator — Devine une carte Yu-Gi-Oh!
@@ -233,10 +221,9 @@ class AkinatorCog(commands.Cog):
                     cards = data.get("data", [])
 
             view = AkinatorView(self.bot, ctx, cards, self.questions)
-            await view.start()  # <-- démarre le jeu
+            await view.start()
         except Exception as e:
             await safe_send(ctx, f"❌ Une erreur est survenue : {e}")
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
