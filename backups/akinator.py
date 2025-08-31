@@ -58,17 +58,15 @@ class AkinatorView(View):
                 color=discord.Color.dark_red()
             )
             self.message = await safe_send(self.ctx, embed=embed)
-        await self.update_question()
+        await self.ask_next_question()
 
-    async def update_question(self):
-        """Sélectionne et affiche la prochaine question intelligente"""
-        # Retirer cartes déjà proposées
+    async def ask_next_question(self):
+        """Pose la prochaine question intelligente"""
         self.remaining = [
             c for c in self.remaining
             if (c.get('id') or c.get('card_id') or c.get('name')) not in self.proposed_cards
         ]
 
-        # Fin du jeu si 1 carte ou max questions atteintes
         if len(self.remaining) <= 1 or len(self.used_questions) >= self.max_questions:
             await self.finish_game()
             return
@@ -98,7 +96,7 @@ class AkinatorView(View):
             no_count = len(self.remaining) - yes_count
             if yes_count == 0 or no_count == 0:
                 continue
-            score = min(yes_count, no_count)  # plus proche d'une division 50/50
+            score = min(yes_count, no_count)  # plus proche de 50/50
             if score > best_score:
                 best_score = score
                 best_q = q
@@ -111,7 +109,6 @@ class AkinatorView(View):
         return value.lower() in str(card[key]).lower()
 
     async def process_answer(self, answer):
-        """Filtre les cartes selon la réponse et pose la question suivante"""
         if answer != "idk":
             self.remaining = [
                 c for c in self.remaining
@@ -122,10 +119,9 @@ class AkinatorView(View):
                 await safe_edit(self.message, content="❌ Plus aucune carte ne correspond aux critères.", embed=None, view=None)
                 self.stop()
                 return
-        await self.update_question()
+        await self.ask_next_question()
 
     async def finish_game(self):
-        """Propose la carte devinée"""
         if self.remaining:
             card = self.remaining[0]
             card_id = card.get('id') or card.get('card_id') or card.get('name')
@@ -135,7 +131,6 @@ class AkinatorView(View):
                     c for c in self.remaining
                     if (c.get('id') or c.get('card_id') or c.get('name')) != card_id
                 ]
-
             embed = discord.Embed(
                 title="Je pense à cette carte !",
                 description=f"**{card['name']}**\nEst-ce bien ta carte ?",
@@ -143,7 +138,6 @@ class AkinatorView(View):
             )
             if 'card_images' in card and card['card_images']:
                 embed.set_image(url=card['card_images'][0]['image_url'])
-
             await safe_edit(self.message, content=None, embed=embed, view=ConfirmGuessView(self))
         else:
             await safe_edit(self.message, content="❌ Je n'ai pas trouvé de carte correspondante.", embed=None, view=None)
@@ -166,7 +160,7 @@ class AkinatorView(View):
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ Vue interactive bouton pour dire si c'est la bonne carte ou non
+# 🎛️ Vue interactive pour confirmer la carte
 # ────────────────────────────────────────────────────────────────────────────────
 class ConfirmGuessView(View):
     def __init__(self, akinator_view):
@@ -188,7 +182,7 @@ class ConfirmGuessView(View):
         self.akinator_view.max_questions += 20
         self.akinator_view.used_questions = []
         await safe_edit(self.akinator_view.message, embed=None, view=self.akinator_view)
-        await self.akinator_view.update_question()
+        await self.akinator_view.ask_next_question()
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -221,7 +215,7 @@ class AkinatorCog(commands.Cog):
             )
             msg = await safe_send(ctx, embed=embed)
             view = AkinatorView(self.bot, ctx, cards, self.questions, msg)
-            await view.start()  # <-- démarre correctement le cycle de questions
+            await view.start()
         except Exception as e:
             await safe_send(ctx, f"❌ Une erreur est survenue : {e}")
 
