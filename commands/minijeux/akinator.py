@@ -10,13 +10,12 @@
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
-from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
 import json
 import os
-from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.discord_utils import safe_send, safe_edit
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Chargement des questions JSON
@@ -56,7 +55,7 @@ class AkinatorView(View):
         self.stop()
 
     async def start(self):
-        """Démarre le jeu en affichant la première question."""
+        """Démarre le jeu en posant la première question."""
         if not self.message:
             embed = discord.Embed(
                 title="Akinator Yu-Gi-Oh!",
@@ -64,65 +63,85 @@ class AkinatorView(View):
                 color=discord.Color.dark_red()
             )
             self.message = await safe_send(self.ctx, embed=embed)
-        await self.next_question()
+        await self.ask_next_question()
 
-    async def next_question(self):
-        """Sélectionne et affiche la prochaine question."""
-        self.remaining = [c for c in self.remaining
-                          if (c.get('id') or c.get('card_id') or c.get('name')) not in self.proposed_cards]
+    async def ask_next_question(self):
+        """Sélectionne et affiche la prochaine question intelligente."""
+        self.remaining = [
+            c for c in self.remaining
+            if (c.get('id') or c.get('card_id') or c.get('name')) not in self.proposed_cards
+        ]
 
         if len(self.remaining) <= 1 or len(self.used_questions) >= self.max_questions:
             await self.finish_game()
             return
 
+        # Sélection intelligente de la question
         self.current_question = self.select_best_question()
         if not self.current_question:
             await self.finish_game()
             return
 
         self.used_questions.append(self.current_question)
+
+        # Choisir une valeur aléatoire pour la question
+        question_data = self.current_question
+        if "options" in question_data:
+            import random
+            value = random.choice(question_data["options"])
+            question_text = question_data.get("prompt", "").replace("{value}", str(value))
+            question_data["filter_value"] = value
+        elif "ranges" in question_data:
+            import random
+            rng = random.choice(question_data["ranges"])
+            question_text = question_data.get("prompt", "").replace("{min}", str(rng["min"])).replace("{max}", str(rng["max"]))
+            question_data["filter_value"] = rng  # stocke la range complète pour le filtre
+
         embed = discord.Embed(
             title=f"Question {len(self.used_questions)} / {self.max_questions}",
-            description=self.current_question['text'],
+            description=question_text,
             color=discord.Color.dark_gold()
         )
         await safe_edit(self.message, embed=embed, view=self)
 
     def select_best_question(self):
         """Choisit la question qui divise le mieux les cartes restantes."""
-        best_question = None
-        best_split = len(self.remaining)
-        for q in self.questions:
+        best_q = None
+        best_score = -1
+        for q in self.questions.values():
             if q in self.used_questions:
                 continue
-            yes_count = sum(1 for card in self.remaining if self.match_filter(card, q))
+            yes_count = sum(1 for c in self.remaining if self.match_filter(c, q))
             no_count = len(self.remaining) - yes_count
             if yes_count == 0 or no_count == 0:
                 continue
-            if max(yes_count, no_count) < best_split:
-                best_split = max(yes_count, no_count)
-                best_question = q
-        return best_question
+            score = min(yes_count, no_count)
+            if score > best_score:
+                best_score = score
+                best_q = q
+        return best_q
 
     def match_filter(self, card, question):
-        key, value = question['filter_key'], question['filter_value']
+        key = question['filter_key']
+        value = question['filter_value']
         if key not in card:
             return False
-        return value.lower() in str(card[key]).lower()
+        if isinstance(value, dict):  # range
+            return value["min"] <= card.get(key, 0) <= value["max"]
+        return str(value).lower() in str(card[key]).lower()
 
     async def process_answer(self, answer):
         if answer != "idk":
-            filtered = [
-                card for card in self.remaining
-                if (answer == "oui" and self.match_filter(card, self.current_question)) or
-                   (answer == "non" and not self.match_filter(card, self.current_question))
+            self.remaining = [
+                c for c in self.remaining
+                if (answer == "oui" and self.match_filter(c, self.current_question)) or
+                   (answer == "non" and not self.match_filter(c, self.current_question))
             ]
-            self.remaining = filtered
             if not self.remaining:
                 await safe_edit(self.message, content="❌ Plus aucune carte ne correspond aux critères.", embed=None, view=None)
                 self.stop()
                 return
-        await self.next_question()
+        await self.ask_next_question()
 
     async def finish_game(self):
         if self.remaining:
@@ -130,8 +149,10 @@ class AkinatorView(View):
             card_id = card.get('id') or card.get('card_id') or card.get('name')
             if card_id:
                 self.proposed_cards.add(card_id)
-                self.remaining = [c for c in self.remaining
-                                  if (c.get('id') or c.get('card_id') or c.get('name')) != card_id]
+                self.remaining = [
+                    c for c in self.remaining
+                    if (c.get('id') or c.get('card_id') or c.get('name')) != card_id
+                ]
 
             embed = discord.Embed(
                 title="Je pense à cette carte !",
@@ -164,6 +185,7 @@ class AkinatorView(View):
         await interaction.response.defer()
         await self.process_answer("idk")
 
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ Vue interactive pour confirmation
 # ────────────────────────────────────────────────────────────────
@@ -187,7 +209,8 @@ class ConfirmGuessView(View):
         self.akinator_view.max_questions += 20
         self.akinator_view.used_questions = []
         await safe_edit(self.akinator_view.message, embed=None, view=self.akinator_view)
-        await self.akinator_view.next_question()
+        await self.akinator_view.ask_next_question()
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -210,9 +233,10 @@ class AkinatorCog(commands.Cog):
                     cards = data.get("data", [])
 
             view = AkinatorView(self.bot, ctx, cards, self.questions)
-            await view.start()  # <-- démarre correctement le premier cycle
+            await view.start()  # <-- démarre le jeu
         except Exception as e:
             await safe_send(ctx, f"❌ Une erreur est survenue : {e}")
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
