@@ -15,6 +15,7 @@ from discord.ui import View, Button
 import aiohttp
 import json
 import os
+import copy
 from utils.discord_utils import safe_send, safe_edit
 
 DATA_JSON_PATH = os.path.join("data", "akiquestions.json")
@@ -74,7 +75,8 @@ class AkinatorView(View):
             await self.finish_game()
             return
 
-        question_data = self.current_question
+        # Copie temporaire pour éviter de modifier l'original
+        question_data = copy.deepcopy(self.current_question)
 
         # Définir filter_value si pas encore fait
         import random
@@ -120,8 +122,8 @@ class AkinatorView(View):
 
     def match_filter(self, card, question):
         key = question['filter_key']
-        value = question['filter_value']
-        if key not in card:
+        value = question.get('filter_value')
+        if value is None or key not in card:
             return False
         if isinstance(value, dict):
             return value["min"] <= card.get(key, 0) <= value["max"]
@@ -224,6 +226,7 @@ class AkinatorCog(commands.Cog):
             await view.start()
         except Exception as e:
             await safe_send(ctx, f"❌ Une erreur est survenue : {e}")
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
