@@ -44,6 +44,7 @@ class AkinatorView(View):
         self.used_questions = []
         self.current_question = None
         self.max_questions = 20
+        self.min_questions = 10  # minimum 10 questions avant proposition
         self.proposed_cards = set()
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -61,7 +62,6 @@ class AkinatorView(View):
             await safe_send(self.ctx, "❌ Impossible de charger les cartes.")
             self.stop()
             return
-
         if not self.message:
             embed = discord.Embed(
                 title="Akinator Yu-Gi-Oh!",
@@ -78,13 +78,24 @@ class AkinatorView(View):
         ]
 
         if len(self.remaining) <= 1 or len(self.used_questions) >= self.max_questions:
-            await self.finish_game()
-            return
+            if len(self.used_questions) >= self.min_questions:
+                await self.finish_game()
+                return
 
         self.current_question = self.select_best_question()
         if not self.current_question:
-            await self.finish_game()
-            return
+            # Choisir une question aléatoire si aucune "optimale"
+            remaining_qs = [q for q in self.questions if q not in self.used_questions]
+            if remaining_qs:
+                self.current_question = random.choice(remaining_qs)
+            else:
+                if len(self.used_questions) >= self.min_questions:
+                    await self.finish_game()
+                    return
+                else:
+                    await safe_edit(self.message, content="⚠️ Plus de questions disponibles, mais le minimum de 10 questions n'est pas atteint.", embed=None, view=None)
+                    self.stop()
+                    return
 
         fv_list = self.current_question.get("filter_value", [])
         if not fv_list:
@@ -111,8 +122,6 @@ class AkinatorView(View):
             try:
                 yes_count = sum(1 for c in self.remaining if self.match_filter(c, q))
                 no_count = len(self.remaining) - yes_count
-                if yes_count == 0 or no_count == 0:
-                    continue
                 score = min(yes_count, no_count)
                 if score > best_score:
                     best_score = score
@@ -127,6 +136,8 @@ class AkinatorView(View):
             value = question.get("current_value")
             if value is None or key not in card:
                 return False
+            if isinstance(value, list):
+                return any(str(v).lower() in str(card[key]).lower() for v in value)
             return str(value).lower() in str(card[key]).lower()
         except Exception:
             return False
