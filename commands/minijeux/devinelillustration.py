@@ -198,7 +198,7 @@ class IllustrationCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="illustration", aliases=["devinelillustration","di"])
+    @commands.command(name="illustration", aliases=["i", "devinelillustration","di"])
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_illustration(self, ctx: commands.Context):
         try:
