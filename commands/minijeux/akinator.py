@@ -119,26 +119,130 @@ class AkinatorCog(commands.Cog):
         self.bot = bot
 
     async def fetch_cards(self):
-        """Récupère les cartes depuis l’API YGOPRODeck et les prépare pour l’Akinator."""
+        """
+        Récupère toutes les cartes Yu-Gi-Oh depuis YGOPRODeck
+        et les transforme au format attendu par l'Akinator.
+        """
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 data = await resp.json()
                 cards = []
-                for c in data['data']:
+
+                for c in data["data"]:
+                    card_id = c.get("id")
+                    name = c.get("name", "Inconnue")
+
+                    # ───────────────
+                    # 📌 TYPE / SUBTYPE
+                    # ───────────────
+                    type_subtype = []
+                    if c.get("type"):      # ex : "Effect Monster", "Normal Trap", "Fusion Monster"
+                        type_subtype += c["type"].split()
+                    if c.get("race"):      # ex : "Dragon", "Warrior"
+                        type_subtype.append(c["race"])
+
+                    # ───────────────
+                    # 📌 ATTRIBUT
+                    # ───────────────
+                    attribute = []
+                    if c.get("attribute"):
+                        attribute.append(c["attribute"])
+
+                    # ───────────────
+                    # 📌 ARCHETYPE
+                    # ───────────────
+                    archetype = []
+                    if c.get("archetype"):
+                        archetype.append(c["archetype"])
+
+                    # ───────────────
+                    # 📌 STATS
+                    # ───────────────
+                    stats = []
+                    atk = c.get("atk")
+                    defe = c.get("def")
+                    level = c.get("level")
+                    link = c.get("linkval")
+
+                    if atk is not None:
+                        if atk >= 1000: stats.append("ATK>=1000")
+                        if atk >= 1500: stats.append("ATK>=1500")
+                        if atk >= 2000: stats.append("ATK>=2000")
+                        if atk >= 2500: stats.append("ATK>=2500")
+
+                    if defe is not None:
+                        if defe >= 1000: stats.append("DEF>=1000")
+                        if defe >= 1500: stats.append("DEF>=1500")
+                        if defe >= 2000: stats.append("DEF>=2000")
+                        if defe >= 2500: stats.append("DEF>=2500")
+
+                    if level is not None:
+                        if level >= 4: stats.append("Level>=4")
+                        if level >= 5: stats.append("Level>=5")
+                        if level >= 6: stats.append("Level>=6")
+                        if level >= 7: stats.append("Level>=7")
+                        if level >= 8: stats.append("Level>=8")
+                        if level >= 10: stats.append("Level>=10")
+
+                    if link is not None:
+                        stats.append(f"Link-{link}")
+
+                    # ───────────────
+                    # 📌 EFFECT
+                    # ───────────────
+                    effect = []
+                    desc = (c.get("desc") or "").lower()
+                    type_str = (c.get("type") or "").lower()
+
+                    keywords = {
+                        "Fusion": ["fusion"],
+                        "Ritual": ["ritual"],
+                        "Special Summon": ["special summon"],
+                        "Continuous": ["continuous"],
+                        "Equip": ["equip"],
+                        "Field": ["field"],
+                        "Quick-Play": ["quick-play"],
+                        "Token": ["token"],
+                        "Pendulum": ["pendulum"],
+                        "Link": ["link"],
+                        "Synchro": ["synchro"],
+                        "Xyz": ["xyz"],
+                        "Flip": ["flip"],
+                        "Union": ["union"],
+                        "Spirit": ["spirit"],
+                        "Draw": ["draw a card"],
+                        "Destroy": ["destroy"],
+                        "Negate": ["negate"],
+                        "ATK modification": ["gain atk", "increase atk", "lose atk", "reduce atk"],
+                        "DEF modification": ["gain def", "increase def", "lose def", "reduce def"],
+                        "Search": ["add 1", "add one", "search your deck"],
+                        "Recycle": ["return", "shuffle into the deck"],
+                        "Mill": ["send the top", "send cards from the top"],
+                        "Tribute": ["tribute"],
+                        "Burn": ["inflict", "damage your opponent"],
+                        "Life Point Gain": ["gain life points", "increase your lp"],
+                        "Piercing": ["piercing", "inflict battle damage"],
+                        "Direct Attack": ["direct attack"]
+                    }
+
+                    for key, patterns in keywords.items():
+                        if any(p in desc for p in patterns) or any(p in type_str for p in patterns):
+                            effect.append(key)
+
+                    # ───────────────
+                    # 📌 Construction finale
+                    # ───────────────
                     cards.append({
-                        "id": c.get("id"),
-                        "name": c.get("name"),
-                        "type_subtype": [c.get("type")] + ([c.get("race")] if c.get("race") else []),
-                        "attribute": [c.get("attribute")] if c.get("attribute") else [],
-                        "archetype": [c.get("archetype")] if c.get("archetype") else [],
-                        "stats": [
-                            f"ATK>={c.get('atk')}" if c.get("atk") else None,
-                            f"DEF>={c.get('def')}" if c.get("def") else None,
-                            f"Level>={c.get('level')}" if c.get("level") else None,
-                        ],
-                        "effect": [c.get("type")]  # simplifié, on pourra l’enrichir
+                        "id": card_id,
+                        "name": name,
+                        "type_subtype": type_subtype,
+                        "attribute": attribute,
+                        "archetype": archetype,
+                        "stats": stats,
+                        "effect": effect
                     })
+
                 return cards
 
     async def _send_akinator(self, channel: discord.abc.Messageable):
