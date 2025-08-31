@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 akinator.py — Commande interactive !akinator
-# Objectif : Deviner une carte Yu-Gi-Oh! via questions Oui/Non/Je sais pas
-# Catégorie : Yu-Gi-Oh
+# Objectif : Deviner une carte Yu-Gi-Oh! via questions Oui/Non/Je sais pas avec sélection intelligente
+# Catégorie : Minijeux
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -14,20 +14,19 @@ from discord.ui import View, Button
 import aiohttp
 import json
 import os
+import math
 from utils.discord_utils import safe_send, safe_edit
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📂 Chargement des questions JSON enrichies (texte + filtre associé)
-# ────────────────────────────────────────────────────────────────────────────────
 DATA_QUESTIONS_PATH = os.path.join("data", "akiquestions.json")
 
 def load_questions():
-    with open(DATA_QUESTIONS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(DATA_QUESTIONS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERREUR JSON] Impossible de charger {DATA_QUESTIONS_PATH} : {e}")
+        return []
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ Vue interactive Akinator avec boutons Oui/Non/Je sais pas
-# ────────────────────────────────────────────────────────────────────────────────
 class AkinatorView(View):
     def __init__(self, bot, ctx, all_cards, questions, message=None):
         super().__init__(timeout=180)
@@ -50,7 +49,6 @@ class AkinatorView(View):
         self.stop()
 
     async def start(self):
-        """Démarre le jeu en posant la première question"""
         if not self.message:
             embed = discord.Embed(
                 title="Akinator Yu-Gi-Oh!",
@@ -61,12 +59,6 @@ class AkinatorView(View):
         await self.ask_next_question()
 
     async def ask_next_question(self):
-        """Pose la prochaine question intelligente"""
-        self.remaining = [
-            c for c in self.remaining
-            if (c.get('id') or c.get('card_id') or c.get('name')) not in self.proposed_cards
-        ]
-
         if len(self.remaining) <= 1 or len(self.used_questions) >= self.max_questions:
             await self.finish_game()
             return
@@ -77,7 +69,6 @@ class AkinatorView(View):
             return
 
         self.used_questions.append(self.current_q)
-
         embed = discord.Embed(
             title=f"Question {len(self.used_questions)} / {self.max_questions}",
             description=self.current_q['text'],
@@ -86,7 +77,7 @@ class AkinatorView(View):
         await safe_edit(self.message, embed=embed, view=self)
 
     def select_best_question(self):
-        """Choisit la question qui divise le mieux les cartes restantes"""
+        """Sélectionne la question qui maximise l'information (entropie)"""
         best_q = None
         best_score = -1
         for q in self.questions:
@@ -96,9 +87,11 @@ class AkinatorView(View):
             no_count = len(self.remaining) - yes_count
             if yes_count == 0 or no_count == 0:
                 continue
-            score = min(yes_count, no_count)  # plus proche de 50/50
-            if score > best_score:
-                best_score = score
+            p_yes = yes_count / len(self.remaining)
+            p_no = no_count / len(self.remaining)
+            entropy = - (p_yes * math.log2(p_yes) + p_no * math.log2(p_no))
+            if entropy > best_score:
+                best_score = entropy
                 best_q = q
         return best_q
 
@@ -125,12 +118,7 @@ class AkinatorView(View):
         if self.remaining:
             card = self.remaining[0]
             card_id = card.get('id') or card.get('card_id') or card.get('name')
-            if card_id:
-                self.proposed_cards.add(card_id)
-                self.remaining = [
-                    c for c in self.remaining
-                    if (c.get('id') or c.get('card_id') or c.get('name')) != card_id
-                ]
+            self.proposed_cards.add(card_id)
             embed = discord.Embed(
                 title="Je pense à cette carte !",
                 description=f"**{card['name']}**\nEst-ce bien ta carte ?",
@@ -158,10 +146,6 @@ class AkinatorView(View):
         await interaction.response.defer()
         await self.process_answer("idk")
 
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ Vue interactive pour confirmer la carte
-# ────────────────────────────────────────────────────────────────────────────────
 class ConfirmGuessView(View):
     def __init__(self, akinator_view):
         super().__init__(timeout=60)
@@ -184,22 +168,12 @@ class ConfirmGuessView(View):
         await safe_edit(self.akinator_view.message, embed=None, view=self.akinator_view)
         await self.akinator_view.ask_next_question()
 
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔌 Cog principal
-# ────────────────────────────────────────────────────────────────
 class AkinatorCog(commands.Cog):
-    """
-    Commande !akinator — Devine une carte Yu-Gi-Oh! à laquelle tu penses.
-    """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.questions = load_questions()
 
-    @commands.command(
-        name="akinator",
-        help="Devine une carte Yu-Gi-Oh! à laquelle tu penses."
-    )
+    @commands.command(name="akinator", help="Devine une carte Yu-Gi-Oh! à laquelle tu penses.")
     async def akinator(self, ctx: commands.Context):
         try:
             await safe_send(ctx, "🔍 Chargement des cartes...")
@@ -207,7 +181,6 @@ class AkinatorCog(commands.Cog):
                 async with session.get("https://db.ygoprodeck.com/api/v7/cardinfo.php") as resp:
                     data = await resp.json()
                     cards = data.get("data", [])
-
             embed = discord.Embed(
                 title="Akinator Yu-Gi-Oh!",
                 description="Je vais deviner à quoi tu penses en 20 questions maximum.",
@@ -218,7 +191,6 @@ class AkinatorCog(commands.Cog):
             await view.start()
         except Exception as e:
             await safe_send(ctx, f"❌ Une erreur est survenue : {e}")
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
