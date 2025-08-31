@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 akinator.py — Commande interactive /akinator et !akinator
 # Objectif : Deviner la carte Yu-Gi-Oh à laquelle pense le joueur via l'API YGOPRODeck
-# Catégorie : Fun
+# Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 1 utilisation / 10 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -53,6 +53,8 @@ class IntelligentQuestionView(View):
             for val in q["filter_value"]:
                 count = sum(1 for c in self.remaining_cards if val in c.get(q["filter_key"], []))
                 counts.append(count)
+            if not counts:
+                continue
             score = min(counts)
             if score > best_score:
                 best_score = score
@@ -70,7 +72,7 @@ class IntelligentQuestionView(View):
         if not q:
             # Affiche le résultat
             best_cards = sorted(self.remaining_cards, key=lambda c: self.scores[c['id']], reverse=True)[:3]
-            content = "Je pense que ta carte pourrait être :\n" + "\n".join(f"• {c['name']}" for c in best_cards)
+            content = "🔮 Je pense que ta carte pourrait être :\n" + "\n".join(f"• {c['name']}" for c in best_cards)
             if interaction:
                 await safe_edit(interaction.message, content=content, view=None)
             return
@@ -97,7 +99,8 @@ class IntelligentQuestionView(View):
                 self.scores[c['id']] -= 1
             # "Ne sais pas" ne change pas le score
 
-        self.questions.remove(q)
+        if q in self.questions:
+            self.questions.remove(q)
         await self.ask_question(interaction)
 
 class AnswerButton(Button):
@@ -111,11 +114,12 @@ class AnswerButton(Button):
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class Akinator(commands.Cog):
+class AkinatorCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     async def fetch_cards(self):
+        """Récupère les cartes depuis l’API YGOPRODeck et les prépare pour l’Akinator."""
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -125,11 +129,15 @@ class Akinator(commands.Cog):
                     cards.append({
                         "id": c.get("id"),
                         "name": c.get("name"),
-                        "type_subtype": [c.get("type")] + c.get("race", []).split() if c.get("race") else [c.get("type")],
+                        "type_subtype": [c.get("type")] + ([c.get("race")] if c.get("race") else []),
                         "attribute": [c.get("attribute")] if c.get("attribute") else [],
                         "archetype": [c.get("archetype")] if c.get("archetype") else [],
-                        "stats": [],
-                        "effect": [c.get("type")]
+                        "stats": [
+                            f"ATK>={c.get('atk')}" if c.get("atk") else None,
+                            f"DEF>={c.get('def')}" if c.get("def") else None,
+                            f"Level>={c.get('level')}" if c.get("level") else None,
+                        ],
+                        "effect": [c.get("type")]  # simplifié, on pourra l’enrichir
                     })
                 return cards
 
@@ -172,7 +180,6 @@ class Akinator(commands.Cog):
         except Exception as e:
             print(f"[ERREUR !akinator] {e}")
             await safe_send(ctx.channel, "❌ Une erreur est survenue.")
-
 
 # ────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
