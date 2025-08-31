@@ -12,10 +12,14 @@ from discord.ext import commands
 from discord.ui import View, Button
 import json
 import aiohttp
+import os
+import random
 from utils.discord_utils import safe_send, safe_edit, safe_respond
 
 QUESTIONS_JSON_PATH = "data/akinator_questions.json"
+CACHE_PATH = "data/cards_cache.json"
 
+# ────────────────────────────────────────────────────────────────────────────────
 def load_questions():
     try:
         with open(QUESTIONS_JSON_PATH, "r", encoding="utf-8") as f:
@@ -27,7 +31,7 @@ def load_questions():
 # ────────────────────────────────────────────────────────────────────────────────
 class IntelligentQuestionView(View):
     def __init__(self, bot, questions, cards):
-        super().__init__(timeout=120)
+        super().__init__(timeout=None)
         self.bot = bot
         self.questions = questions
         self.remaining_cards = cards
@@ -35,7 +39,6 @@ class IntelligentQuestionView(View):
         self.current_question = None
         self.current_value = None
         self.scores = {c['id']: 0 for c in self.remaining_cards}
-        self.next_question()
 
     def most_discriminant_question(self):
         best_q = None
@@ -59,8 +62,10 @@ class IntelligentQuestionView(View):
 
     async def ask_question(self, interaction=None):
         q = self.next_question()
+        # Proposer carte probable à tout moment
+        best_cards = sorted(self.remaining_cards, key=lambda c: self.scores[c['id']], reverse=True)[:3]
+
         if not q:
-            best_cards = sorted(self.remaining_cards, key=lambda c: self.scores[c['id']], reverse=True)[:3]
             embed = discord.Embed(
                 title="🔮 Résultat Akinator",
                 description="\n".join(f"• {c['name']}" for c in best_cards),
@@ -68,8 +73,9 @@ class IntelligentQuestionView(View):
             )
             if interaction:
                 await safe_edit(interaction.message, embed=embed, view=None)
-            return
+            return embed
 
+        # Affichage question + proposition probable
         self.clear_items()
         self.add_item(AnswerButton(self, "Oui"))
         self.add_item(AnswerButton(self, "Non"))
@@ -78,7 +84,7 @@ class IntelligentQuestionView(View):
         question_text = q["text"].replace("{value}", self.current_value or "...")
         embed = discord.Embed(
             title="❓ Question Akinator",
-            description=question_text,
+            description=f"{question_text}\n\n**Carte probable:** {best_cards[0]['name'] if best_cards else '...'}",
             color=discord.Color.blue()
         )
         if interaction:
@@ -107,14 +113,29 @@ class AnswerButton(Button):
         self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        await self.parent_view.process_answer(self.label, interaction)
+        try:
+            await self.parent_view.process_answer(self.label, interaction)
+            await interaction.response.defer()
+        except Exception as e:
+            print(f"[ERREUR Button] {e}")
 
 # ────────────────────────────────────────────────────────────────────────────────
 class AkinatorCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.cards_cache = None
 
     async def fetch_cards(self):
+        if self.cards_cache:
+            return self.cards_cache
+        if os.path.exists(CACHE_PATH):
+            try:
+                with open(CACHE_PATH, "r", encoding="utf-8") as f:
+                    self.cards_cache = json.load(f)
+                    return self.cards_cache
+            except Exception as e:
+                print(f"[ERREUR CACHE] {e}")
+
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -162,7 +183,12 @@ class AkinatorCog(commands.Cog):
                         "stats": stats,
                         "effect": effect
                     })
-                return cards
+
+        os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
+        with open(CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cards, f, ensure_ascii=False, indent=4)
+        self.cards_cache = cards
+        return cards
 
     async def _send_akinator(self, channel: discord.abc.Messageable):
         questions = load_questions()
@@ -197,6 +223,7 @@ class AkinatorCog(commands.Cog):
             print(f"[ERREUR !akinator] {e}")
             await safe_send(ctx.channel, "❌ Une erreur est survenue.")
 
+# ────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = AkinatorCog(bot)
     for command in cog.get_commands():
