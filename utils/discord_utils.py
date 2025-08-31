@@ -1,8 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 discord_utils.py — Fonctions utilitaires avec gestion du rate-limit
+# 📌 discord_utils.py — Fonctions utilitaires optimisées avec gestion du rate-limit
 # Objectif : Fournir des fonctions sécurisées pour send/edit/respond Discord
-# Catégorie : Général
-# Accès : Public (utilisable dans tous les Cogs)
+# Version : ✅ Optimisée et robuste, backoff exponentiel, logs clairs
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -13,57 +12,60 @@ import discord
 from discord.errors import HTTPException
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🛡️ Fonctions sécurisées pour Discord
+# 🛡️ Gestion centralisée des appels Discord avec backoff 429
 # ────────────────────────────────────────────────────────────────────────────────
+async def _discord_action(action_func, *args, retry=3, delay=0.3, **kwargs):
+    """
+    Exécute une action Discord sécurisée avec gestion du rate-limit et des exceptions.
+    - action_func : fonction Discord à appeler (send, edit, reply, etc.)
+    - retry : nombre de tentatives en cas de 429
+    - delay : délai entre chaque tentative (anti-429)
+    """
+    for attempt in range(1, retry + 2):
+        try:
+            result = await action_func(*args, **kwargs)
+            if delay > 0:
+                await asyncio.sleep(delay)
+            return result
+        except HTTPException as e:
+            if e.status == 429:
+                wait_time = 10 * attempt  # backoff exponentiel
+                print(f"[RateLimit] {action_func.__name__} → 429 Too Many Requests. Pause {wait_time}s...")
+                await asyncio.sleep(wait_time)
+            else:
+                raise e
+        except Exception as e:
+            print(f"[Erreur] {action_func.__name__} → {e}")
+            return None
+    print(f"[Erreur] {action_func.__name__} → Échec après {retry+1} tentatives")
+    return None
 
-async def safe_send(channel: discord.TextChannel, content=None, **kwargs):
-    """
-    Envoie un message sur un channel Discord avec gestion du rate-limit (429).
-    """
-    try:
-        return await channel.send(content=content, **kwargs)
-    except HTTPException as e:
-        if e.status == 429:
-            print("[RateLimit] safe_send() → 429 Too Many Requests. Pause...")
-            await asyncio.sleep(10)
-            return await channel.send(content=content, **kwargs)
-        raise e
+# ────────────────────────────────────────────────────────────────────────────────
+# 📩 Fonctions publiques sécurisées
+# ────────────────────────────────────────────────────────────────────────────────
+async def safe_send(channel: discord.abc.Messageable, content=None, **kwargs):
+    return await _discord_action(channel.send, content=content, **kwargs)
 
 async def safe_edit(message: discord.Message, content=None, **kwargs):
-    """
-    Modifie un message Discord avec gestion du rate-limit (429).
-    """
-    try:
-        return await message.edit(content=content, **kwargs)
-    except HTTPException as e:
-        if e.status == 429:
-            print("[RateLimit] safe_edit() → 429 Too Many Requests. Pause...")
-            await asyncio.sleep(10)
-            return await message.edit(content=content, **kwargs)
-        raise e
+    return await _discord_action(message.edit, content=content, **kwargs)
 
 async def safe_respond(interaction: discord.Interaction, content=None, **kwargs):
-    """
-    Répond à une interaction avec gestion du rate-limit (429).
-    """
-    try:
-        return await interaction.response.send_message(content=content, **kwargs)
-    except HTTPException as e:
-        if e.status == 429:
-            print("[RateLimit] safe_respond() → 429 Too Many Requests. Pause...")
-            await asyncio.sleep(10)
-            return await interaction.response.send_message(content=content, **kwargs)
-        raise e
+    return await _discord_action(interaction.response.send_message, content=content, **kwargs)
+
+async def safe_followup(interaction: discord.Interaction, content=None, **kwargs):
+    return await _discord_action(interaction.followup.send, content=content, **kwargs)
 
 async def safe_reply(ctx_or_message, content=None, **kwargs):
-    """
-    Répond à un message ou un contexte Discord avec gestion du rate-limit (429).
-    """
-    try:
-        return await ctx_or_message.reply(content=content, **kwargs)
-    except HTTPException as e:
-        if e.status == 429:
-            print("[RateLimit] safe_reply() → 429 Too Many Requests. Pause...")
-            await asyncio.sleep(10)
-            return await ctx_or_message.reply(content=content, **kwargs)
-        raise e
+    return await _discord_action(ctx_or_message.reply, content=content, **kwargs)
+
+async def safe_add_reaction(message: discord.Message, emoji: str, delay: float = 0.3):
+    return await _discord_action(message.add_reaction, emoji, delay=delay)
+
+async def safe_delete(message: discord.Message, delay: float = 0):
+    return await _discord_action(message.delete, delay=delay)
+
+async def safe_clear_reactions(message: discord.Message):
+    return await _discord_action(message.clear_reactions)
+
+
+
