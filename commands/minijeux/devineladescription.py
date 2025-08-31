@@ -152,8 +152,8 @@ class TestQuestion(commands.Cog):
     # 💬 Commande principale
     # ────────────────────────────────────────────────────────────────────────────
     @commands.group(
-        name="devineladescription",
-        aliases=["devinedescription", "dd", "description", "d"],
+        name="description",
+        aliases=["d", "devineladescription", "devinedescription", "dd"],
         help="Devinez la carte avec sa description (multijoueur)",
         invoke_without_command=True
     )
