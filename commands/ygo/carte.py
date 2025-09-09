@@ -32,15 +32,12 @@ class CarteFavoriteButton(View):
             await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
             return
         try:
-            # Supprimer l'ancienne carte favorite de cet utilisateur avant d'ajouter la nouvelle
             supabase.table("favorites").delete().eq("user_id", str(interaction.user.id)).execute()
-
             supabase.table("favorites").insert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
                 "cartefav": self.carte_name
             }).execute()
-
             await interaction.response.send_message(f"✅ **{self.carte_name}** ajoutée à tes cartes favorites !", ephemeral=True)
         except Exception as e:
             print(f"[ERREUR Supabase] {e}")
@@ -57,17 +54,17 @@ class Carte(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.lang_codes = ["fr", "en", "de", "it", "pt"]
 
     @commands.command(
         name="carte",
         aliases=["card"],
         help="🔍 Rechercher une carte Yu-Gi-Oh! dans plusieurs langues.",
-        description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN)."
+        description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN, DE, IT, PT)."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
         """Commande principale pour rechercher et afficher une carte Yu-Gi-Oh!"""
-        lang_codes = ["fr", ""]  # fr puis en (vide = défaut)
         nom_encode = urllib.parse.quote(nom)
         carte = None
         langue_detectee = "?"
@@ -75,24 +72,21 @@ class Carte(commands.Cog):
 
         try:
             async with aiohttp.ClientSession() as session:
-                for code in lang_codes:
-                    if code:
-                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
-                    else:
-                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
-
+                # 🔹 Recherche stricte dans toutes les langues supportées
+                for code in self.lang_codes:
+                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
                     async with session.get(url) as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             if "data" in data and len(data["data"]) > 0:
                                 carte = data["data"][0]
-                                langue_detectee = code if code else "en"
+                                langue_detectee = code
                                 nom_corrige = carte.get("name", nom)
                                 break
 
-                # Recherche floue si pas trouvé
+                # 🔹 Recherche floue si pas trouvé
                 if not carte:
-                    url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
+                    url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}&language=fr"
                     async with session.get(url_fuzzy) as resp_fuzzy:
                         if resp_fuzzy.status == 200:
                             data_fuzzy = await resp_fuzzy.json()
@@ -100,7 +94,10 @@ class Carte(commands.Cog):
                             if suggestions:
                                 noms = [c.get("name") for c in suggestions[:3]]
                                 suggestion_msg = "\n".join(f"• **{n}**" for n in noms)
-                                await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.\n🔎 Suggestions :\n{suggestion_msg}")
+                                await safe_send(
+                                    ctx.channel,
+                                    f"❌ Carte introuvable pour `{nom}`.\n❓ Voulez-vous dire :\n{suggestion_msg}"
+                                )
                                 return
 
         except Exception as e:
@@ -115,21 +112,22 @@ class Carte(commands.Cog):
         if nom_corrige.lower() != nom.lower():
             await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}** ({langue_detectee.upper()})")
 
+        # 🔹 Construction de l'embed
         embed = discord.Embed(
             title=f"{carte.get('name', 'Carte inconnue')} ({langue_detectee.upper()})",
             description=carte.get("desc", "Pas de description disponible."),
             color=discord.Color.red()
         )
-
         embed.add_field(name="🧪 Type", value=carte.get("type", "?"), inline=True)
 
-        if carte.get("type", "").lower().startswith("monstre"):
+        if "monstre" in carte.get("type", "").lower() or "monster" in carte.get("type", "").lower():
             embed.add_field(name="⚔️ ATK / DEF", value=f"{carte.get('atk', '?')} / {carte.get('def', '?')}", inline=True)
             embed.add_field(name="⭐ Niveau / Rang", value=str(carte.get("level", "?")), inline=True)
             embed.add_field(name="🌪️ Attribut", value=carte.get("attribute", "?"), inline=True)
             embed.add_field(name="👹 Race", value=carte.get("race", "?"), inline=True)
 
-        embed.set_image(url=carte["card_images"][0]["image_url"])
+        if "card_images" in carte and carte["card_images"]:
+            embed.set_image(url=carte["card_images"][0]["image_url"])
 
         view = CarteFavoriteButton(carte["name"], ctx.author)
         await safe_send(ctx.channel, embed=embed, view=view)
