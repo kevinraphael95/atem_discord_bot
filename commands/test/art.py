@@ -1,5 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 art.py — Commande interactive /art et !art
+# 📌 art.py — Commande interactive !art
 # Objectif : Afficher l’illustration d’une carte Yu-Gi-Oh! par nom, mot de passe ou Konami ID
 # Catégorie : Test
 # Accès : Tous
@@ -10,26 +10,34 @@
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
-from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select
 import aiohttp
 
-from utils.discord_utils import safe_send, safe_edit, safe_respond  
+from utils.discord_utils import safe_send, safe_edit  
 
 # ────────────────────────────────────────────────────────────────────────────────
 # ⚙️ API — Fonctions utilitaires pour récupérer les cartes
 # ────────────────────────────────────────────────────────────────────────────────
-API_URL = "https://your-card-api.com/search"  # à adapter à ton API
+API_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
 
 async def fetch_card(query_type: str, query: str):
-    """Récupère une carte via l’API (nom, password ou konami_id)."""
+    """Récupère une carte via YGOPRODeck API."""
+    params = {}
+    if query_type == "name":
+        params = {"name": query, "language": "fr"}
+    elif query_type == "password":
+        params = {"passcode": query, "language": "fr"}
+    elif query_type == "konami_id":
+        params = {"id": query, "language": "fr"}
+
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(API_URL, params={"type": query_type, "q": query}) as resp:
+            async with session.get(API_URL, params=params) as resp:
                 if resp.status != 200:
                     return None
-                return await resp.json()
+                data = await resp.json()
+                return data["data"][0] if "data" in data and len(data["data"]) > 0 else None
     except Exception as e:
         print(f"[ERREUR API] {e}")
         return None
@@ -67,7 +75,7 @@ class ArtSelect(Select):
 # ────────────────────────────────────────────────────────────────────────────────
 class ArtCommand(commands.Cog):
     """
-    Commande /art et !art — Affiche l’illustration d’une carte Yu-Gi-Oh!
+    Commande !art — Affiche l’illustration d’une carte Yu-Gi-Oh!
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -78,7 +86,7 @@ class ArtCommand(commands.Cog):
             await safe_send(channel, f"❌ Impossible de trouver une carte pour `{query}`.")
             return
 
-        images = data.get("images", [])
+        images = [img["image_url"] for img in data.get("card_images", [])]
         if not images:
             await safe_send(channel, f"❌ Aucune illustration trouvée pour `{query}`.")
             return
@@ -93,40 +101,14 @@ class ArtCommand(commands.Cog):
             await safe_send(channel, embed=embed)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="art",
-        description="Affiche l’art d’une carte Yu-Gi-Oh!"
-    )
-    @app_commands.describe(
-        name="Nom de la carte",
-        password="Mot de passe de la carte",
-        konami_id="ID Konami de la carte"
-    )
-    @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.user.id))
-    async def slash_art(self, interaction: discord.Interaction, name: str = None, password: str = None, konami_id: str = None):
-        try:
-            await interaction.response.defer()
-            if name:
-                await self._show_art(interaction.channel, "name", name)
-            elif password:
-                await self._show_art(interaction.channel, "password", password)
-            elif konami_id:
-                await self._show_art(interaction.channel, "konami_id", konami_id)
-            else:
-                await safe_respond(interaction, "❌ Veuillez fournir un paramètre valide.", ephemeral=True)
-            await interaction.delete_original_response()
-        except Exception as e:
-            print(f"[ERREUR /art] {e}")
-            await safe_respond(interaction, "❌ Erreur lors de la recherche de la carte.", ephemeral=True)
-
-    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="art")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_art(self, ctx: commands.Context, query_type: str, *, query: str):
+        """
+        !art <name|password|konami_id> <valeur>
+        """
         try:
             await self._show_art(ctx.channel, query_type, query)
         except Exception as e:
