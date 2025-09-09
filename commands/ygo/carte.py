@@ -1,20 +1,22 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 carte.py — Commande interactive !carte ultra complète
-# Objectif : Recherche Yu-Gi-Oh! avec embed complet (limites, rareté, liens, password)
+# 📌 carte.py — Commande interactive /carte et !carte
+# Objectif : Rechercher une carte Yu-Gi-Oh! et afficher un embed complet avec bouton favoris
 # Catégorie : 🃏 Yu-Gi-Oh!
-# Accès : Public
+# Accès : Tous
+# Cooldown : 1 utilisation / 3 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
 import urllib.parse
 
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_respond, safe_edit
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -48,27 +50,21 @@ class CarteFavoriteButton(View):
 # ────────────────────────────────────────────────────────────────────────────────
 class Carte(commands.Cog):
     """
-    Commande !carte — Embed complet avec toutes les infos TCG, OCG, Master Duel, rareté et liens officiels.
+    Commande /carte et !carte — Rechercher et afficher toutes les informations d’une carte Yu-Gi-Oh!
     """
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.lang_codes = ["fr", "de", "it", "pt"]  # EN par défaut
 
-    @commands.command(
-        name="carte",
-        aliases=["card"],
-        help="🔍 Rechercher une carte Yu-Gi-Oh! avec embed complet",
-        description="Affiche toutes les infos d’une carte Yu-Gi-Oh! (FR, EN, DE, IT, PT)"
-    )
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
-    async def carte(self, ctx: commands.Context, *, nom: str):
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne pour recherche et création d'embed
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _search_card_embed(self, nom: str):
         nom_encode = urllib.parse.quote(nom)
         carte = None
         langue_detectee = "?"
         nom_corrige = nom
 
-        # 🔹 Couleur selon type
         def color_for_card(card_type: str) -> discord.Color:
             t = card_type.lower()
             if "monster" in t or "monstre" in t:
@@ -81,7 +77,7 @@ class Carte(commands.Cog):
 
         try:
             async with aiohttp.ClientSession() as session:
-                # 🔹 Recherche stricte
+                # Recherche stricte FR, DE, IT, PT puis EN
                 for code in self.lang_codes + ["en"]:
                     url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
                     if code != "en":
@@ -96,7 +92,7 @@ class Carte(commands.Cog):
                             nom_corrige = carte.get("name", nom)
                             break
 
-                # 🔹 Recherche floue
+                # Recherche floue si pas trouvé
                 if not carte:
                     for code in self.lang_codes + ["en"]:
                         url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
@@ -110,35 +106,27 @@ class Carte(commands.Cog):
                             if suggestions:
                                 noms = [c.get("name") for c in suggestions[:3]]
                                 suggestion_msg = "\n".join(f"• **{n}**" for n in noms)
-                                await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.\n🔎 Voulez-vous dire :\n{suggestion_msg}")
-                                return
+                                return None, f"❌ Carte introuvable pour `{nom}`.\n🔎 Voulez-vous dire :\n{suggestion_msg}"
 
         except Exception as e:
             print(f"[ERREUR carte] {e}")
-            await safe_send(ctx.channel, "🚨 Une erreur est survenue lors de la recherche.")
-            return
+            return None, "🚨 Une erreur est survenue lors de la recherche."
 
         if not carte:
-            await safe_send(ctx.channel, f"❌ Carte introuvable : `{nom}`.")
-            return
+            return None, f"❌ Carte introuvable : `{nom}`."
 
-        if nom_corrige.lower() != nom.lower():
-            await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}** ({langue_detectee.upper()})")
-
-        # 🔹 Embed complet
+        # Création embed
         embed = discord.Embed(
             title=f"{carte.get('name', 'Carte inconnue')} ({langue_detectee.upper()})",
             description=carte.get("desc", "Pas de description disponible."),
             color=color_for_card(carte.get("type", ""))
         )
 
-        # Type en français
+        # Type français
         type_fr = carte.get("type", "?")
-        if langue_detectee != "fr":
-            type_fr = carte.get("type")  # simplification : utiliser le type tel quel
         embed.add_field(name="🧪 Type", value=type_fr, inline=True)
 
-        # Monstres
+        # Stats monstres
         if "monstre" in carte.get("type", "").lower() or "monster" in carte.get("type", "").lower():
             embed.add_field(name="⚔️ ATK / DEF", value=f"{carte.get('atk', '?')} / {carte.get('def', '?')}", inline=True)
             embed.add_field(name="⭐ Niveau / Rang", value=str(carte.get("level", "?")), inline=True)
@@ -152,10 +140,10 @@ class Carte(commands.Cog):
         embed.add_field(name="📜 Limite Master Duel", value=limits.get("masterduel", "—"), inline=True)
         embed.add_field(name="💎 Rareté Master Duel", value=limits.get("md_rare", "—"), inline=True)
 
-        # Password
+        # Password et ID
         embed.add_field(name="🔑 Password", value=carte.get("id", "?"), inline=True)
 
-        # Liens officiels
+        # Liens utiles
         links = [
             f"[YGO DB](https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid={carte.get('id','')})",
             f"[OCG Ruling](https://www.db.yugioh-card.com/yugiohdb/card_list.action?ope=2&cid={carte.get('id','')})",
@@ -164,18 +152,44 @@ class Carte(commands.Cog):
         ]
         embed.add_field(name="🔗 Liens utiles", value="\n".join(links), inline=False)
 
-        # Image plus petite
+        # Image réduite
         if "card_images" in carte and carte["card_images"]:
             embed.set_image(url=carte["card_images"][0]["image_url"])
-            embed.set_thumbnail(url=carte["card_images"][0]["image_url"])  # miniature
+            embed.set_thumbnail(url=carte["card_images"][0]["image_url"])
 
         embed.set_footer(text=f"ID Carte : {carte.get('id', '?')}")
 
-        view = CarteFavoriteButton(carte["name"], ctx.author)
-        await safe_send(ctx.channel, embed=embed, view=view)
+        return embed, None
 
-    def cog_load(self):
-        self.carte.category = "🃏 Yu-Gi-Oh!"
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="carte",
+        description="Rechercher une carte Yu-Gi-Oh! et afficher un embed complet"
+    )
+    @app_commands.checks.cooldown(1, 3.0, key=lambda i: (i.user.id))
+    async def slash_carte(self, interaction: discord.Interaction, nom: str):
+        await interaction.response.defer()
+        embed, error = await self._search_card_embed(nom)
+        if error:
+            await safe_respond(interaction, error, ephemeral=True)
+        else:
+            view = CarteFavoriteButton(nom, interaction.user)
+            await safe_respond(interaction, embed=embed, view=view)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="carte")
+    @commands.cooldown(1, 3.0, commands.BucketType.user)
+    async def prefix_carte(self, ctx: commands.Context, *, nom: str):
+        embed, error = await self._search_card_embed(nom)
+        if error:
+            await safe_send(ctx.channel, error)
+        else:
+            view = CarteFavoriteButton(nom, ctx.author)
+            await safe_send(ctx.channel, embed=embed, view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
