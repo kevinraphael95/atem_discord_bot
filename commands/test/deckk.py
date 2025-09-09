@@ -13,7 +13,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-from discord.abc import Messageable
 from io import BytesIO
 from datetime import datetime
 
@@ -54,6 +53,7 @@ class DeckCommand(commands.Cog):
     ):
         start_time = datetime.utcnow()
         try:
+            # Récupération du deck
             if url:
                 deck = parse_url(url)
             elif file:
@@ -66,10 +66,12 @@ class DeckCommand(commands.Cog):
                 await safe_edit(interaction_or_ctx, "❌ Vous devez fournir un URL ou un fichier .ydk.")
                 return
 
+            # Vérifie que le deck n’est pas vide
             if not (deck.main or deck.extra or deck.side):
                 await safe_edit(interaction_or_ctx, "❌ Votre deck est vide.")
                 return
 
+            # Génération du deck et embed
             out_url = to_url(deck)
             out_file = typed_deck_to_ydk(deck)
             embed = generate_deck_embed(deck, stacked, out_url)
