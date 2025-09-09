@@ -15,7 +15,7 @@ import aiohttp
 import urllib.parse
 
 from utils.discord_utils import safe_send  # ✅ Protection 429
-from utils.supabase_client import supabase       # Client Supabase déjà configuré
+from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Bouton Ajouter Carte Favorite
@@ -54,7 +54,8 @@ class Carte(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.lang_codes = ["fr", "en", "de", "it", "pt"]
+        # ⚠️ Anglais = défaut, pas besoin de language=en
+        self.lang_codes = ["fr", "de", "it", "pt"]
 
     @commands.command(
         name="carte",
@@ -72,23 +73,34 @@ class Carte(commands.Cog):
 
         try:
             async with aiohttp.ClientSession() as session:
-                # 🔹 Recherche stricte dans toutes les langues supportées
-                for code in self.lang_codes:
-                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
+                # 🔹 Recherche stricte : FR, DE, IT, PT puis EN par défaut
+                for code in self.lang_codes + ["en"]:
+                    if code == "en":
+                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
+                    else:
+                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
+
                     async with session.get(url) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            if "data" in data and len(data["data"]) > 0:
-                                carte = data["data"][0]
-                                langue_detectee = code
-                                nom_corrige = carte.get("name", nom)
-                                break
+                        if resp.status != 200:
+                            continue
+                        data = await resp.json()
+                        if "data" in data and len(data["data"]) > 0:
+                            carte = data["data"][0]
+                            langue_detectee = code
+                            nom_corrige = carte.get("name", nom)
+                            break
 
                 # 🔹 Recherche floue si pas trouvé
                 if not carte:
-                    url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}&language=fr"
-                    async with session.get(url_fuzzy) as resp_fuzzy:
-                        if resp_fuzzy.status == 200:
+                    for code in self.lang_codes + ["en"]:
+                        if code == "en":
+                            url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
+                        else:
+                            url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}&language={code}"
+
+                        async with session.get(url_fuzzy) as resp_fuzzy:
+                            if resp_fuzzy.status != 200:
+                                continue
                             data_fuzzy = await resp_fuzzy.json()
                             suggestions = data_fuzzy.get("data", [])
                             if suggestions:
