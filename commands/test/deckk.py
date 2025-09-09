@@ -16,7 +16,7 @@ from discord.ui import View, Button
 from io import BytesIO
 from datetime import datetime
 
-from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.discord_utils import safe_send, safe_edit
 from utils.deck_utils import parse_url, parse_ydk_file, typed_deck_to_ydk, to_url, generate_deck_embed
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -112,6 +112,11 @@ class DeckCommand(commands.Cog):
         name="deckk",
         description="Affiche un deck à partir d’un URL ydke:// ou d’un fichier .ydk"
     )
+    @app_commands.describe(
+        url="URL ydke:// du deck",
+        file="Fichier .ydk du deck",
+        stacked="Afficher le deck en pile"
+    )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_deck(
         self,
@@ -129,16 +134,9 @@ class DeckCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="deckk")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_deck(
-        self,
-        ctx: commands.Context,
-        url: str = None,
-        stacked: bool = False
-    ):
+    async def prefix_deck(self, ctx: commands.Context, url: str = None, stacked: bool = False):
         """Commande préfixe principale."""
-        file = None
-        if ctx.message.attachments:
-            file = ctx.message.attachments[0]
+        file = ctx.message.attachments[0] if ctx.message.attachments else None
         await self._process_deck(ctx, url=url, file=file, stacked=stacked)
 
 # ────────────────────────────────────────────────────────────────────────────────
