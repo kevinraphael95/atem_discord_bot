@@ -20,16 +20,17 @@ from utils.discord_utils import safe_send, safe_edit
 # ⚙️ API — Fonctions utilitaires pour récupérer les cartes
 # ────────────────────────────────────────────────────────────────────────────────
 API_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
+SUPPORTED_LANGUAGES = ["fr", "en", "de", "it", "pt"]
 
-async def fetch_card(query_type: str, query: str):
-    """Récupère une carte via YGOPRODeck API."""
-    params = {}
+async def fetch_card(query_type: str, query: str, language: str = "fr"):
+    """Récupère une carte via YGOPRODeck API, avec fallback EN si la langue demandée échoue."""
+    params = {"language": language}
     if query_type == "name":
-        params = {"name": query, "language": "fr"}
+        params["name"] = query
     elif query_type == "password":
-        params = {"passcode": query, "language": "fr"}
+        params["passcode"] = query
     elif query_type == "konami_id":
-        params = {"id": query, "language": "fr"}
+        params["id"] = query
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -37,7 +38,12 @@ async def fetch_card(query_type: str, query: str):
                 if resp.status != 200:
                     return None
                 data = await resp.json()
-                return data["data"][0] if "data" in data and len(data["data"]) > 0 else None
+                if "data" in data and len(data["data"]) > 0:
+                    return data["data"][0]
+                # fallback EN si aucune carte trouvée
+                if language != "en":
+                    return await fetch_card(query_type, query, "en")
+                return None
     except Exception as e:
         print(f"[ERREUR API] {e}")
         return None
@@ -80,8 +86,11 @@ class ArtCommand(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    async def _show_art(self, channel: discord.abc.Messageable, query_type: str, query: str):
-        data = await fetch_card(query_type, query)
+    async def _show_art(self, channel: discord.abc.Messageable, query_type: str, query: str, language: str = "fr"):
+        if language not in SUPPORTED_LANGUAGES:
+            language = "fr"  # défaut
+
+        data = await fetch_card(query_type, query, language)
         if not data:
             await safe_send(channel, f"❌ Impossible de trouver une carte pour `{query}`.")
             return
@@ -105,12 +114,16 @@ class ArtCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="art")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_art(self, ctx: commands.Context, query_type: str, *, query: str):
+    async def prefix_art(self, ctx: commands.Context, query_type: str, query: str, language: str = "fr"):
         """
-        !art <name|password|konami_id> <valeur>
+        !art <name|password|konami_id> <valeur> [langue]
+        Exemples :
+        - !art name Kuriboh fr
+        - !art password 46986414 en
+        - !art konami_id 12345 de
         """
         try:
-            await self._show_art(ctx.channel, query_type, query)
+            await self._show_art(ctx.channel, query_type, query, language)
         except Exception as e:
             print(f"[ERREUR !art] {e}")
             await safe_send(ctx.channel, "❌ Erreur lors de la recherche de la carte.")
