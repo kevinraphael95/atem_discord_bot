@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
-# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec illustration et ID en footer
+# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec illustration, couleur selon type et ID en footer
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ from discord.ui import View, Button
 import aiohttp
 import urllib.parse
 
-from utils.discord_utils import safe_send  # ✅ Protection 429
+from utils.discord_utils import safe_send
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -63,8 +63,7 @@ class Carte(commands.Cog):
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
-        """Commande principale pour rechercher et afficher une carte Yu-Gi-Oh!"""
-        lang_codes = ["fr", ""]  # fr puis en (vide = défaut)
+        lang_codes = ["fr", ""]
         nom_encode = urllib.parse.quote(nom)
         carte = None
         langue_detectee = "?"
@@ -73,11 +72,7 @@ class Carte(commands.Cog):
         try:
             async with aiohttp.ClientSession() as session:
                 for code in lang_codes:
-                    if code:
-                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language={code}"
-                    else:
-                        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
-
+                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}" + (f"&language={code}" if code else "")
                     async with session.get(url) as resp:
                         if resp.status == 200:
                             data = await resp.json()
@@ -87,7 +82,6 @@ class Carte(commands.Cog):
                                 nom_corrige = carte.get("name", nom)
                                 break
 
-                # Recherche floue si pas trouvé
                 if not carte:
                     url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
                     async with session.get(url_fuzzy) as resp_fuzzy:
@@ -112,27 +106,39 @@ class Carte(commands.Cog):
         if nom_corrige.lower() != nom.lower():
             await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}** ({langue_detectee.upper()})")
 
-        embed = discord.Embed(
-            title=f"{carte.get('name', 'Carte inconnue')} ({langue_detectee.upper()})",
-            description=carte.get("desc", "Pas de description disponible."),
-            color=discord.Color.red()
+        # 🔹 Couleur selon type de carte
+        type_carte = carte.get("type", "").lower()
+        if "monstre" in type_carte:
+            couleur = discord.Color.red()
+        elif "magie" in type_carte:
+            couleur = discord.Color.green()
+        elif "piège" in type_carte:
+            couleur = discord.Color.blue()
+        else:
+            couleur = discord.Color.light_grey()
+
+        # 🔹 Embed organisé et lisible
+        description_embed = (
+            f"**Type** : {carte.get('type','?')}\n"
+            f"**Attribut** : {carte.get('attribute','?')}\n"
+            f"**Niveau** : {carte.get('level','?')}\n"
+            f"**ATK / DEF** : {carte.get('atk','?')} / {carte.get('def','?')}\n\n"
+            f"**Description de la carte :**\n{carte.get('desc','Pas de description disponible.')}"
         )
 
-        embed.add_field(name="🧪 Type", value=carte.get("type", "?"), inline=True)
+        embed = discord.Embed(
+            title=f"{carte.get('name','Carte inconnue')} ({langue_detectee.upper()})",
+            description=description_embed,
+            color=couleur
+        )
 
-        if "monstre" in carte.get("type", "").lower():
-            embed.add_field(name="⚔️ ATK / DEF", value=f"{carte.get('atk', '?')} / {carte.get('def', '?')}", inline=True)
-            embed.add_field(name="⭐ Niveau / Rang", value=str(carte.get("level", "?")), inline=True)
-            embed.add_field(name="🌪️ Attribut", value=carte.get("attribute", "?"), inline=True)
-            embed.add_field(name="👹 Race", value=carte.get("race", "?"), inline=True)
-
-        # 🔹 Illustration seule et réduite
+        # 🔹 Illustration seule en thumbnail à droite
         if "card_images" in carte and carte["card_images"]:
             illustration_url = carte["card_images"][0].get("image_url_small", carte["card_images"][0]["image_url"])
-            embed.set_image(url=illustration_url)
+            embed.set_thumbnail(url=illustration_url)
 
         # 🔹 Footer avec l'ID de la carte
-        embed.set_footer(text=f"ID Carte : {carte.get('id', '?')}")
+        embed.set_footer(text=f"ID Carte : {carte.get('id','?')}")
 
         view = CarteFavoriteButton(carte["name"], ctx.author)
         await safe_send(ctx.channel, embed=embed, view=view)
