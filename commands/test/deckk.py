@@ -58,17 +58,29 @@ class DeckCommand(commands.Cog):
                 deck = parse_url(url)
             elif file:
                 if not file.filename.endswith(".ydk"):
-                    await safe_edit(interaction_or_ctx, "❌ Le fichier doit avoir l’extension .ydk !")
+                    msg = "❌ Le fichier doit avoir l’extension .ydk !"
+                    if isinstance(interaction_or_ctx, discord.Interaction):
+                        await safe_edit(interaction_or_ctx, msg)
+                    else:
+                        await safe_send(interaction_or_ctx, msg)
                     return
                 content = await file.read()
                 deck = parse_ydk_file(BytesIO(content))
             else:
-                await safe_edit(interaction_or_ctx, "❌ Vous devez fournir un URL ou un fichier .ydk.")
+                msg = "❌ Vous devez fournir un URL ou un fichier .ydk."
+                if isinstance(interaction_or_ctx, discord.Interaction):
+                    await safe_edit(interaction_or_ctx, msg)
+                else:
+                    await safe_send(interaction_or_ctx, msg)
                 return
 
             # Vérifie que le deck n’est pas vide
             if not (deck.main or deck.extra or deck.side):
-                await safe_edit(interaction_or_ctx, "❌ Votre deck est vide.")
+                msg = "❌ Votre deck est vide."
+                if isinstance(interaction_or_ctx, discord.Interaction):
+                    await safe_edit(interaction_or_ctx, msg)
+                else:
+                    await safe_send(interaction_or_ctx, msg)
                 return
 
             # Génération du deck et embed
@@ -78,12 +90,20 @@ class DeckCommand(commands.Cog):
             attachment = discord.File(BytesIO(out_file.encode("utf-8")), filename="deck.ydk")
             view = DeckButtonView(out_url)
 
-            await safe_edit(interaction_or_ctx, embed=embed, files=[attachment], view=view)
+            if isinstance(interaction_or_ctx, discord.Interaction):
+                await safe_edit(interaction_or_ctx, embed=embed, files=[attachment], view=view)
+            else:
+                await safe_send(interaction_or_ctx, embed=embed, files=[attachment], view=view)
+
             latency = (datetime.utcnow() - start_time).total_seconds() * 1000
             return latency
 
         except Exception as e:
-            await safe_edit(interaction_or_ctx, f"❌ Une erreur est survenue : {e}")
+            msg = f"❌ Une erreur est survenue : {e}"
+            if isinstance(interaction_or_ctx, discord.Interaction):
+                await safe_edit(interaction_or_ctx, msg)
+            else:
+                await safe_send(interaction_or_ctx, msg)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
@@ -113,10 +133,12 @@ class DeckCommand(commands.Cog):
         self,
         ctx: commands.Context,
         url: str = None,
-        file: discord.Attachment = None,
         stacked: bool = False
     ):
         """Commande préfixe principale."""
+        file = None
+        if ctx.message.attachments:
+            file = ctx.message.attachments[0]
         await self._process_deck(ctx, url=url, file=file, stacked=stacked)
 
 # ────────────────────────────────────────────────────────────────────────────────
