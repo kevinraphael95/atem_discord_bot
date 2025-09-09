@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
-# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec illustration, ID en footer et liens officiels
+# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec embed intelligent, illustration, ID en footer
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ from discord.ui import View, Button
 import aiohttp
 import urllib.parse
 
-from utils.discord_utils import safe_send  # ✅ Protection 429
+from utils.discord_utils import safe_send
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ class CarteFavoriteButton(View):
 class Carte(commands.Cog):
     """
     Commande !carte — Rechercher une carte Yu-Gi-Oh! et afficher ses informations.
-    Affiche un bouton "⭐ Carte favorite" pour enregistrer la carte en favoris.
+    Embed intelligent selon le type de carte.
     """
 
     TYPE_COLOR = {
@@ -64,12 +64,12 @@ class Carte(commands.Cog):
     @commands.command(
         name="carte",
         aliases=["card"],
-        help="🔍 Rechercher une carte Yu-Gi-Oh! avec illustration et infos détaillées.",
+        help="🔍 Rechercher une carte Yu-Gi-Oh! avec embed intelligent et illustration.",
         description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN)."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
-        lang_codes = ["fr", ""]  # fr puis en
+        lang_codes = ["fr", ""]
         nom_encode = urllib.parse.quote(nom)
         carte = None
         langue_detectee = "?"
@@ -114,7 +114,7 @@ class Carte(commands.Cog):
         if nom_corrige.lower() != nom.lower():
             await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}** ({langue_detectee.upper()})")
 
-        # 🔹 Couleur selon type
+        # 🔹 Couleur selon type réel
         carte_type = carte.get("type", "").lower()
         color = discord.Color.dark_grey()
         for t, c in self.TYPE_COLOR.items():
@@ -122,14 +122,18 @@ class Carte(commands.Cog):
                 color = c
                 break
 
-        # 🔹 Construction embed
+        # 🔹 Construction embed intelligent
+        description_lines = [f"**Type** : {carte.get('type', '?')}"]
+        if "monstre" in carte_type:
+            description_lines.append(f"**Attribut** : {carte.get('attribute', '?')}")
+            description_lines.append(f"**Niveau / Rang** : {carte.get('level', '?')}")
+            description_lines.append(f"**ATK / DEF** : {carte.get('atk', '?')} / {carte.get('def', '?')}")
+        # Tu peux ajouter d'autres types et champs spécifiques ici si nécessaire
+
+        description_lines.append(f"\n**Description de la carte :**\n{carte.get('desc', 'Pas de description disponible.')}")
         embed = discord.Embed(
             title=f"**{carte.get('name', 'Carte inconnue')}**",
-            description=f"**Type** : {carte.get('type', '?')}\n"
-                        f"**Attribut** : {carte.get('attribute', '?')}\n"
-                        f"**Niveau / Rang** : {carte.get('level', '?')}\n"
-                        f"**ATK / DEF** : {carte.get('atk', '?')} / {carte.get('def', '?')}\n\n"
-                        f"**Description de la carte :**\n{carte.get('desc', 'Pas de description disponible.')}",
+            description="\n".join(description_lines),
             color=color
         )
 
