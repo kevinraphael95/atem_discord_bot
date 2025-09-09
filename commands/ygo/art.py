@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 art.py — Commande interactive /art et !art
 # Objectif : Afficher l’illustration d’une carte Yu-Gi-Oh! par nom, mot de passe ou Konami ID
-# Catégorie : Yu-Gi-Oh!
+# Catégorie : Test
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -138,5 +138,5 @@ async def setup(bot: commands.Bot):
     cog = ArtCommand(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🃏 Yu-Gi-Oh!"
+            command.category = "Test"
     await bot.add_cog(cog)
