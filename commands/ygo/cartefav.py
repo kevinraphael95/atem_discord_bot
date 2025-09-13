@@ -39,7 +39,7 @@ class CarteFav(commands.Cog):
 
         try:
             # Récupérer toutes les cartes favorites de l’utilisateur
-            response = supabase.table("favorites").select("cartefav").eq("user_id", user_id).execute()
+            response = supabase.table("profila").select("cartefav").eq("user_id", user_id).execute()
             cartes_data = response.data
 
             if not cartes_data:
