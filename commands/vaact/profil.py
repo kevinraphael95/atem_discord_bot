@@ -98,5 +98,4 @@ async def setup(bot: commands.Bot):
     for command in cog.get_commands():
         if not hasattr(command, "category"):
             command.category = "Profil"
-    await bot.ad
-    d_cog(cog)
+    await bot.add_cog(cog)
