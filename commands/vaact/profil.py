@@ -85,7 +85,13 @@ class ProfilCommand(commands.Cog):
         view = None
         if not vaact_name:
             sheet_pseudos = await self.fetch_sheet_pseudos()
-            taken = [p["vaact_name"] for p in supabase.table("profil").select("vaact_name").not_("vaact_name", "is", None).execute().data]
+            # 🔹 Récupérer les pseudos déjà pris
+            taken = [
+                p["vaact_name"] for p in supabase.table("profil")
+                .select("vaact_name")
+                .not_("vaact_name", "is", None)
+                .execute().data
+            ]
             available = [p for p in sheet_pseudos if p not in taken]
 
             if available:
@@ -104,7 +110,10 @@ class ProfilCommand(commands.Cog):
                     async def callback(self, interaction: discord.Interaction):
                         selected = self.values[0]
                         supabase.table("profil").update({"vaact_name": selected}).eq("user_id", self.user_id).execute()
-                        await interaction.response.send_message(f"✅ Ton pseudo VAACT a été défini : **{selected}**", ephemeral=True)
+                        await interaction.response.send_message(
+                            f"✅ Ton pseudo VAACT a été défini : **{selected}**",
+                            ephemeral=True
+                        )
                         self.disabled = True
                         await interaction.message.edit(view=self.view)
 
@@ -126,7 +135,10 @@ class ProfilCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH /profil
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(name="profil", description="📋 Affiche le profil et permet de choisir son pseudo VAACT")
+    @app_commands.command(
+        name="profil",
+        description="📋 Affiche le profil et permet de choisir son pseudo VAACT"
+    )
     async def slash_profil(self, interaction: discord.Interaction, member: discord.Member = None):
         try:
             await self._send_profil(interaction, interaction.user, interaction.guild, member)
