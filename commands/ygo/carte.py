@@ -32,8 +32,8 @@ class CarteFavoriteButton(View):
             await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
             return
         try:
-            supabase.table("favorites").delete().eq("user_id", str(interaction.user.id)).execute()
-            supabase.table("favorites").insert({
+            supabase.table("profil").delete().eq("user_id", str(interaction.user.id)).execute()
+            supabase.table("profil").insert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
                 "cartefav": self.carte_name
@@ -148,9 +148,7 @@ class Carte(commands.Cog):
         view = CarteFavoriteButton(carte["name"], ctx.author)
         await safe_send(ctx.channel, embed=embed, view=view)
 
-    def cog_load(self):
-        self.carte.category = "🃏 Yu-Gi-Oh!"
-
+    
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
