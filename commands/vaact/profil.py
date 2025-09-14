@@ -15,10 +15,7 @@ from discord import app_commands
 from discord.ui import View, Select
 from utils.supabase_client import supabase
 from utils.discord_utils import safe_send, safe_respond
-import aiohttp
-import csv
-import io
-import os
+import aiohttp, csv, io, os
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -26,13 +23,14 @@ import os
 class ProfilCommand(commands.Cog):
     """Commande /profil et !profil — Affiche le profil complet et permet de choisir
        son pseudo VAACT parmi les pseudos du tournoi"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.sheet_csv_url = os.getenv("VAACT_CLASSEMENT_SHEET")
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne : récupérer les pseudos depuis Google Sheet
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────
     async def fetch_sheet_pseudos(self):
         async with aiohttp.ClientSession() as session:
             resp = await session.get(self.sheet_csv_url)
@@ -42,9 +40,9 @@ class ProfilCommand(commands.Cog):
             rows = list(csv.reader(io.StringIO(text)))
             return [row[2].strip() for row in rows[2:] if len(row) > 2 and row[2].strip()]
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne : envoyer le profil
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────
     async def _send_profil(self, ctx_or_interaction, author, guild, target_user=None):
         user = target_user or author
         user_id = str(user.id)
@@ -81,11 +79,10 @@ class ProfilCommand(commands.Cog):
             embed.set_thumbnail(url=user.avatar.url)
         embed.set_footer(text=f"Utilisateur : {user.name} ({user.id})")
 
-        # 🔹 Si pseudo non défini, menu Select
+        # 🔹 View si pseudo non défini
         view = None
         if not vaact_name:
             sheet_pseudos = await self.fetch_sheet_pseudos()
-            # 🔹 Récupérer les pseudos déjà pris
             taken = [
                 p["vaact_name"] for p in supabase.table("profil")
                 .select("vaact_name")
@@ -120,9 +117,9 @@ class ProfilCommand(commands.Cog):
                 class VAACSelectView(View):
                     def __init__(self, user_id):
                         super().__init__(timeout=120)
-                        self.select = VAACSelect(user_id)
-                        self.add_item(self.select)
-                        self.select.view = self  # ← important !
+                        select = VAACSelect(user_id)
+                        self.add_item(select)
+                        select.view = self  # ⬅️ Important pour pouvoir disable après sélection
 
                 view = VAACSelectView(user_id)
 
@@ -132,9 +129,9 @@ class ProfilCommand(commands.Cog):
         else:
             await safe_send(ctx_or_interaction, embed=embed, view=view)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH /profil
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="profil",
         description="📋 Affiche le profil et permet de choisir son pseudo VAACT"
@@ -146,13 +143,13 @@ class ProfilCommand(commands.Cog):
             print(f"[ERREUR /profil] {e}")
             await safe_respond(interaction, "❌ Une erreur est survenue.", ephemeral=True)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX !profil
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────
     @commands.command(name="profil")
     @commands.cooldown(1, 3.0, commands.BucketType.user)
     async def prefix_profil(self, ctx: commands.Context, member: discord.Member = None):
-        await self._send_profil(ctx.channel, ctx.author, ctx.guild, member)
+        await self._send_profil(ctx, ctx.author, ctx.guild, member)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
@@ -163,3 +160,6 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "VAACT"
     await bot.add_cog(cog)
+
+
+
