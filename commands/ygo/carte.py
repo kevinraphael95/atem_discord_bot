@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
-# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec embed intelligent, illustration, ID en footer
+# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec embed intelligent, illustration, ID en footer, et suggestions
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -13,7 +13,6 @@ from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
 import urllib.parse
-
 from utils.discord_utils import safe_send
 from utils.supabase_client import supabase
 
@@ -49,9 +48,8 @@ class CarteFavoriteButton(View):
 class Carte(commands.Cog):
     """
     Commande !carte — Rechercher une carte Yu-Gi-Oh! et afficher ses informations.
-    Embed intelligent selon le type de carte.
+    Embed intelligent selon le type de carte, suggestions, et bouton favori.
     """
-
     TYPE_COLOR = {
         "monstre": discord.Color.red(),
         "magie": discord.Color.green(),
@@ -75,6 +73,7 @@ class Carte(commands.Cog):
         langue_detectee = "?"
         nom_corrige = nom
 
+        # ───────────── Recherche carte
         try:
             async with aiohttp.ClientSession() as session:
                 for code in lang_codes:
@@ -90,6 +89,7 @@ class Carte(commands.Cog):
                                 nom_corrige = carte.get("name", nom)
                                 break
 
+                # ───────── Fuzzy search si pas trouvé
                 if not carte:
                     url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
                     async with session.get(url_fuzzy) as resp_fuzzy:
@@ -101,7 +101,6 @@ class Carte(commands.Cog):
                                 suggestion_msg = "\n".join(f"• **{n}**" for n in noms)
                                 await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.\n🔎 Suggestions :\n{suggestion_msg}")
                                 return
-
         except Exception as e:
             print(f"[ERREUR carte] {e}")
             await safe_send(ctx.channel, "🚨 Une erreur est survenue lors de la recherche.")
@@ -111,10 +110,11 @@ class Carte(commands.Cog):
             await safe_send(ctx.channel, f"❌ Carte introuvable. Vérifie l’orthographe exacte : `{nom}`.")
             return
 
+        # ───────── Correction orthographique
         if nom_corrige.lower() != nom.lower():
             await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}** ({langue_detectee.upper()})")
 
-        # 🔹 Couleur selon type réel
+        # ───────── Couleur selon type réel
         carte_type = carte.get("type", "").lower()
         color = discord.Color.dark_grey()
         for t, c in self.TYPE_COLOR.items():
@@ -122,33 +122,40 @@ class Carte(commands.Cog):
                 color = c
                 break
 
-        # 🔹 Construction embed intelligent
+        # ───────── Construction embed intelligent
         description_lines = [f"**Type** : {carte.get('type', '?')}"]
+
         if "monstre" in carte_type:
             description_lines.append(f"**Attribut** : {carte.get('attribute', '?')}")
             description_lines.append(f"**Niveau / Rang** : {carte.get('level', '?')}")
             description_lines.append(f"**ATK / DEF** : {carte.get('atk', '?')} / {carte.get('def', '?')}")
-        # Tu peux ajouter d'autres types et champs spécifiques ici si nécessaire
 
+        elif "magie" in carte_type or "piège" in carte_type:
+            description_lines.append(f"**Set / Effet** : {carte.get('race', '?')}")
+
+        # ───────── Description complète
         description_lines.append(f"\n**Description de la carte :**\n{carte.get('desc', 'Pas de description disponible.')}")
+        description_lines.append(f"**Type race** : {carte.get('race', '?')}")
+
+        # ───────── Création embed
         embed = discord.Embed(
             title=f"**{carte.get('name', 'Carte inconnue')}**",
             description="\n".join(description_lines),
             color=color
         )
 
-        # 🔹 Thumbnail = illustration seule, petite
+        # ───────── Thumbnail = illustration
         if "card_images" in carte and carte["card_images"]:
             embed.set_thumbnail(url=carte["card_images"][0].get("image_url_small", carte["card_images"][0]["image_url"]))
+            embed.set_image(url=carte["card_images"][0]["image_url"])  # full image
 
-        # 🔹 Footer = ID
-        embed.set_footer(text=f"ID Carte : {carte.get('id', '?')}")
+        # ───────── Footer = ID et langue
+        embed.set_footer(text=f"ID Carte : {carte.get('id', '?')} | Langue : {langue_detectee.upper()}")
 
-        # 🔹 Bouton favori
+        # ───────── Bouton favori
         view = CarteFavoriteButton(carte["name"], ctx.author)
         await safe_send(ctx.channel, embed=embed, view=view)
 
-    
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
