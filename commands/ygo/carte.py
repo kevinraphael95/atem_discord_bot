@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
-# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec embed intelligent, illustration, ID en footer, et suggestions
+# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec embed ultra-optimisé
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -48,12 +48,13 @@ class CarteFavoriteButton(View):
 class Carte(commands.Cog):
     """
     Commande !carte — Rechercher une carte Yu-Gi-Oh! et afficher ses informations.
-    Embed intelligent selon le type de carte, suggestions, et bouton favori.
+    Embed ultra-optimisé avec couleur dynamique fiable et boutons interactifs.
     """
+
     TYPE_COLOR = {
-        "monstre": discord.Color.red(),
-        "magie": discord.Color.green(),
-        "piège": discord.Color.blue()
+        "monster": discord.Color.red(),
+        "spell": discord.Color.green(),
+        "trap": discord.Color.blue()
     }
 
     def __init__(self, bot: commands.Bot):
@@ -62,12 +63,11 @@ class Carte(commands.Cog):
     @commands.command(
         name="carte",
         aliases=["card"],
-        help="🔍 Rechercher une carte Yu-Gi-Oh! avec embed intelligent et illustration.",
+        help="🔍 Rechercher une carte Yu-Gi-Oh! avec embed ultra-optimisé.",
         description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN)."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
-        lang_codes = ["fr", ""]
         nom_encode = urllib.parse.quote(nom)
         carte = None
         langue_detectee = "?"
@@ -76,7 +76,7 @@ class Carte(commands.Cog):
         # ───────────── Recherche carte
         try:
             async with aiohttp.ClientSession() as session:
-                for code in lang_codes:
+                for code in ["fr", ""]:
                     url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
                     if code:
                         url += f"&language={code}"
@@ -110,47 +110,46 @@ class Carte(commands.Cog):
             await safe_send(ctx.channel, f"❌ Carte introuvable. Vérifie l’orthographe exacte : `{nom}`.")
             return
 
-        # ───────── Correction orthographique
         if nom_corrige.lower() != nom.lower():
             await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}** ({langue_detectee.upper()})")
 
-        # ───────── Couleur selon type réel
-        carte_type = carte.get("type", "").lower()
+        # ───────── Type fiable pour couleur
+        raw_type = carte.get("type", "").lower()
         color = discord.Color.dark_grey()
-        for t, c in self.TYPE_COLOR.items():
-            if t in carte_type:
-                color = c
-                break
+        if "monster" in raw_type:
+            color = self.TYPE_COLOR["monster"]
+        elif "spell" in raw_type:
+            color = self.TYPE_COLOR["spell"]
+        elif "trap" in raw_type:
+            color = self.TYPE_COLOR["trap"]
 
-        # ───────── Construction embed intelligent
-        description_lines = [f"**Type** : {carte.get('type', '?')}"]
-
-        if "monstre" in carte_type:
-            description_lines.append(f"**Attribut** : {carte.get('attribute', '?')}")
-            description_lines.append(f"**Niveau / Rang** : {carte.get('level', '?')}")
-            description_lines.append(f"**ATK / DEF** : {carte.get('atk', '?')} / {carte.get('def', '?')}")
-
-        elif "magie" in carte_type or "piège" in carte_type:
-            description_lines.append(f"**Set / Effet** : {carte.get('race', '?')}")
-
-        # ───────── Description complète
-        description_lines.append(f"\n**Description de la carte :**\n{carte.get('desc', 'Pas de description disponible.')}")
-        description_lines.append(f"**Type race** : {carte.get('race', '?')}")
-
-        # ───────── Création embed
+        # ───────── Construction embed
         embed = discord.Embed(
             title=f"**{carte.get('name', 'Carte inconnue')}**",
-            description="\n".join(description_lines),
+            description=f"**Type** : {carte.get('type', '?')}\n**Race / Attribut** : {carte.get('race', '?')} / {carte.get('attribute', '?')}",
             color=color
         )
 
-        # ───────── Thumbnail = illustration
+        if "monster" in raw_type:
+            embed.add_field(
+                name="Stats",
+                value=f"Niveau/Rang : {carte.get('level', '?')}\nATK / DEF : {carte.get('atk', '?')} / {carte.get('def', '?')}",
+                inline=False
+            )
+
+        embed.add_field(
+            name="Description",
+            value=carte.get('desc', 'Pas de description disponible.'),
+            inline=False
+        )
+
+        # ───────── Thumbnail et image principale
         if "card_images" in carte and carte["card_images"]:
             embed.set_thumbnail(url=carte["card_images"][0].get("image_url_small", carte["card_images"][0]["image_url"]))
-            embed.set_image(url=carte["card_images"][0]["image_url"])  # full image
+            embed.set_image(url=carte["card_images"][0]["image_url"])
 
-        # ───────── Footer = ID et langue
-        embed.set_footer(text=f"ID Carte : {carte.get('id', '?')} | Langue : {langue_detectee.upper()}")
+        # ───────── Footer complet
+        embed.set_footer(text=f"ID : {carte.get('id', '?')} | Langue : {langue_detectee.upper()}")
 
         # ───────── Bouton favori
         view = CarteFavoriteButton(carte["name"], ctx.author)
