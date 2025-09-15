@@ -1,6 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
-# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec embed ultra-optimisé
+# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec embed intelligent
+# Affiche un thumbnail (petit), décore les types/attributs avec des emojis
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -17,6 +18,26 @@ from utils.discord_utils import safe_send
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
+# 🎨 Dictionnaires décoratifs — Emojis pour Types et Attributs
+# ────────────────────────────────────────────────────────────────────────────────
+
+# Attributs (éléments)
+ATTRIBUT_EMOJI = {
+    "DARK": "🌑", "LIGHT": "💡", "EARTH": "🌍", "WATER": "💧",
+    "FIRE": "🔥", "WIND": "🌪️", "DIVINE": "✨"
+}
+
+# Types de monstres
+TYPE_EMOJI = {
+    "Aqua": "💦", "Beast": "🐾", "Beast-Warrior": "🐺⚔️", "Winged Beast": "🦅",
+    "Cyberse": "🖥️", "Fiend": "😈", "Dinosaur": "🦖", "Dragon": "🐉", "Fairy": "🧝",
+    "Warrior": "🗡️", "Insect": "🐛", "Illusion": "🎭", "Machine": "🤖", "Spellcaster": "🔮",
+    "Plant": "🌱", "Fish": "🐟", "Psychic": "🧠", "Pyro": "🔥", "Reptile": "🦎",
+    "Rock": "🪨", "Sea Serpent": "🐍🌊", "Thunder": "⚡", "Wyrm": "🐲", "Zombie": "🧟",
+    "Divine-Beast": "👑✨"
+}
+
+# ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Bouton Ajouter Carte Favorite
 # ────────────────────────────────────────────────────────────────────────────────
 class CarteFavoriteButton(View):
@@ -31,13 +52,15 @@ class CarteFavoriteButton(View):
             await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
             return
         try:
-            supabase.table("profil").delete().eq("user_id", str(interaction.user.id)).execute()
-            supabase.table("profil").insert({
+            supabase.table("favorites").delete().eq("user_id", str(interaction.user.id)).execute()
+            supabase.table("favorites").insert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
                 "cartefav": self.carte_name
             }).execute()
-            await interaction.response.send_message(f"✅ **{self.carte_name}** ajoutée à tes cartes favorites !", ephemeral=True)
+            await interaction.response.send_message(
+                f"✅ **{self.carte_name}** ajoutée à tes cartes favorites !", ephemeral=True
+            )
         except Exception as e:
             print(f"[ERREUR Supabase] {e}")
             await interaction.response.send_message("❌ Erreur lors de l’ajout à Supabase.", ephemeral=True)
@@ -48,13 +71,13 @@ class CarteFavoriteButton(View):
 class Carte(commands.Cog):
     """
     Commande !carte — Rechercher une carte Yu-Gi-Oh! et afficher ses informations.
-    Embed ultra-optimisé avec couleur dynamique fiable et boutons interactifs.
+    Embed intelligent selon le type de carte.
     """
 
     TYPE_COLOR = {
-        "monster": discord.Color.red(),
-        "spell": discord.Color.green(),
-        "trap": discord.Color.blue()
+        "monstre": discord.Color.red(),
+        "magie": discord.Color.green(),
+        "piège": discord.Color.blue()
     }
 
     def __init__(self, bot: commands.Bot):
@@ -63,20 +86,21 @@ class Carte(commands.Cog):
     @commands.command(
         name="carte",
         aliases=["card"],
-        help="🔍 Rechercher une carte Yu-Gi-Oh! avec embed ultra-optimisé.",
+        help="🔍 Rechercher une carte Yu-Gi-Oh! avec embed intelligent et illustration.",
         description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN)."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
+        lang_codes = ["fr", ""]
         nom_encode = urllib.parse.quote(nom)
         carte = None
         langue_detectee = "?"
         nom_corrige = nom
 
-        # ───────────── Recherche carte
+        # ─────────────── Recherche carte via API YGOProDeck ───────────────
         try:
             async with aiohttp.ClientSession() as session:
-                for code in ["fr", ""]:
+                for code in lang_codes:
                     url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
                     if code:
                         url += f"&language={code}"
@@ -89,7 +113,6 @@ class Carte(commands.Cog):
                                 nom_corrige = carte.get("name", nom)
                                 break
 
-                # ───────── Fuzzy search si pas trouvé
                 if not carte:
                     url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
                     async with session.get(url_fuzzy) as resp_fuzzy:
@@ -113,47 +136,53 @@ class Carte(commands.Cog):
         if nom_corrige.lower() != nom.lower():
             await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}** ({langue_detectee.upper()})")
 
-        # ───────── Type fiable pour couleur
-        raw_type = carte.get("type", "").lower()
+        # ─────────────── Couleur d'embed selon type ───────────────
+        carte_type = carte.get("type", "").lower()
         color = discord.Color.dark_grey()
-        if "monster" in raw_type:
-            color = self.TYPE_COLOR["monster"]
-        elif "spell" in raw_type:
-            color = self.TYPE_COLOR["spell"]
-        elif "trap" in raw_type:
-            color = self.TYPE_COLOR["trap"]
+        for t, c in self.TYPE_COLOR.items():
+            if t in carte_type:
+                color = c
+                break
 
-        # ───────── Construction embed
+        # ─────────────── Construction de la description ───────────────
+        description_lines = []
+
+        # Décoration du type
+        carte_type_nom = carte.get("race", carte.get("type", "?"))
+        emoji_type = TYPE_EMOJI.get(carte_type_nom, "")
+        description_lines.append(f"**Type** : {emoji_type} {carte_type_nom}")
+
+        # Décoration de l'attribut si monstre
+        if "monstre" in carte_type:
+            attribut = carte.get("attribute", "?")
+            emoji_attr = ATTRIBUT_EMOJI.get(attribut, "")
+            description_lines.append(f"**Attribut** : {emoji_attr} {attribut}")
+            description_lines.append(f"**Niveau / Rang** : {carte.get('level', '?')}")
+            description_lines.append(f"**ATK / DEF** : {carte.get('atk', '?')} / {carte.get('def', '?')}")
+
+        # Description de la carte
+        description_lines.append(f"\n**Description :**\n{carte.get('desc', 'Pas de description disponible.')}")
+
+        # ─────────────── Création Embed ───────────────
         embed = discord.Embed(
             title=f"**{carte.get('name', 'Carte inconnue')}**",
-            description=f"**Type** : {carte.get('type', '?')}\n**Race / Attribut** : {carte.get('race', '?')} / {carte.get('attribute', '?')}",
+            description="\n".join(description_lines),
             color=color
         )
 
-        if "monster" in raw_type:
-            embed.add_field(
-                name="Stats",
-                value=f"Niveau/Rang : {carte.get('level', '?')}\nATK / DEF : {carte.get('atk', '?')} / {carte.get('def', '?')}",
-                inline=False
-            )
-
-        embed.add_field(
-            name="Description",
-            value=carte.get('desc', 'Pas de description disponible.'),
-            inline=False
-        )
-
-        # ───────── Thumbnail et image principale
+        # Thumbnail uniquement (pas de grande image)
         if "card_images" in carte and carte["card_images"]:
             embed.set_thumbnail(url=carte["card_images"][0].get("image_url_small", carte["card_images"][0]["image_url"]))
-            embed.set_image(url=carte["card_images"][0]["image_url"])
 
-        # ───────── Footer complet
-        embed.set_footer(text=f"ID : {carte.get('id', '?')} | Langue : {langue_detectee.upper()}")
+        # Footer = ID
+        embed.set_footer(text=f"ID Carte : {carte.get('id', '?')}")
 
-        # ───────── Bouton favori
+        # Bouton favori
         view = CarteFavoriteButton(carte["name"], ctx.author)
         await safe_send(ctx.channel, embed=embed, view=view)
+
+    def cog_load(self):
+        self.carte.category = "🃏 Yu-Gi-Oh!"
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
