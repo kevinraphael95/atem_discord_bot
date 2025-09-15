@@ -1,9 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
-# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec embed intelligent
-# - Thumbnail (petit) en haut à droite
-# - Labels en français
-# - Décoration par emoji pour race & attribut
+# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh! avec support multilingue
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -16,64 +13,11 @@ from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
 import urllib.parse
-from utils.discord_utils import safe_send, safe_respond
-from utils.supabase_client import supabase  # utilisé pour favoris si besoin
+from utils.discord_utils import safe_send
+from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎨 Mappages (faciles à modifier)
-# ────────────────────────────────────────────────────────────────────────────────
-# Emojis pour attributs (les clés correspondent aux valeurs renvoyées par l'API)
-ATTRIBUT_EMOJI = {
-    "LIGHT": "☀️ Lumière",
-    "DARK": "🌑 Ténèbres",
-    "EARTH": "🌍 Terre",
-    "WATER": "💧 Eau",
-    "FIRE": "🔥 Feu",
-    "WIND": "🌪️ Vent",
-    "DIVINE": "✨ Divin"
-}
-
-# Emoji par race/type de monstre (clé = valeur 'race' de l'API)
-TYPE_EMOJI = {
-    "Aqua": "💦 Aqua", "Beast": "🐾 Bête", "Beast-Warrior": "🐺⚔️ Bête-Guerrier",
-    "Winged Beast": "🦅 Bête Ailée", "Cyberse": "🖥️ Cyberse", "Fiend": "😈 Démon",
-    "Dinosaur": "🦖 Dinosaure", "Dragon": "🐉 Dragon", "Fairy": "🧝 Elfe",
-    "Warrior": "🗡️ Guerrier", "Insect": "🐛 Insecte", "Illusion": "🎭 Illusion",
-    "Machine": "🤖 Machine", "Spellcaster": "🔮 Magicien", "Plant": "🌱 Plante",
-    "Fish": "🐟 Poisson", "Psychic": "🧠 Psychique", "Pyro": "🔥 Pyro",
-    "Reptile": "🦎 Reptile", "Rock": "🪨 Rocher", "Sea Serpent": "🐍 Serpent de mer",
-    "Thunder": "⚡ Tonnerre", "Wyrm": "🐲 Wyrm", "Zombie": "🧟 Zombie",
-    "Divine-Beast": "👑 Bête-Divine"
-}
-
-# Traduction des types de carte (matching large, anglais -> français)
-TYPE_TRANSLATION = {
-    "normal monster": "Monstre Normal",
-    "effect monster": "Monstre à effet",
-    "fusion monster": "Monstre Fusion",
-    "ritual monster": "Monstre Rituel",
-    "synchro monster": "Monstre Synchro",
-    "xyz monster": "Monstre Xyz",
-    "link monster": "Monstre Lien",
-    "pendulum monster": "Monstre Pendule",
-    "spell card": "Magie",
-    "trap card": "Piège",
-    "skill card": "Carte Compétence",
-    "token": "Jeton"
-}
-
-# Couleurs d'embed selon type (matching sur l'anglais renvoyé par l'API)
-TYPE_COLOR = {
-    "monster": discord.Color.red(),
-    "spell": discord.Color.green(),
-    "trap": discord.Color.blue(),
-    "link": discord.Color.purple(),
-    # fallback
-    "default": discord.Color.dark_grey()
-}
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View — bouton "Carte favorite" (optionnel)
+# 🎛️ UI — Bouton Ajouter Carte Favorite
 # ────────────────────────────────────────────────────────────────────────────────
 class CarteFavoriteButton(View):
     def __init__(self, carte_name: str, user: discord.User):
@@ -87,8 +31,8 @@ class CarteFavoriteButton(View):
             await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
             return
         try:
-            supabase.table("favorites").delete().eq("user_id", str(interaction.user.id)).execute()
-            supabase.table("favorites").insert({
+            supabase.table("profil").delete().eq("user_id", str(interaction.user.id)).execute()
+            supabase.table("profil").insert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
                 "cartefav": self.carte_name
@@ -99,174 +43,122 @@ class CarteFavoriteButton(View):
             await interaction.response.send_message("❌ Erreur lors de l’ajout à Supabase.", ephemeral=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Helpers : traduction & extraction d'infos utiles
-# ────────────────────────────────────────────────────────────────────────────────
-def translate_card_type(type_str: str) -> str:
-    if not type_str:
-        return "Inconnu"
-    t = type_str.lower()
-    # prioritize longer/compound matches
-    for eng, fr in TYPE_TRANSLATION.items():
-        if eng in t:
-            return fr
-    # fallback: capitalize original
-    return type_str
-
-def pick_embed_color(type_str: str) -> discord.Color:
-    if not type_str:
-        return TYPE_COLOR["default"]
-    t = type_str.lower()
-    if "spell" in t:
-        return TYPE_COLOR["spell"]
-    if "trap" in t:
-        return TYPE_COLOR["trap"]
-    if "link" in t:
-        return TYPE_COLOR.get("link", TYPE_COLOR["default"])
-    if "monster" in t:
-        return TYPE_COLOR["monster"]
-    return TYPE_COLOR["default"]
-
-def format_attribute(attr: str) -> str:
-    if not attr:
-        return "?"
-    return ATTRIBUT_EMOJI.get(attr.upper(), attr)
-
-def format_race(race: str) -> str:
-    if not race:
-        return "?"
-    return TYPE_EMOJI.get(race, race)
-
-# ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Carte(commands.Cog):
     """
-    Commande !carte — Rechercher une carte Yu-Gi-Oh! et afficher ses informations.
-    Embed intelligent selon le type de carte, labels en français, thumbnail only.
+    Commande !carte — Recherche multilingue et affichage premium d'une carte Yu-Gi-Oh!
+    Embed façon Master Duel, couleurs dynamiques et support complet des types.
     """
+
+    TYPE_COLOR = {
+        "monster": discord.Color.red(),
+        "spell": discord.Color.green(),
+        "trap": discord.Color.purple()
+    }
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    async def _fetch_card(self, session, nom_encode: str):
+        """
+        Tente de trouver la carte en FR, puis EN, puis fuzzy search.
+        Retourne (carte, langue_detectee, nom_corrige) ou (None, None, None).
+        """
+        for code in ["fr", ""]:
+            url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
+            if code:
+                url += f"&language={code}"
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if "data" in data and len(data["data"]) > 0:
+                        carte = data["data"][0]
+                        langue_detectee = code if code else "en"
+                        nom_corrige = carte.get("name")
+                        return carte, langue_detectee, nom_corrige
+
+        # Fuzzy search si introuvable
+        url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
+        async with session.get(url_fuzzy) as resp_fuzzy:
+            if resp_fuzzy.status == 200:
+                data_fuzzy = await resp_fuzzy.json()
+                if "data" in data_fuzzy and data_fuzzy["data"]:
+                    return None, "fuzzy", data_fuzzy["data"][:3]
+        return None, None, None
+
     @commands.command(
         name="carte",
         aliases=["card"],
-        help="🔍 Rechercher une carte Yu-Gi-Oh! (FR/EN).",
-        description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom (FR, EN)."
+        help="🔍 Rechercher une carte Yu-Gi-Oh! avec affichage premium.",
+        description="Recherche multilingue et affichage détaillé (FR, EN, etc.)."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str):
         nom_encode = urllib.parse.quote(nom)
-        carte = None
-        nom_corrige = nom
-
         try:
             async with aiohttp.ClientSession() as session:
-                # recherche directe (nom exact)
-                url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
-                async with session.get(url) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if "data" in data and len(data["data"]) > 0:
-                            carte = data["data"][0]
-                            nom_corrige = carte.get("name", nom)
-
-                # fuzzy si pas trouvé
-                if not carte:
-                    url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
-                    async with session.get(url_fuzzy) as resp_fuzzy:
-                        if resp_fuzzy.status == 200:
-                            data_fuzzy = await resp_fuzzy.json()
-                            suggestions = data_fuzzy.get("data", [])
-                            if suggestions:
-                                noms = [c.get("name") for c in suggestions[:3]]
-                                suggestion_msg = "\n".join(f"• **{n}**" for n in noms)
-                                await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.\n🔎 Suggestions :\n{suggestion_msg}")
-                                return
+                carte, langue_detectee, resultat = await self._fetch_card(session, nom_encode)
         except Exception as e:
             print(f"[ERREUR carte] {e}")
             await safe_send(ctx.channel, "🚨 Une erreur est survenue lors de la recherche.")
             return
 
-        if not carte:
-            await safe_send(ctx.channel, f"❌ Carte introuvable. Vérifie l’orthographe exacte : `{nom}`.")
+        # 🔎 Suggestions si fuzzy match
+        if langue_detectee == "fuzzy":
+            suggestions = "\n".join(f"• **{c.get('name')}**" for c in resultat)
+            await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.\n🔎 Suggestions :\n{suggestions}")
             return
 
-        # indique nom corrigé si différent
-        if nom_corrige.lower() != nom.lower():
-            await safe_send(ctx.channel, f"🔍 Résultat trouvé pour **{nom_corrige}**")
+        if not carte:
+            await safe_send(ctx.channel, f"❌ Carte introuvable. Vérifie l’orthographe : `{nom}`.")
+            return
 
-        # extraction des champs courants
-        card_name = carte.get("name", "Carte inconnue")
-        card_id = carte.get("id", "?")
-        card_type_raw = carte.get("type", "")         # ex: "Effect Monster" ou "Spell Card"
-        card_race = carte.get("race", "")             # ex: "Dragon"
-        attribute = carte.get("attribute", "")        # ex: "LIGHT"
-        desc = carte.get("desc", "Pas de description disponible.")
-        atk = carte.get("atk")
-        defe = carte.get("def")
-        level = carte.get("level")
-        rank = carte.get("rank")
-        linkval = carte.get("linkval") or carte.get("link_rating") or carte.get("link")
+        # ───────── Détection du type
+        raw_type = carte.get("type", "").lower()
+        color = discord.Color.dark_grey()
+        if "monster" in raw_type:
+            color = self.TYPE_COLOR["monster"]
+        elif "spell" in raw_type:
+            color = self.TYPE_COLOR["spell"]
+        elif "trap" in raw_type:
+            color = self.TYPE_COLOR["trap"]
 
-        # traduction & couleur
-        card_type_fr = translate_card_type(card_type_raw)
-        color = pick_embed_color(card_type_raw)
+        # ───────── Construction description
+        description_lines = [f"**Type :** {carte.get('type', '?')} | **Race :** {carte.get('race', '?')}"]
+        if "attribute" in carte:
+            description_lines.append(f"**Attribut :** {carte['attribute']}")
 
-        # construction description FR — n'afficher que les infos utiles
-        lines = []
+        # Monstres → Stats détaillées
+        if "monster" in raw_type:
+            stats = []
+            if "level" in carte:
+                stats.append(f"⭐ **Niveau :** {carte['level']}")
+            if "atk" in carte:
+                stats.append(f"⚔️ **ATK :** {carte['atk']}")
+            if "def" in carte:
+                stats.append(f"🛡️ **DEF :** {carte['def']}")
+            if "linkval" in carte:
+                stats.append(f"🔗 **Link :** {carte['linkval']}")
+            description_lines.append(" | ".join(stats))
 
-        # Type de carte (FR)
-        lines.append(f"**Type de carte** : {card_type_fr}")
+        description_lines.append(f"\n**📜 Effet / Description :**\n{carte.get('desc', 'Pas de description disponible.')}")
 
-        # Race / Type (avec emoji si connu)
-        if card_race:
-            lines.append(f"**Type** : {format_race(card_race)}")
-        # Attribut (pour monstres)
-        if "monster" in card_type_raw.lower() or attribute:
-            if attribute:
-                lines.append(f"**Attribut** : {format_attribute(attribute)}")
-        # Niveau / Rang / Lien
-        # on affiche la première valeur disponible dans: linkval -> rank -> level
-        if linkval:
-            lines.append(f"**Lien** : 🔗 {linkval}")
-        elif rank is not None:
-            lines.append(f"**Niveau/Rang** : ⭐ {rank}")
-        elif level is not None:
-            lines.append(f"**Niveau/Rang** : ⭐ {level}")
-
-        # ATK / DEF (monstres uniquement)
-        if atk is not None or defe is not None:
-            atk_text = f"⚔️ {atk}" if atk is not None else "⚔️ ?"
-            def_text = f"🛡️ {defe}" if defe is not None else "🛡️ ?"
-            lines.append(f"**ATK/DEF** : {atk_text}/{def_text}")
-
-        # Description (toujours)
-        lines.append(f"**Description**\n{desc}")
-
-        # création embed — thumbnail uniquement (pas d'image pleine)
+        # ───────── Embed principal
         embed = discord.Embed(
-            title=f"**{card_name}**",
-            description="\n".join(lines),
+            title=f"{carte.get('name', 'Carte inconnue')}",
+            description="\n".join(description_lines),
             color=color
         )
 
-        # thumbnail (petite image à droite)
         if "card_images" in carte and carte["card_images"]:
-            img = carte["card_images"][0]
-            thumb = img.get("image_url_small") or img.get("image_url")
-            if thumb:
-                embed.set_thumbnail(url=thumb)
+            embed.set_thumbnail(url=carte["card_images"][0].get("image_url_small", carte["card_images"][0]["image_url"]))
+            embed.set_image(url=carte["card_images"][0]["image_url"])
 
-        # footer avec ID carte
-        embed.set_footer(text=f"ID Carte : {card_id}")
+        embed.set_footer(text=f"🆔 ID : {carte.get('id', '?')} • Langue : {langue_detectee.upper()}")
 
-        # bouton favoris
-        view = CarteFavoriteButton(card_name, ctx.author)
+        view = CarteFavoriteButton(carte["name"], ctx.author)
         await safe_send(ctx.channel, embed=embed, view=view)
-
-    def cog_load(self):
-        self.carte.category = "🃏 Yu-Gi-Oh!"
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
