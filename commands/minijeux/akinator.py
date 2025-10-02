@@ -60,7 +60,6 @@ class AkinatorView(View):
             for val in q["filter_value"]:
                 count = sum(1 for c in self.remaining_cards if val in c.get(q["filter_key"], []))
                 balance = abs(len(self.remaining_cards)/2 - count)
-                # On priorise les questions qui coupent au plus proche de la moitié
                 if balance < best_balance:
                     best_balance = balance
                     best_q = q
@@ -68,19 +67,24 @@ class AkinatorView(View):
         return best_q
 
     def next_question(self):
-        if len(self.remaining_cards) <= 3 or not self.questions:
+        if not self.questions or len(self.remaining_cards) <= 3:
             return None
         self.current_question = self.choose_best_question()
         return self.current_question
 
     async def ask_question(self, interaction=None):
-        # Au moins 10 questions avant de proposer une carte
-        propose_card = self.question_count >= 10 and len(self.remaining_cards) <= 5
-
-        q = None if propose_card else self.next_question()
+        """
+        Pose une question ou propose le résultat si conditions remplies.
+        Ne propose qu’après 10 questions minimum et si le nombre de cartes restantes est suffisant.
+        """
         top_cards = sorted(self.remaining_cards, key=lambda c: self.scores[c["id"]], reverse=True)[:3]
 
+        # Déterminer si on peut proposer le résultat
+        can_propose = self.question_count >= 10 and len(self.remaining_cards) <= 5
+        q = None if can_propose else self.next_question()
+
         if not q:
+            # Proposer le résultat uniquement si conditions remplies
             embed = discord.Embed(
                 title="🔮 Résultat Akinator",
                 description="\n".join(f"• {c['name']}" for c in top_cards),
@@ -94,6 +98,7 @@ class AkinatorView(View):
                 await safe_edit(interaction.message, embed=embed, view=None)
             return embed
 
+        # Préparer les boutons
         self.clear_items()
         self.add_item(AkinatorButton(self, "Oui"))
         self.add_item(AkinatorButton(self, "Non"))
@@ -136,20 +141,13 @@ class AkinatorView(View):
         if q in self.questions:
             self.questions.remove(q)
 
+        # Élimination des cartes très improbables
         min_score = min(self.scores.values())
         self.remaining_cards = [c for c in self.remaining_cards if self.scores[c["id"]] > min_score - 2]
 
         self.question_count += 1
+        # Tant que trop de cartes restent, continuer de poser des questions
         await self.ask_question(interaction)
-
-class AkinatorButton(Button):
-    def __init__(self, parent_view: AkinatorView, label: str, style=discord.ButtonStyle.primary):
-        super().__init__(label=label, style=style)
-        self.parent_view = parent_view
-
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        await self.parent_view.process_answer(self.label, interaction)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
