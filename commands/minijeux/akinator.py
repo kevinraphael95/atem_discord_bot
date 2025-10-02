@@ -45,9 +45,13 @@ class AkinatorView(View):
         self.scores = {c["id"]: 0 for c in self.remaining_cards}
         self.current_question = None
         self.current_value = None
+        self.question_count = 0
 
     def choose_best_question(self):
-        """Sélectionne la question la plus discriminante pour séparer les cartes restantes."""
+        """
+        Sélectionne la question la plus discriminante.
+        Priorité : éliminer ~50% des cartes restantes si possible.
+        """
         best_q = None
         best_balance = float('inf')
         for q in self.questions:
@@ -56,6 +60,7 @@ class AkinatorView(View):
             for val in q["filter_value"]:
                 count = sum(1 for c in self.remaining_cards if val in c.get(q["filter_key"], []))
                 balance = abs(len(self.remaining_cards)/2 - count)
+                # On priorise les questions qui coupent au plus proche de la moitié
                 if balance < best_balance:
                     best_balance = balance
                     best_q = q
@@ -69,7 +74,10 @@ class AkinatorView(View):
         return self.current_question
 
     async def ask_question(self, interaction=None):
-        q = self.next_question()
+        # Au moins 10 questions avant de proposer une carte
+        propose_card = self.question_count >= 10 and len(self.remaining_cards) <= 5
+
+        q = None if propose_card else self.next_question()
         top_cards = sorted(self.remaining_cards, key=lambda c: self.scores[c["id"]], reverse=True)[:3]
 
         if not q:
@@ -131,6 +139,7 @@ class AkinatorView(View):
         min_score = min(self.scores.values())
         self.remaining_cards = [c for c in self.remaining_cards if self.scores[c["id"]] > min_score - 2]
 
+        self.question_count += 1
         await self.ask_question(interaction)
 
 class AkinatorButton(Button):
