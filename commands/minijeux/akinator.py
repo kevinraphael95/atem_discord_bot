@@ -33,7 +33,7 @@ def load_questions():
         return []
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View pour Akinator (version corrigée)
+# 🎛️ View pour Akinator (version robuste)
 # ────────────────────────────────────────────────────────────────────────────────
 class AkinatorView(View):
     def __init__(self, bot, questions, cards):
@@ -78,7 +78,10 @@ class AkinatorView(View):
         if not q:
             if not top_cards:
                 if interaction:
-                    await safe_edit(interaction.message, content="❌ Aucune carte trouvée.", view=None)
+                    try:
+                        await safe_edit(interaction.message, content="❌ Aucune carte trouvée.", view=None)
+                    except:
+                        await safe_send(interaction.channel, "❌ Aucune carte trouvée.")
                 return
 
             embed = discord.Embed(
@@ -91,7 +94,10 @@ class AkinatorView(View):
                     embed.set_image(url=c["card_images"][0].get("image_url"))
                     break
             if interaction:
-                await safe_edit(interaction.message, embed=embed, view=None)
+                try:
+                    await safe_edit(interaction.message, embed=embed, view=None)
+                except:
+                    await safe_send(interaction.channel, embed=embed)
             return embed
 
         # Préparer les boutons
@@ -111,7 +117,10 @@ class AkinatorView(View):
             embed.set_thumbnail(url=top_cards[0]["card_images"][0].get("image_url_small"))
 
         if interaction:
-            await safe_edit(interaction.message, embed=embed, view=self)
+            try:
+                await safe_edit(interaction.message, embed=embed, view=self)
+            except:
+                await safe_send(interaction.channel, embed=embed)
         else:
             return embed
 
@@ -122,7 +131,10 @@ class AkinatorView(View):
                 description="La session a été annulée.",
                 color=discord.Color.red()
             )
-            await safe_edit(interaction.message, embed=embed, view=None)
+            try:
+                await safe_edit(interaction.message, embed=embed, view=None)
+            except:
+                await safe_send(interaction.channel, embed=embed)
             return
 
         q = self.current_question
@@ -138,7 +150,6 @@ class AkinatorView(View):
             if q in self.questions:
                 self.questions.remove(q)
 
-        # Élimination des cartes très improbables
         if self.scores:
             min_score = min(self.scores.values())
             self.remaining_cards = [c for c in self.remaining_cards if self.scores.get(c["id"],0) > min_score - 2]
@@ -174,7 +185,7 @@ class AkinatorCog(commands.Cog):
             async with session.get(url) as resp:
                 data = await resp.json()
                 cards = []
-                for c in data["data"]:
+                for c in data.get("data", []):
                     type_subtype = c.get("type", "").split()
                     if c.get("race"): type_subtype.append(c["race"])
                     attribute = [c["attribute"]] if c.get("attribute") else []
@@ -214,7 +225,8 @@ class AkinatorCog(commands.Cog):
             return
         view = AkinatorView(self.bot, questions, cards)
         embed = await view.ask_question()
-        view.message = await safe_send(channel, embed=embed, view=view)
+        if embed:
+            view.message = await safe_send(channel, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
@@ -225,10 +237,12 @@ class AkinatorCog(commands.Cog):
         try:
             await interaction.response.defer()
             await self._send_akinator(interaction.channel)
-            await interaction.delete_original_response()
         except Exception as e:
             print(f"[ERREUR /akinator] {e}")
-            await safe_respond(interaction, "❌ Une erreur est survenue.", ephemeral=True)
+            try:
+                await safe_respond(interaction, "❌ Une erreur est survenue.", ephemeral=True)
+            except:
+                pass
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
