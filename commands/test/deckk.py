@@ -1,150 +1,153 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 deck.py — Commande interactive /deck et !deck
-# Objectif : Afficher un deck à partir d’un URL ydke:// ou d’un fichier .ydk
-# Catégorie : Test
+# Objectif : Afficher un deck depuis un fichier .ydk
+# Catégorie : Autre
 # Accès : Tous
-# Cooldown : 1 utilisation / 5 secondes / utilisateur
+# Cooldown : Paramétrable par commande
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
-from discord import app_commands
+from discord import app_commands, File, Embed, Interaction, ButtonStyle
 from discord.ext import commands
 from discord.ui import View, Button
 from io import BytesIO
-from datetime import datetime
+import aiohttp
+import os
 
 from utils.discord_utils import safe_send, safe_edit
-from utils.deck_utils import parse_url, parse_ydk_file, typed_deck_to_ydk, to_url, generate_deck_embed
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Bouton pour YGOPRODECK
-# ────────────────────────────────────────────────────────────────────────────────
-class DeckButtonView(View):
-    def __init__(self, out_url: str):
-        super().__init__(timeout=120)
-        self.add_item(Button(
-            label="Upload to YGOPRODECK",
-            style=discord.ButtonStyle.link,
-            url=f"https://ygoprodeck.com/deckbuilder/?utm_source=bastion&y={out_url[7:]}"
-        ))
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class DeckCommand(commands.Cog):
+class DeckCog(commands.Cog):
     """
-    Commande /deck et !deck — Affiche un deck à partir d’un URL ydke:// ou d’un fichier .ydk
+    Commande /deck et !deck — Affiche un deck depuis un fichier .ydk
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction interne commune
-    # ────────────────────────────────────────────────────────────────────────────
-    async def _process_deck(
-        self,
-        interaction_or_ctx,
-        url: str = None,
-        file: discord.Attachment = None,
-        stacked: bool = False
-    ):
-        start_time = datetime.utcnow()
-        try:
-            # Récupération du deck
-            if url:
-                deck = parse_url(url)
-            elif file:
-                if not file.filename.endswith(".ydk"):
-                    msg = "❌ Le fichier doit avoir l’extension .ydk !"
-                    if isinstance(interaction_or_ctx, discord.Interaction):
-                        await safe_edit(interaction_or_ctx, msg)
-                    else:
-                        await safe_send(interaction_or_ctx, msg)
-                    return
-                content = await file.read()
-                deck = parse_ydk_file(BytesIO(content))
-            else:
-                msg = "❌ Vous devez fournir un URL ou un fichier .ydk."
-                if isinstance(interaction_or_ctx, discord.Interaction):
-                    await safe_edit(interaction_or_ctx, msg)
-                else:
-                    await safe_send(interaction_or_ctx, msg)
-                return
+    # 🔹 Récupère les cartes depuis l'API
+    async def get_cards(self, cards: set[int]) -> dict:
+        async with aiohttp.ClientSession() as session:
+            url = f"{os.getenv('API_URL')}/ocg-tcg/multi?password={','.join(map(str, cards))}"
+            async with session.get(url) as resp:
+                return await resp.json()
 
-            # Vérifie que le deck n’est pas vide
-            if not (deck.main or deck.extra or deck.side):
-                msg = "❌ Votre deck est vide."
-                if isinstance(interaction_or_ctx, discord.Interaction):
-                    await safe_edit(interaction_or_ctx, msg)
-                else:
-                    await safe_send(interaction_or_ctx, msg)
-                return
+    # 🔹 Parse un fichier .ydk en dictionnaire interne
+    async def parse_file(self, attachment: discord.Attachment) -> dict:
+        if not attachment.filename.endswith(".ydk"):
+            raise ValueError(".ydk files must have the .ydk extension!")
+        if attachment.size > 1024:
+            raise ValueError(".ydk files should not exceed 1 KB!")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(attachment.url) as resp:
+                content = await resp.text()
+        # Décomposition simple du fichier .ydk
+        sections = {"main": [], "extra": [], "side": []}
+        current_section = "main"
+        for line in content.splitlines():
+            line = line.strip()
+            if line == "":
+                continue
+            if line == "#extra":
+                current_section = "extra"
+                continue
+            if line == "!side":
+                current_section = "side"
+                continue
+            if line.isdigit():
+                sections[current_section].append(int(line))
+        return sections
 
-            # Génération du deck et embed
-            out_url = to_url(deck)
-            out_file = typed_deck_to_ydk(deck)
-            embed = generate_deck_embed(deck, stacked, out_url)
-            attachment = discord.File(BytesIO(out_file.encode("utf-8")), filename="deck.ydk")
-            view = DeckButtonView(out_url)
+    # 🔹 Génère l'embed du deck
+    def generate_embed(self, deck: dict, card_data: dict, stacked: bool) -> Embed:
+        embed = Embed(title="Your Deck", color=discord.Color.blue())
 
-            if isinstance(interaction_or_ctx, discord.Interaction):
-                await safe_edit(interaction_or_ctx, embed=embed, files=[attachment], view=view)
-            else:
-                await safe_send(interaction_or_ctx, embed=embed, files=[attachment], view=view)
+        def add_section(name: str, cards_list: list):
+            counts = {}
+            for c in cards_list:
+                name_card = card_data.get(str(c), {}).get("name", str(c))
+                counts[name_card] = counts.get(name_card, 0) + 1
+            lines = [f"{v} {k}" for k, v in counts.items()]
+            embed.add_field(name=name, value="\n".join(lines), inline=not stacked)
 
-            latency = (datetime.utcnow() - start_time).total_seconds() * 1000
-            return latency
+        if deck["main"]:
+            add_section(f"Main Deck ({len(deck['main'])} cards)", deck["main"])
+        if deck["extra"]:
+            add_section(f"Extra Deck ({len(deck['extra'])} cards)", deck["extra"])
+        if deck["side"]:
+            add_section(f"Side Deck ({len(deck['side'])} cards)", deck["side"])
 
-        except Exception as e:
-            msg = f"❌ Une erreur est survenue : {e}"
-            if isinstance(interaction_or_ctx, discord.Interaction):
-                await safe_edit(interaction_or_ctx, msg)
-            else:
-                await safe_send(interaction_or_ctx, msg)
+        return embed
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="deckk",
-        description="Affiche un deck à partir d’un URL ydke:// ou d’un fichier .ydk"
-    )
-    @app_commands.describe(
-        url="URL ydke:// du deck",
-        file="Fichier .ydk du deck",
-        stacked="Afficher le deck en pile"
-    )
-    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
+    @app_commands.command(name="deck", description="Afficher un deck depuis un fichier .ydk")
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_deck(
         self,
-        interaction: discord.Interaction,
-        url: str = None,
-        file: discord.Attachment = None,
-        stacked: bool = False
+        interaction: Interaction,
+        public: bool = False
     ):
-        """Commande slash principale."""
-        await interaction.response.defer()
-        await self._process_deck(interaction, url=url, file=file, stacked=stacked)
+        await interaction.response.defer(ephemeral=not public)
+
+        if not interaction.data.get("attachments"):
+            await interaction.edit_original_response(content="❌ Vous devez fournir un fichier .ydk")
+            return
+
+        attachment = interaction.data["attachments"][0]
+
+        try:
+            deck = await self.parse_file(discord.Attachment(state=None, data=attachment))
+        except Exception as e:
+            await interaction.edit_original_response(content=f"❌ Erreur: {e}")
+            return
+
+        if sum(len(deck[x]) for x in ["main", "extra", "side"]) == 0:
+            await interaction.edit_original_response(content="❌ Erreur: deck vide")
+            return
+
+        passwords = set(deck["main"] + deck["extra"] + deck["side"])
+        card_data = await self.get_cards(passwords)
+        embed = self.generate_embed(deck, card_data, stacked=False)
+
+        # Création du fichier .ydk pour renvoi
+        ydk_lines = [str(c) for c in deck["main"]] + ["#extra"] + [str(c) for c in deck["extra"]] + ["!side"] + [str(c) for c in deck["side"]]
+        file_obj = File(BytesIO("\n".join(ydk_lines).encode("utf-8")), filename="deck.ydk")
+
+        view = View()
+        view.add_item(
+            Button(
+                label="Upload to YGOPRODECK",
+                url="https://ygoprodeck.com/deckbuilder/",
+                style=ButtonStyle.link
+            )
+        )
+
+        await interaction.edit_original_response(embed=embed, file=file_obj, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="deckk")
+    @commands.command(name="deck")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_deck(self, ctx: commands.Context, url: str = None, stacked: bool = False):
-        """Commande préfixe principale."""
-        file = ctx.message.attachments[0] if ctx.message.attachments else None
-        await self._process_deck(ctx, url=url, file=file, stacked=stacked)
+    async def prefix_deck(self, ctx: commands.Context):
+        class DummyInteraction:
+            data = ctx.message.attachments
+            async def response(self): return ctx
+            async def edit_original_response(self, **kwargs): await ctx.send(**kwargs)
+        await self.slash_deck(DummyInteraction())
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
-    cog = DeckCommand(bot)
+    cog = DeckCog(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Test"
+            command.category = "Autre"
     await bot.add_cog(cog)
