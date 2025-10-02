@@ -1,37 +1,33 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 profil.py — Commande pour afficher le profil VAACT d’un utilisateur
-# Objectif : Affiche les informations et permet de choisir son pseudo VAACT parmi ceux du tournoi
+# Objectif : Affiche les informations et permet de choisir son pseudo VAACT
 # Catégorie : Profil
 # Accès : Public
 # Cooldown : 1 utilisation / 3 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
 from discord import app_commands
 from discord.ui import View, Select
 from utils.supabase_client import supabase
 from utils.discord_utils import safe_send, safe_respond
-import aiohttp, csv, io, os
+import aiohttp, csv, io, os, json
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
 class ProfilCommand(commands.Cog):
     """Commande /profil et !profil — Affiche le profil complet et permet de choisir
-       son pseudo VAACT parmi les pseudos du tournoi"""
+       son pseudo VAACT parmi ceux du tournoi"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.sheet_csv_url = os.getenv("VAACT_CLASSEMENT_SHEET")
 
     # ────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction interne : récupérer les pseudos depuis Google Sheet
+    # 🔹 Récupération des pseudos depuis Google Sheet
     # ────────────────────────────────────────────────────────────────────────
     async def fetch_sheet_pseudos(self):
+        if not self.sheet_csv_url:
+            return []
         async with aiohttp.ClientSession() as session:
             resp = await session.get(self.sheet_csv_url)
             if resp.status != 200:
@@ -41,31 +37,56 @@ class ProfilCommand(commands.Cog):
             return [row[2].strip() for row in rows[2:] if len(row) > 2 and row[2].strip()]
 
     # ────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction interne : envoyer le profil
+    # 🔹 Fonction interne : récupérer/initialiser un profil
     # ────────────────────────────────────────────────────────────────────────
-    async def _send_profil(self, ctx_or_interaction, author, guild, target_user=None):
-        user = target_user or author
+    def get_or_create_profile(self, user):
         user_id = str(user.id)
-
-        # 🔹 Récupération du profil
         profil_data = supabase.table("profil").select("*").eq("user_id", user_id).execute()
+
         if profil_data.data:
             profil = profil_data.data[0]
-            cartefav = profil.get("cartefav", "Aucune")
-            vaact_name = profil.get("vaact_name", None)
-            fav_decks = profil.get("fav_decks_vaact", [])
-            decks_text = ", ".join(fav_decks) if fav_decks else "Aucun"
         else:
             supabase.table("profil").insert({
                 "user_id": user_id,
                 "username": user.name,
-                "cartefav": "Aucune"
+                "cartefav": "Aucune",
+                "vaact_name": None,
+                "fav_decks_vaact": []
             }).execute()
-            vaact_name = None
-            cartefav = "Aucune"
-            decks_text = "Aucun"
+            profil = {
+                "user_id": user_id,
+                "username": user.name,
+                "cartefav": "Aucune",
+                "vaact_name": None,
+                "fav_decks_vaact": []
+            }
 
-        # 🔹 Embed
+        # Correction si fav_decks_vaact est une string JSON
+        fav_decks = profil.get("fav_decks_vaact", [])
+        if isinstance(fav_decks, str):
+            try:
+                fav_decks = json.loads(fav_decks)
+            except:
+                fav_decks = []
+        elif not isinstance(fav_decks, list):
+            fav_decks = []
+
+        profil["fav_decks_vaact"] = fav_decks
+        return profil
+
+    # ────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne : envoyer le profil
+    # ────────────────────────────────────────────────────────────────────────
+    async def _send_profil(self, ctx_or_interaction, author, guild, target_user=None):
+        user = target_user or author
+        profil = self.get_or_create_profile(user)
+
+        cartefav = profil.get("cartefav", "Aucune")
+        vaact_name = profil.get("vaact_name", None)
+        fav_decks = profil.get("fav_decks_vaact", [])
+        decks_text = ", ".join(fav_decks) if fav_decks else "Aucun"
+
+        # Embed
         embed = discord.Embed(
             title=f"__**Profil de {user.display_name}**__",
             description=(
@@ -79,7 +100,7 @@ class ProfilCommand(commands.Cog):
             embed.set_thumbnail(url=user.avatar.url)
         embed.set_footer(text=f"Utilisateur : {user.name} ({user.id})")
 
-        # 🔹 View si pseudo non défini
+        # View si pseudo non défini
         view = None
         if not vaact_name:
             sheet_pseudos = await self.fetch_sheet_pseudos()
@@ -92,7 +113,7 @@ class ProfilCommand(commands.Cog):
             available = [p for p in sheet_pseudos if p not in taken]
 
             if available:
-                options = [discord.SelectOption(label=p) for p in available]
+                options = [discord.SelectOption(label=p) for p in available[:25]]  # max 25 options discord
 
                 class VAACSelect(Select):
                     def __init__(self, user_id):
@@ -111,21 +132,24 @@ class ProfilCommand(commands.Cog):
                             f"✅ Ton pseudo VAACT a été défini : **{selected}**",
                             ephemeral=True
                         )
-                        self.disabled = True
+                        # désactiver le menu
+                        for child in self.view.children:
+                            child.disabled = True
                         await interaction.message.edit(view=self.view)
 
                 class VAACSelectView(View):
                     def __init__(self, user_id):
                         super().__init__(timeout=120)
-                        select = VAACSelect(user_id)
-                        self.add_item(select)
-                        select.view = self  # ⬅️ Important pour pouvoir disable après sélection
+                        self.add_item(VAACSelect(user_id))
 
-                view = VAACSelectView(user_id)
+                view = VAACSelectView(str(user.id))
 
-        # 🔹 Envoi
+        # Envoi
         if isinstance(ctx_or_interaction, discord.Interaction):
-            await ctx_or_interaction.response.send_message(embed=embed, view=view)
+            if ctx_or_interaction.response.is_done():
+                await ctx_or_interaction.followup.send(embed=embed, view=view)
+            else:
+                await ctx_or_interaction.response.send_message(embed=embed, view=view)
         else:
             await safe_send(ctx_or_interaction, embed=embed, view=view)
 
@@ -160,6 +184,3 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "VAACT"
     await bot.add_cog(cog)
-
-
-
