@@ -1,108 +1,97 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 search.py — Commande interactive /search et !search
-# Objectif : Trouver toutes les informations d'une carte
-# Catégorie : Test
-# Accès : Tous
-# Cooldown : 1 utilisation / 5 secondes / utilisateur
+# 📌 search.py — Commande interactive !search
+# Objectif : Trouver toutes les informations d'une carte Yu-Gi-Oh!
+# Catégorie : Yu-Gi-Oh
+# Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
-from discord import app_commands
 from discord.ext import commands
-from utils.discord_utils import safe_send, safe_respond
-from utils.card_utils import get_card, create_card_embed, get_card_search_options, should_exclude_icons
-from utils.metrics_utils import reply_latency
-from utils.locale_utils import use_locale
-from utils.limit_regulation import master_duel_limit_regulation
+import aiohttp
+from utils.discord_utils import safe_send, safe_edit, safe_respond  # ✅ conformes au template
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 📂 Fonctions utilitaires
+# ────────────────────────────────────────────────────────────────────────────────
+async def get_card_by_name(name: str):
+    """Recherche une carte via l'API YGOPRODECK par son nom."""
+    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={name}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                return None
+            data = await resp.json()
+            return data["data"][0] if "data" in data else None
+
+
+def build_card_embed(card: dict) -> discord.Embed:
+    """Construit un embed Discord avec les infos d'une carte Yu-Gi-Oh!"""
+    embed = discord.Embed(
+        title=card.get("name", "Carte inconnue"),
+        description=card.get("desc", "Pas de description."),
+        color=discord.Color.blue()
+    )
+
+    # Image de la carte
+    if "card_images" in card:
+        embed.set_image(url=card["card_images"][0]["image_url"])
+
+    # Infos principales
+    atk, defense, level = card.get("atk"), card.get("def"), card.get("level")
+    stats = []
+    if atk is not None: stats.append(f"ATK {atk}")
+    if defense is not None: stats.append(f"DEF {defense}")
+    if level is not None: stats.append(f"Niveau {level}")
+    if stats:
+        embed.add_field(name="Statistiques", value=" | ".join(stats), inline=False)
+
+    # Type & Race
+    if "type" in card:
+        embed.add_field(name="Type", value=card["type"], inline=True)
+    if "race" in card:
+        embed.add_field(name="Race", value=card["race"], inline=True)
+
+    # Archétype si dispo
+    if "archetype" in card:
+        embed.add_field(name="Archétype", value=card["archetype"], inline=True)
+
+    return embed
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class SearchCommand(commands.Cog):
     """
-    Commande /search et !search — Trouver toutes les informations d'une carte
+    Commande !search — Recherche une carte Yu-Gi-Oh! par son nom
     """
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(
+    @commands.command(
         name="search",
-        description="Trouver toutes les informations d'une carte"
+        help="Cherche une carte Yu-Gi-Oh! par son nom.",
+        description="Exemple: !search Magicien Sombre"
     )
-    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
-    async def slash_search(self, interaction: discord.Interaction, term: str):
-        """Commande slash principale pour rechercher une carte."""
+    async def search(self, ctx: commands.Context, *, name: str):
+        """Commande principale avec affichage d'une carte Yu-Gi-Oh!"""
         try:
-            await interaction.response.defer()
-            
-            # récupération sécurisée des options
-            search_options = await get_card_search_options(interaction) or {}
-            type_ = search_options.get('type', 'name')
-            input_ = search_options.get('input', term)
-            result_language = search_options.get('result_language', 'fr')
-            input_language = search_options.get('input_language', 'fr')
-
-            # récupération de la carte
-            card = await get_card(type_, input_, input_language)
-            use_locale(result_language)
-
+            card = await get_card_by_name(name)
             if not card:
-                await safe_respond(interaction, f"❌ Impossible de trouver une carte pour `{input_}`.", ephemeral=True)
+                await safe_send(ctx.channel, f"❌ Impossible de trouver une carte pour `{name}`.")
                 return
 
-            embeds = create_card_embed(card, result_language, master_duel_limit_regulation, should_exclude_icons(interaction))
-            if not embeds:
-                await safe_respond(interaction, "❌ La carte a été trouvée mais aucun embed n'a pu être généré.", ephemeral=True)
-                return
+            embed = build_card_embed(card)
+            await safe_send(ctx.channel, embed=embed)
 
-            reply = await interaction.followup.send(embed=embeds[0] if len(embeds) == 1 else None, embeds=embeds if len(embeds) > 1 else None)
-            await reply_latency(reply, interaction)
-
-        except app_commands.CommandOnCooldown as e:
-            await safe_respond(interaction, f"⏳ Attends encore {e.retry_after:.1f}s.", ephemeral=True)
-        except Exception as e:
-            print(f"[ERREUR /search] {e}")
-            await safe_respond(interaction, "❌ Une erreur inattendue est survenue.", ephemeral=True)
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="search")
-    @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_search(self, ctx: commands.Context, *, term: str):
-        """Commande préfixe pour rechercher une carte."""
-        try:
-            search_options = await get_card_search_options(ctx) or {}
-            type_ = search_options.get('type', 'name')
-            input_ = search_options.get('input', term)
-            result_language = search_options.get('result_language', 'fr')
-            input_language = search_options.get('input_language', 'fr')
-
-            card = await get_card(type_, input_, input_language)
-            use_locale(result_language)
-
-            if not card:
-                await safe_send(ctx.channel, f"❌ Impossible de trouver une carte pour `{input_}`.")
-                return
-
-            embeds = create_card_embed(card, result_language, master_duel_limit_regulation, should_exclude_icons(ctx))
-            if not embeds:
-                await safe_send(ctx.channel, "❌ La carte a été trouvée mais aucun embed n'a pu être généré.")
-                return
-
-            await safe_send(ctx.channel, embed=embeds[0] if len(embeds) == 1 else None, embeds=embeds if len(embeds) > 1 else None)
-
-        except commands.CommandOnCooldown as e:
-            await safe_send(ctx.channel, f"⏳ Attends encore {e.retry_after:.1f}s.")
         except Exception as e:
             print(f"[ERREUR !search] {e}")
             await safe_send(ctx.channel, "❌ Une erreur inattendue est survenue.")
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
@@ -111,5 +100,5 @@ async def setup(bot: commands.Bot):
     cog = SearchCommand(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Test"
+            command.category = "Yu-Gi-Oh"
     await bot.add_cog(cog)
