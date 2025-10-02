@@ -33,7 +33,7 @@ def load_questions():
         return []
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View pour Akinator
+# 🎛️ View pour Akinator (version corrigée)
 # ────────────────────────────────────────────────────────────────────────────────
 class AkinatorView(View):
     def __init__(self, bot, questions, cards):
@@ -48,17 +48,13 @@ class AkinatorView(View):
         self.question_count = 0
 
     def choose_best_question(self):
-        """
-        Sélectionne la question la plus discriminante.
-        Priorité : éliminer ~50% des cartes restantes si possible.
-        """
         best_q = None
         best_balance = float('inf')
         for q in self.questions:
             if not q.get("filter_value"):
                 continue
             for val in q["filter_value"]:
-                count = sum(1 for c in self.remaining_cards if val in c.get(q["filter_key"], []))
+                count = sum(1 for c in self.remaining_cards if val in c.get(q.get("filter_key",""), []))
                 balance = abs(len(self.remaining_cards)/2 - count)
                 if balance < best_balance:
                     best_balance = balance
@@ -73,26 +69,26 @@ class AkinatorView(View):
         return self.current_question
 
     async def ask_question(self, interaction=None):
-        """
-        Pose une question ou propose le résultat si conditions remplies.
-        Ne propose qu’après 10 questions minimum et si le nombre de cartes restantes est suffisant.
-        """
-        top_cards = sorted(self.remaining_cards, key=lambda c: self.scores[c["id"]], reverse=True)[:3]
+        top_cards = sorted(self.remaining_cards, key=lambda c: self.scores.get(c["id"],0), reverse=True)[:3]
 
-        # Déterminer si on peut proposer le résultat
+        # On ne propose qu'après 10 questions et si peu de cartes
         can_propose = self.question_count >= 10 and len(self.remaining_cards) <= 5
         q = None if can_propose else self.next_question()
 
         if not q:
-            # Proposer le résultat uniquement si conditions remplies
+            if not top_cards:
+                if interaction:
+                    await safe_edit(interaction.message, content="❌ Aucune carte trouvée.", view=None)
+                return
+
             embed = discord.Embed(
                 title="🔮 Résultat Akinator",
-                description="\n".join(f"• {c['name']}" for c in top_cards),
+                description="\n".join(f"• {c.get('name','Inconnue')}" for c in top_cards),
                 color=discord.Color.purple()
             )
             for c in top_cards:
                 if "card_images" in c and c["card_images"]:
-                    embed.set_image(url=c["card_images"][0]["image_url"])
+                    embed.set_image(url=c["card_images"][0].get("image_url"))
                     break
             if interaction:
                 await safe_edit(interaction.message, embed=embed, view=None)
@@ -105,14 +101,14 @@ class AkinatorView(View):
         self.add_item(AkinatorButton(self, "Ne sais pas"))
         self.add_item(AkinatorButton(self, "Abandonner", style=discord.ButtonStyle.danger))
 
-        question_text = q["text"].replace("{value}", self.current_value or "…")
+        question_text = (q.get("text") or "").replace("{value}", self.current_value or "…")
         embed = discord.Embed(
             title="❓ Question Akinator",
-            description=f"{question_text}\n\n**Carte probable:** {top_cards[0]['name'] if top_cards else '…'}",
+            description=f"{question_text}\n\n**Carte probable:** {top_cards[0].get('name','…') if top_cards else '…'}",
             color=discord.Color.blue()
         )
         if top_cards and "card_images" in top_cards[0] and top_cards[0]["card_images"]:
-            embed.set_thumbnail(url=top_cards[0]["card_images"][0]["image_url_small"])
+            embed.set_thumbnail(url=top_cards[0]["card_images"][0].get("image_url_small"))
 
         if interaction:
             await safe_edit(interaction.message, embed=embed, view=self)
@@ -131,23 +127,25 @@ class AkinatorView(View):
 
         q = self.current_question
         val = self.current_value
-        for c in self.remaining_cards:
-            values = c.get(q["filter_key"], [])
-            if answer == "Oui" and val in values:
-                self.scores[c["id"]] += 1
-            elif answer == "Non" and val in values:
-                self.scores[c["id"]] -= 1
+        if q:
+            for c in self.remaining_cards:
+                values = c.get(q.get("filter_key",""), [])
+                if answer == "Oui" and val in values:
+                    self.scores[c["id"]] += 1
+                elif answer == "Non" and val in values:
+                    self.scores[c["id"]] -= 1
 
-        if q in self.questions:
-            self.questions.remove(q)
+            if q in self.questions:
+                self.questions.remove(q)
 
         # Élimination des cartes très improbables
-        min_score = min(self.scores.values())
-        self.remaining_cards = [c for c in self.remaining_cards if self.scores[c["id"]] > min_score - 2]
+        if self.scores:
+            min_score = min(self.scores.values())
+            self.remaining_cards = [c for c in self.remaining_cards if self.scores.get(c["id"],0) > min_score - 2]
 
         self.question_count += 1
-        # Tant que trop de cartes restent, continuer de poser des questions
         await self.ask_question(interaction)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
