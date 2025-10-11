@@ -5,6 +5,7 @@
 # Accès : Public
 # Cooldown : 1 utilisation / 3 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,35 +15,17 @@ from discord import app_commands
 from discord.ui import View, Select
 from utils.supabase_client import supabase
 from utils.discord_utils import safe_send, safe_respond
-import aiohttp, csv, io, os, json
+import json
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class ProfilCommand(commands.Cog):
     """Commande /profil et !profil — Affiche le profil complet et permet de choisir
-       son pseudo VAACT parmi ceux du tournoi"""
+       son pseudo VAACT directement depuis Supabase"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.sheet_csv_url = os.getenv("VAACT_CLASSEMENT_SHEET")
-
-    # ────────────────────────────────────────────────────────────────────────
-    # 🔹 Récupération des pseudos depuis Google Sheet
-    # ────────────────────────────────────────────────────────────────────────
-    async def fetch_sheet_pseudos(self):
-        if not self.sheet_csv_url:
-            return []
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(self.sheet_csv_url) as resp:
-                    if resp.status != 200:
-                        return []
-                    text = await resp.text()
-                    rows = list(csv.reader(io.StringIO(text)))
-                    return [row[2].strip() for row in rows[2:] if len(row) > 2 and row[2].strip()]
-        except Exception as e:
-            print(f"[Profil] Erreur fetch_sheet_pseudos: {e}")
-            return []
 
     # ────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne : récupérer/initialiser un profil
@@ -71,12 +54,15 @@ class ProfilCommand(commands.Cog):
 
             fav_decks = profil.get("fav_decks_vaact", [])
             if isinstance(fav_decks, str):
-                try: fav_decks = json.loads(fav_decks)
-                except: fav_decks = []
+                try:
+                    fav_decks = json.loads(fav_decks)
+                except:
+                    fav_decks = []
             elif not isinstance(fav_decks, list):
                 fav_decks = []
             profil["fav_decks_vaact"] = fav_decks
             return profil
+
         except Exception as e:
             print(f"[Profil] Erreur get_or_create_profile({user_id}): {e}")
             return None
@@ -87,6 +73,7 @@ class ProfilCommand(commands.Cog):
     async def _send_profil(self, ctx_or_interaction, author, guild, target_user=None):
         user = target_user or author
         profil = await self.get_or_create_profile(user)
+
         if not profil:
             await safe_respond(ctx_or_interaction, "❌ Impossible de charger le profil.", ephemeral=True)
             return
@@ -105,6 +92,7 @@ class ProfilCommand(commands.Cog):
             ),
             color=discord.Color.green() if vaact_name else discord.Color.blurple()
         )
+
         if user.avatar:
             embed.set_thumbnail(url=user.avatar.url)
         embed.set_footer(text=f"Utilisateur : {user.name} ({user.id})")
@@ -112,14 +100,18 @@ class ProfilCommand(commands.Cog):
         # View si pseudo non défini (et si c’est ton propre profil)
         view = None
         if not vaact_name and (target_user is None or target_user == author):
-            sheet_pseudos = await self.fetch_sheet_pseudos()
+            # On récupère tous les pseudos déjà pris depuis Supabase
             taken = [
                 p["vaact_name"] for p in supabase.table("profil")
                 .select("vaact_name").not_("vaact_name", "is", None).execute().data
             ]
-            available = [p for p in sheet_pseudos if p not in taken]
+
+            # On crée une liste factice de pseudos dispo (à remplacer plus tard si besoin)
+            available = [f"VAACT_Player_{i}" for i in range(1, 26) if f"VAACT_Player_{i}" not in taken]
+
             if available:
                 options = [discord.SelectOption(label=p) for p in available[:25]]  # max 25 options Discord
+
                 class VAACSelect(Select):
                     def __init__(self, user_id):
                         super().__init__(
@@ -129,6 +121,7 @@ class ProfilCommand(commands.Cog):
                             options=options
                         )
                         self.user_id = user_id
+
                     async def callback(self, interaction: discord.Interaction):
                         selected = self.values[0]
                         supabase.table("profil").update({"vaact_name": selected}).eq("user_id", self.user_id).execute()
@@ -139,10 +132,12 @@ class ProfilCommand(commands.Cog):
                         for child in self.view.children:
                             child.disabled = True
                         await interaction.message.edit(view=self.view)
+
                 class VAACSelectView(View):
                     def __init__(self, user_id):
                         super().__init__(timeout=120)
                         self.add_item(VAACSelect(user_id))
+
                 view = VAACSelectView(str(user.id))
 
         if isinstance(ctx_or_interaction, discord.Interaction):
@@ -170,7 +165,7 @@ class ProfilCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX !profil
     # ────────────────────────────────────────────────────────────────────────
-    @commands.command(name="profil")
+    @commands.command(name="profil", aliases=["p"], help="📋 Affiche ton profil ou celui d’un autre utilisateur")
     @commands.cooldown(1, 3.0, commands.BucketType.user)
     async def prefix_profil(self, ctx: commands.Context, member: discord.Member = None):
         await self._send_profil(ctx, ctx.author, ctx.guild, member)
