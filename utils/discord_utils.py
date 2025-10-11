@@ -50,7 +50,19 @@ async def safe_edit(message: discord.Message, content=None, **kwargs):
     return await _discord_action(message.edit, content=content, **kwargs)
 
 async def safe_respond(interaction: discord.Interaction, content=None, **kwargs):
-    return await _discord_action(interaction.response.send_message, content=content, **kwargs)
+    """
+    Répond à une interaction de façon sécurisée :
+    - Si possible, utilise interaction.response.send_message()
+    - Sinon, utilise interaction.followup.send() (si déjà répondu)
+    """
+    try:
+        if not interaction.response.is_done():
+            return await _discord_action(interaction.response.send_message, content=content, **kwargs)
+        else:
+            return await _discord_action(interaction.followup.send, content=content, **kwargs)
+    except Exception as e:
+        print(f"[safe_respond] Erreur → {e}")
+        return None
 
 async def safe_followup(interaction: discord.Interaction, content=None, **kwargs):
     return await _discord_action(interaction.followup.send, content=content, **kwargs)
@@ -62,10 +74,13 @@ async def safe_add_reaction(message: discord.Message, emoji: str, delay: float =
     return await _discord_action(message.add_reaction, emoji, delay=delay)
 
 async def safe_delete(message: discord.Message, delay: float = 0):
-    return await _discord_action(message.delete, delay=delay)
+    result = await _discord_action(message.delete)
+    if delay > 0:
+        await asyncio.sleep(delay)
+    return result
 
-async def safe_clear_reactions(message: discord.Message):
-    return await _discord_action(message.clear_reactions)
-
-
-
+async def safe_clear_reactions(message: discord.Message, delay: float = 0.3):
+    result = await _discord_action(message.clear_reactions)
+    if delay > 0:
+        await asyncio.sleep(delay)
+    return result
