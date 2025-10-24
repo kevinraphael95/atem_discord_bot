@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 discord_utils.py — Fonctions utilitaires optimisées avec gestion du rate-limit
-# Objectif : Fournir des fonctions sécurisées pour send/edit/respond Discord
+# 📌 discord_utils.py — Fonctions utilitaires sécurisées pour Discord
+# Objectif : Fournir des fonctions send/edit/respond optimisées avec gestion du rate-limit
 # Version : ✅ Optimisée et robuste, backoff exponentiel, logs clairs
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -50,19 +50,7 @@ async def safe_edit(message: discord.Message, content=None, **kwargs):
     return await _discord_action(message.edit, content=content, **kwargs)
 
 async def safe_respond(interaction: discord.Interaction, content=None, **kwargs):
-    """
-    Répond à une interaction de façon sécurisée :
-    - Si possible, utilise interaction.response.send_message()
-    - Sinon, utilise interaction.followup.send() (si déjà répondu)
-    """
-    try:
-        if not interaction.response.is_done():
-            return await _discord_action(interaction.response.send_message, content=content, **kwargs)
-        else:
-            return await _discord_action(interaction.followup.send, content=content, **kwargs)
-    except Exception as e:
-        print(f"[safe_respond] Erreur → {e}")
-        return None
+    return await _discord_action(interaction.response.send_message, content=content, **kwargs)
 
 async def safe_followup(interaction: discord.Interaction, content=None, **kwargs):
     return await _discord_action(interaction.followup.send, content=content, **kwargs)
