@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 profil.py — Commande pour afficher le profil VAACT d’un utilisateur
-# Objectif : Affiche les informations et permet de choisir son pseudo VAACT
-# Catégorie : Profil
+# 📌 profil.py — Commande /profil et !profil
+# Objectif : Affiche le profil complet d’un utilisateur et permet de choisir son pseudo VAACT
+# Catégorie : VAACT
 # Accès : Public
 # Cooldown : 1 utilisation / 3 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -10,26 +10,27 @@
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 from discord.ui import View, Select
+from utils.discord_utils import safe_send, safe_respond, safe_followup
 from utils.supabase_client import supabase
-from utils.discord_utils import safe_send, safe_respond
 import json
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class ProfilCommand(commands.Cog):
-    """Commande /profil et !profil — Affiche le profil complet et permet de choisir
-       son pseudo VAACT directement depuis Supabase"""
-
+    """
+    Commande /profil et !profil — Affiche le profil complet et permet de choisir
+    son pseudo VAACT directement depuis Supabase
+    """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne : récupérer/initialiser un profil
-    # ────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────
     async def get_or_create_profile(self, user):
         user_id = str(user.id)
         try:
@@ -67,15 +68,18 @@ class ProfilCommand(commands.Cog):
             print(f"[Profil] Erreur get_or_create_profile({user_id}): {e}")
             return None
 
-    # ────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne : envoyer le profil
-    # ────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────
     async def _send_profil(self, ctx_or_interaction, author, guild, target_user=None):
         user = target_user or author
         profil = await self.get_or_create_profile(user)
 
         if not profil:
-            await safe_respond(ctx_or_interaction, "❌ Impossible de charger le profil.", ephemeral=True)
+            if isinstance(ctx_or_interaction, discord.Interaction):
+                await safe_respond(ctx_or_interaction, "❌ Impossible de charger le profil.", ephemeral=True)
+            else:
+                await safe_send(ctx_or_interaction.channel, "❌ Impossible de charger le profil.")
             return
 
         cartefav = profil.get("cartefav", "Aucune")
@@ -100,17 +104,12 @@ class ProfilCommand(commands.Cog):
         # View si pseudo non défini (et si c’est ton propre profil)
         view = None
         if not vaact_name and (target_user is None or target_user == author):
-            # On récupère tous les pseudos déjà pris depuis Supabase
-            taken = [
-                p["vaact_name"] for p in supabase.table("profil")
-                .select("vaact_name").not_("vaact_name", "is", None).execute().data
-            ]
-
-            # On crée une liste factice de pseudos dispo (à remplacer plus tard si besoin)
+            taken = [p["vaact_name"] for p in supabase.table("profil")
+                     .select("vaact_name").not_("vaact_name", "is", None).execute().data]
             available = [f"VAACT_Player_{i}" for i in range(1, 26) if f"VAACT_Player_{i}" not in taken]
 
             if available:
-                options = [discord.SelectOption(label=p) for p in available[:25]]  # max 25 options Discord
+                options = [discord.SelectOption(label=p) for p in available[:25]]
 
                 class VAACSelect(Select):
                     def __init__(self, user_id):
@@ -140,17 +139,18 @@ class ProfilCommand(commands.Cog):
 
                 view = VAACSelectView(str(user.id))
 
+        # Envoi du message
         if isinstance(ctx_or_interaction, discord.Interaction):
             if ctx_or_interaction.response.is_done():
-                await ctx_or_interaction.followup.send(embed=embed, view=view)
+                await safe_followup(ctx_or_interaction, embed=embed, view=view)
             else:
-                await ctx_or_interaction.response.send_message(embed=embed, view=view)
+                await safe_respond(ctx_or_interaction, embed=embed, view=view)
         else:
-            await safe_send(ctx_or_interaction, embed=embed, view=view)
+            await safe_send(ctx_or_interaction.channel, embed=embed, view=view)
 
-    # ────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH /profil
-    # ────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="profil",
         description="📋 Affiche ton profil ou celui d’un autre utilisateur"
@@ -162,9 +162,9 @@ class ProfilCommand(commands.Cog):
             print(f"[ERREUR /profil] {e}")
             await safe_respond(interaction, "❌ Une erreur est survenue.", ephemeral=True)
 
-    # ────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX !profil
-    # ────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="profil", aliases=["p"], help="📋 Affiche ton profil ou celui d’un autre utilisateur")
     @commands.cooldown(1, 3.0, commands.BucketType.user)
     async def prefix_profil(self, ctx: commands.Context, member: discord.Member = None):
@@ -179,5 +179,3 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "VAACT"
     await bot.add_cog(cog)
-
-
