@@ -47,9 +47,7 @@ class AkinatorView(View):
         self.asked = set()
         self.question_count = 0
 
-    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Choix de la meilleure question
-    # ────────────────────────────────────────────────────────────────────────────
     def choose_best_question(self):
         best_q = None
         best_balance = float("inf")
@@ -60,7 +58,6 @@ class AkinatorView(View):
             if not key or key in self.asked:
                 continue
 
-            # Ne garde que les valeurs présentes dans les cartes restantes
             available_values = [
                 v for v in values if any(v in c.get(key, []) for c in self.remaining_cards)
             ]
@@ -77,9 +74,7 @@ class AkinatorView(View):
 
         return best_q
 
-    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Pose la question suivante
-    # ────────────────────────────────────────────────────────────────────────────
     async def ask_question(self, interaction=None):
         top_cards = sorted(self.remaining_cards, key=lambda c: c.get("atk", 0), reverse=True)[:3]
         can_propose = self.question_count >= 8 or len(self.remaining_cards) <= 3
@@ -113,7 +108,6 @@ class AkinatorView(View):
 
         self.current_question = q
         self.asked.add(q["filter_key"])
-
         question_text = (q.get("text") or "").replace("{value}", self.current_value or "…")
 
         embed = discord.Embed(
@@ -132,9 +126,7 @@ class AkinatorView(View):
         else:
             await safe_edit(self.message, embed=embed, view=self)
 
-    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Réponse du joueur
-    # ────────────────────────────────────────────────────────────────────────────
     async def process_answer(self, answer: str, interaction: discord.Interaction):
         if answer == "Abandonner":
             await safe_edit(interaction.message, embed=discord.Embed(
@@ -174,13 +166,9 @@ class Akinator(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
     # 📥 Téléchargement aléatoire de cartes (max 150)
-    # ────────────────────────────────────────────────────────────────────────────
     async def fetch_random_cards(self, limit=150):
-        """Télécharge un petit échantillon aléatoire de cartes (rapide, léger)"""
         url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?num={limit}&offset={random.randint(0, 15000)}"
-
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 data = await resp.json()
@@ -202,18 +190,16 @@ class Akinator(commands.Cog):
             })
         return cards
 
-    # ────────────────────────────────────────────────────────────────────────────
     # 🎮 Lancement du jeu
-    # ────────────────────────────────────────────────────────────────────────────
-    async def start_akinator(self, channel):
+    async def start_akinator(self, ctx_or_channel, interaction=None):
         questions = load_questions()
         if not questions:
-            await safe_send(channel, "❌ Impossible de charger les questions.")
+            await safe_send(ctx_or_channel, "❌ Impossible de charger les questions.")
             return
 
         cards = await self.fetch_random_cards()
         if not cards:
-            await safe_send(channel, "❌ Impossible de récupérer les cartes.")
+            await safe_send(ctx_or_channel, "❌ Impossible de récupérer les cartes.")
             return
 
         view = AkinatorView(self.bot, questions, cards)
@@ -222,21 +208,22 @@ class Akinator(commands.Cog):
             description="Pense à une carte Yu-Gi-Oh!... Je vais la deviner 👀",
             color=discord.Color.purple()
         )
-        view.message = await safe_send(channel, embed=embed, view=view)
-        await view.ask_question()  # ✅ pose la première question correctement
 
-    # ────────────────────────────────────────────────────────────────────────────
+        if interaction:  # Slash command
+            view.message = await interaction.followup.send(embed=embed, view=view)
+            await view.ask_question(interaction)
+        else:  # Préfix command
+            view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
+            await view.ask_question()
+
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(name="akinator", description="Joue à l’Akinator Yu-Gi-Oh! 🎩")
     @app_commands.checks.cooldown(1, 15.0, key=lambda i: i.user.id)
     async def slash_akinator(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self.start_akinator(interaction.channel)
+        await self.start_akinator(interaction.channel, interaction)
 
-    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="akinator")
     @commands.cooldown(1, 15.0, commands.BucketType.user)
     async def prefix_akinator(self, ctx: commands.Context):
