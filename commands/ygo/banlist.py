@@ -55,6 +55,7 @@ class Banlist(commands.Cog):
         if format_name not in valid_formats:
             return await safe_respond(ctx_or_inter, f"❌ Format invalide. Utilisez TCG ou OCG.")
 
+        # ──────────────── Récupérer toutes les cartes de la banlist ────────────────
         url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?banlist={format_name.lower()}&language=fr"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -69,9 +70,7 @@ class Banlist(commands.Cog):
         # ──────────────── Trier par catégorie ────────────────
         banned, limited, semi_limited = [], [], []
         for card in cards:
-            # L'API récente place le banlist dans banlist_info
-            ban_info = card.get("banlist_info", {})
-            ban_status = ban_info.get(format_name.lower(), "").lower()
+            ban_status = card.get(f"ban_{format_name.lower()}", "").lower()
             entry = {
                 "name": card["name"],
                 "img": card["card_images"][0]["image_url_cropped"] if card.get("card_images") else None
