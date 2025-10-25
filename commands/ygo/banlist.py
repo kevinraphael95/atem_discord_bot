@@ -69,8 +69,13 @@ class Banlist(commands.Cog):
         # ──────────────── Trier par catégorie ────────────────
         banned, limited, semi_limited = [], [], []
         for card in cards:
-            ban_status = card.get(f"ban_{format_name.lower()}", "").lower()
-            entry = {"name": card["name"], "img": card["card_images"][0]["image_url_cropped"] if card.get("card_images") else None}
+            # L'API récente place le banlist dans banlist_info
+            ban_info = card.get("banlist_info", {})
+            ban_status = ban_info.get(format_name.lower(), "").lower()
+            entry = {
+                "name": card["name"],
+                "img": card["card_images"][0]["image_url_cropped"] if card.get("card_images") else None
+            }
             if ban_status == "forbidden":
                 banned.append(entry)
             elif ban_status == "limited":
@@ -125,6 +130,8 @@ class Banlist(commands.Cog):
                     await interaction.response.edit_message(embed=self.embeds[self.index], view=self)
 
         # ──────────────── Envoi initial ────────────────
+        if not embeds:
+            return await safe_respond(ctx_or_inter, f"❌ Aucune carte trouvée pour {format_name}.")
         view = PaginationView(embeds)
         await safe_send(ctx_or_inter.channel if hasattr(ctx_or_inter, "channel") else ctx_or_inter,
                         embed=embeds[0], view=view)
