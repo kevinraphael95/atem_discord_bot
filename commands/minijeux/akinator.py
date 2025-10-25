@@ -166,15 +166,31 @@ class Akinator(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # 📥 Téléchargement aléatoire de cartes (max 150)
+    # 📥 Téléchargement aléatoire de cartes (max 150, sûr)
     async def fetch_random_cards(self, limit=150):
-        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?num={limit}&offset={random.randint(0, 15000)}"
+        """
+        Récupère un nombre limité de cartes Yu-Gi-Oh! aléatoires depuis l'API v7
+        en respectant les limites et sans dépendre d'offset aléatoire.
+        """
+        safe_limit = min(limit, 150)  # sécurité : max 150 cartes
+        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
+
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
+                if resp.status != 200:
+                    print(f"[ERREUR] Impossible de récupérer les cartes: HTTP {resp.status}")
+                    return []
                 data = await resp.json()
 
+        all_cards = data.get("data", [])
+        if not all_cards:
+            return []
+
+        # Tirage aléatoire local pour limiter le nombre de cartes
+        sampled_cards = random.sample(all_cards, min(safe_limit, len(all_cards)))
+
         cards = []
-        for c in data.get("data", []):
+        for c in sampled_cards:
             cards.append({
                 "id": c.get("id"),
                 "name": c.get("name", "Inconnue"),
@@ -188,6 +204,7 @@ class Akinator(commands.Cog):
                 "linkval": c.get("linkval", 0),
                 "card_images": c.get("card_images", []),
             })
+
         return cards
 
     # 🎮 Lancement du jeu
@@ -206,7 +223,7 @@ class Akinator(commands.Cog):
         embed = discord.Embed(
             title="🎩 Akinator Yu-Gi-Oh!",
             description="Pense à une carte Yu-Gi-Oh!... Je vais la deviner 👀",
-            color=discord.Color.purple()
+            color=discord.Color.purple
         )
 
         if interaction:  # Slash command
