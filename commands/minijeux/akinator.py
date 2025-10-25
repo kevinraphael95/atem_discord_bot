@@ -97,12 +97,18 @@ class AkinatorView(View):
             if top_cards and "card_images" in top_cards[0]:
                 embed.set_image(url=top_cards[0]["card_images"][0].get("image_url", ""))
 
-            await safe_edit(interaction.message, embed=embed, view=None)
+            if interaction:
+                await safe_edit(interaction.message, embed=embed, view=None)
+            else:
+                await safe_edit(self.message, embed=embed, view=None)
             return
 
         q = self.choose_best_question()
         if not q:
-            await safe_edit(interaction.message, content="❌ Plus de questions disponibles.", view=None)
+            if interaction:
+                await safe_edit(interaction.message, content="❌ Plus de questions disponibles.", view=None)
+            else:
+                await safe_edit(self.message, content="❌ Plus de questions disponibles.", view=None)
             return
 
         self.current_question = q
@@ -121,7 +127,10 @@ class AkinatorView(View):
             style = discord.ButtonStyle.danger if label == "Abandonner" else discord.ButtonStyle.primary
             self.add_item(AkinatorButton(self, label, style))
 
-        await safe_edit(interaction.message, embed=embed, view=self)
+        if interaction:
+            await safe_edit(interaction.message, embed=embed, view=self)
+        else:
+            await safe_edit(self.message, embed=embed, view=self)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Réponse du joueur
@@ -214,7 +223,7 @@ class Akinator(commands.Cog):
             color=discord.Color.purple()
         )
         view.message = await safe_send(channel, embed=embed, view=view)
-        await view.ask_question()
+        await view.ask_question()  # ✅ pose la première question correctement
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
