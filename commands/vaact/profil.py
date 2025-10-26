@@ -35,16 +35,12 @@ class ProfilCommand(commands.Cog):
         user_id = str(user.id)
         try:
             profil_data = supabase.table("profil").select("*").eq("user_id", user_id).execute()
-            if profil_data.data:
+            profil = None
+            if profil_data.data and len(profil_data.data) > 0:
                 profil = profil_data.data[0]
-            else:
-                supabase.table("profil").insert({
-                    "user_id": user_id,
-                    "username": user.name,
-                    "cartefav": "Aucune",
-                    "vaact_name": None,
-                    "fav_decks_vaact": []
-                }).execute()
+
+            if not profil:
+                # Crée un profil vide si inexistant
                 profil = {
                     "user_id": user_id,
                     "username": user.name,
@@ -52,8 +48,11 @@ class ProfilCommand(commands.Cog):
                     "vaact_name": None,
                     "fav_decks_vaact": []
                 }
+                supabase.table("profil").insert(profil).execute()
 
-            # Normalisation des decks préférés
+            # Normalisation des champs
+            profil["cartefav"] = profil.get("cartefav") or "Aucune"
+            profil["vaact_name"] = profil.get("vaact_name") or None
             fav_decks = profil.get("fav_decks_vaact", [])
             if isinstance(fav_decks, str):
                 try:
@@ -66,15 +65,17 @@ class ProfilCommand(commands.Cog):
                 fav_decks = []
             profil["fav_decks_vaact"] = fav_decks
 
-            # Normalisation carte préférée
-            if not profil.get("cartefav"):
-                profil["cartefav"] = "Aucune"
-
             return profil
 
         except Exception as e:
             print(f"[Profil] Erreur get_or_create_profile({user_id}): {e}")
-            return None
+            return {
+                "user_id": user_id,
+                "username": user.name,
+                "cartefav": "Aucune",
+                "vaact_name": None,
+                "fav_decks_vaact": []
+            }
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne : envoyer le profil
