@@ -190,7 +190,7 @@ class Carte(commands.Cog):
         # ── Infos carte ──────────────────────────────────────────────────────────
         card_name = carte.get("name", "Carte inconnue")
         card_id = carte.get("id", "?")
-        konami_id = carte.get("card_images", [{}])[0].get("id", "?")
+        konami_id = carte.get("konami_id", "?")
         type_raw = carte.get("type", "")
         race = carte.get("race", "")
         attr = carte.get("attribute", "")
