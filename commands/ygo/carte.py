@@ -9,69 +9,34 @@
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 📦 Imports nécessaires
+# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
 import urllib.parse
+import json
+from pathlib import Path
 from utils.discord_utils import safe_send, safe_respond
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎨 Mappages décoratifs
+# 🎨 Chargement du mappage décoratif depuis data/cardinfofr.json
 # ────────────────────────────────────────────────────────────────────────────────
-ATTRIBUT_EMOJI = {
-    "LIGHT": "☀️ Lumière",
-    "DARK": "🌑 Ténèbres",
-    "EARTH": "🌍 Terre",
-    "WATER": "💧 Eau",
-    "FIRE": "🔥 Feu",
-    "WIND": "🌪️ Vent",
-    "DIVINE": "✨ Divin"
-}
+CARDINFO_PATH = Path("data/cardinfofr.json")
 
-TYPE_EMOJI = {
-    "Aqua": "💦 Aqua",
-    "Beast": "🐾 Bête",
-    "Beast-Warrior": "🐺⚔️ Bête-Guerrier",
-    "Winged Beast": "🦅 Bête Ailée",
-    "Cyberse": "🖥️ Cyberse",
-    "Fiend": "😈 Démon",
-    "Dinosaur": "🦖 Dinosaure",
-    "Dragon": "🐉 Dragon",
-    "Fairy": "🧝 Elfe",
-    "Warrior": "🗡️ Guerrier",
-    "Insect": "🐛 Insecte",
-    "Illusion": "🎭 Illusion",
-    "Machine": "🤖 Machine",
-    "Spellcaster": "🔮 Magicien",
-    "Plant": "🌱 Plante",
-    "Fish": "🐟 Poisson",
-    "Psychic": "🧠 Psychique",
-    "Pyro": "🔥 Pyro",
-    "Reptile": "🦎 Reptile",
-    "Rock": "🪨 Rocher",
-    "Sea Serpent": "🐍 Serpent de mer",
-    "Thunder": "⚡ Tonnerre",
-    "Wyrm": "🐲 Wyrm",
-    "Zombie": "🧟 Zombie",
-    "Divine-Beast": "👑 Bête-Divine"
-}
+try:
+    with CARDINFO_PATH.open("r", encoding="utf-8") as f:
+        CARDINFO = json.load(f)
+except FileNotFoundError:
+    print("[ERREUR] Fichier data/cardinfofr.json introuvable. Vérifie le chemin.")
+    CARDINFO = {"ATTRIBUT_EMOJI": {}, "TYPE_EMOJI": {}, "TYPE_TRANSLATION": {}, "TYPE_COLOR": {}}
 
-TYPE_TRANSLATION = {
-    "normal monster": "Monstre Normal",
-    "effect monster": "Monstre à effet",
-    "fusion monster": "Monstre Fusion",
-    "ritual monster": "Monstre Rituel",
-    "synchro monster": "Monstre Synchro",
-    "xyz monster": "Monstre Xyz",
-    "link monster": "Monstre Lien",
-    "pendulum monster": "Monstre Pendule",
-    "spell card": "Magie",
-    "trap card": "Piège",
-    "skill card": "Carte Compétence",
-    "token": "Jeton"
-}
+ATTRIBUT_EMOJI = CARDINFO.get("ATTRIBUT_EMOJI", {})
+TYPE_EMOJI = CARDINFO.get("TYPE_EMOJI", {})
+TYPE_TRANSLATION = CARDINFO.get("TYPE_TRANSLATION", {})
 
 TYPE_COLOR = {
     "monster": discord.Color.red(),
