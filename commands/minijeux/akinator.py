@@ -203,12 +203,12 @@ class Akinator(commands.Cog):
     async def start_akinator(self, ctx_or_interaction):
         questions = load_questions()
         if not questions:
-            await safe_send(ctx_or_interaction, "❌ Impossible de charger les questions.")
+            await safe_send(ctx_or_interaction.channel, "❌ Impossible de charger les questions.")
             return
 
         cards = await self.fetch_random_cards()
         if not cards:
-            await safe_send(ctx_or_interaction, "❌ Impossible de récupérer les cartes.")
+            await safe_send(ctx_or_interaction.channel, "❌ Impossible de récupérer les cartes.")
             return
 
         view = AkinatorView(self.bot, questions, cards)
@@ -219,12 +219,9 @@ class Akinator(commands.Cog):
         )
         view.add_item(StartButton(view))
 
-        # ✅ Gestion ctx vs interaction
-        if isinstance(ctx_or_interaction, discord.Interaction):
-            await ctx_or_interaction.response.send_message(embed=embed, view=view)
-            view.message = await ctx_or_interaction.original_response()
-        else:
-            view.message = await safe_send(ctx_or_interaction, embed=embed, view=view)
+        # ✅ Correction : envoie toujours via le channel
+        channel = ctx_or_interaction.channel if hasattr(ctx_or_interaction, "channel") else ctx_or_interaction
+        view.message = await safe_send(channel, embed=embed, view=view)
 
     @app_commands.command(name="akinator", description="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def slash_akinator(self, interaction: discord.Interaction):
