@@ -75,6 +75,7 @@ class AkinatorView(View):
     async def ask_question(self, interaction=None):
         top_cards = sorted(self.remaining_cards, key=lambda c: c.get("atk", 0), reverse=True)[:3]
         can_propose = self.question_count >= 8 or len(self.remaining_cards) <= 3
+
         if can_propose or not self.remaining_cards:
             embed = discord.Embed(
                 title="🔮 Résultat Akinator",
@@ -87,6 +88,7 @@ class AkinatorView(View):
             )
             if top_cards and "card_images" in top_cards[0]:
                 embed.set_image(url=top_cards[0]["card_images"][0].get("image_url", ""))
+
             if interaction:
                 await safe_edit(interaction.message, embed=embed, view=None)
             else:
@@ -162,6 +164,8 @@ class StartButton(Button):
         self.view = view
 
     async def callback(self, interaction: discord.Interaction):
+        # Référence du message pour que ask_question puisse éditer
+        self.view.message = interaction.message
         self.view.clear_items()
         await self.view.ask_question(interaction)
 
@@ -179,15 +183,18 @@ class Akinator(commands.Cog):
     async def fetch_random_cards(self, limit=150):
         safe_limit = min(limit, 150)
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
+
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
                     print(f"[ERREUR] Impossible de récupérer les cartes: HTTP {resp.status}")
                     return []
                 data = await resp.json()
+
         all_cards = data.get("data", [])
         if not all_cards:
             return []
+
         sampled_cards = random.sample(all_cards, min(safe_limit, len(all_cards)))
         cards = []
         for c in sampled_cards:
@@ -204,6 +211,7 @@ class Akinator(commands.Cog):
                 "linkval": c.get("linkval", 0),
                 "card_images": c.get("card_images", []),
             })
+
         return cards
 
     # 🎮 Lancement du jeu
@@ -212,6 +220,7 @@ class Akinator(commands.Cog):
         if not questions:
             await safe_send(ctx_or_channel, "❌ Impossible de charger les questions.")
             return
+
         cards = await self.fetch_random_cards()
         if not cards:
             await safe_send(ctx_or_channel, "❌ Impossible de récupérer les cartes.")
@@ -254,4 +263,7 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "Minijeux"
     await bot.add_cog(cog)
-        
+    
+
+
+
