@@ -5,7 +5,7 @@
 #   - Permettre de naviguer entre plusieurs illustrations si disponibles
 # - Thumbnail ou image principale
 # - Pagination pour artworks alternatifs
-# Catégorie : 🎨 Illustrations
+# Catégorie : 
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -112,5 +112,5 @@ async def setup(bot: commands.Bot):
     cog = Art(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Fun&Random"
+            command.category = "🃏 Yu-Gi-Oh!"
     await bot.add_cog(cog)
