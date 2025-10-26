@@ -5,7 +5,7 @@
 #   - Permettre de naviguer entre plusieurs illustrations si disponibles
 #   - Utilise utils/card_utils pour la recherche
 # Catégorie :
-#   - Illustrations
+#   - 
 # Accès :
 #   - Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -90,8 +90,6 @@ class Art(commands.Cog):
 
         await safe_send(ctx, embed=embed, view=ArtPagination(images, titre))
 
-    def cog_load(self):
-        self.art.category = "🎨 Illustrations"
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
