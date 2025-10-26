@@ -2,10 +2,9 @@
 # 📌 art.py — Commande interactive !art
 # Objectif :
 #   - Afficher les illustrations d’une carte Yu-Gi-Oh!
-#   - Permettre de naviguer entre plusieurs illustrations si disponibles
-# - Thumbnail ou image principale
-# - Pagination pour artworks alternatifs
-# Catégorie : 
+#   - Utiliser la recherche centralisée dans utils/card_utils.py
+#   - Pagination entre les différentes illustrations
+# Catégorie : 🎨 Illustrations
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -15,42 +14,22 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
-import aiohttp
-import urllib.parse
-import json
-from pathlib import Path
 from utils.discord_utils import safe_send
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Helpers
-# ────────────────────────────────────────────────────────────────────────────────
-async def fetch_card_multilang(nom: str) -> dict:
-    nom_encode = urllib.parse.quote(nom)
-    languages = ["fr", "de", "it", "pt", ""]
-    async with aiohttp.ClientSession() as session:
-        for lang in languages:
-            url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
-            if lang:
-                url += f"&language={lang}"
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if "data" in data and len(data["data"]) > 0:
-                        return data["data"][0]
-    return None
+from utils.card_utils import search_card  # ✅ Utilisation du module centralisé
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ View — Pagination des illustrations
 # ────────────────────────────────────────────────────────────────────────────────
 class ArtPagination(View):
-    def __init__(self, images: list[str]):
+    def __init__(self, images: list[str], card_name: str):
         super().__init__(timeout=120)
         self.images = images
         self.index = 0
+        self.card_name = card_name
 
     async def update_embed(self, interaction: discord.Interaction):
         embed = discord.Embed(
-            title=f"Illustration {self.index+1}/{len(self.images)}",
+            title=f"{self.card_name} — Illustration {self.index+1}/{len(self.images)}",
             color=discord.Color.purple()
         )
         embed.set_image(url=self.images[self.index])
@@ -82,28 +61,31 @@ class Art(commands.Cog):
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def art(self, ctx: commands.Context, *, nom: str):
-        carte = await fetch_card_multilang(nom)
+        # ── Recherche centralisée via card_utils ────────────────────────────────
+        carte, langue, msg = await search_card(nom)
         if not carte:
-            await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.")
+            await safe_send(ctx.channel, msg or f"❌ Carte introuvable pour `{nom}`.")
             return
 
-        # Récupération des images
+        # ── Récupération des images ─────────────────────────────────────────────
         images = [img.get("image_url") for img in carte.get("card_images", []) if img.get("image_url")]
         if not images:
             await safe_send(ctx.channel, "❌ Aucune illustration disponible pour cette carte.")
             return
 
-        # Embed initial
+        # ── Embed initial ───────────────────────────────────────────────────────
+        card_name = carte.get("name", "Carte inconnue")
         embed = discord.Embed(
-            title=f"{carte.get('name', 'Carte inconnue')} — Illustration 1/{len(images)}",
+            title=f"{card_name} — Illustration 1/{len(images)}",
             color=discord.Color.purple()
         )
         embed.set_image(url=images[0])
-        await safe_send(ctx.channel, embed=embed, view=ArtPagination(images))
+        embed.set_footer(text=f"Langue : {langue.upper()}")
+
+        await safe_send(ctx.channel, embed=embed, view=ArtPagination(images, card_name))
 
     def cog_load(self):
         self.art.category = "🎨 Illustrations"
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
