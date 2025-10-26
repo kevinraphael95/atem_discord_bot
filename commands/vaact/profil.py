@@ -40,17 +40,15 @@ class ProfilCommand(commands.Cog):
                 profil = {
                     "user_id": user_id,
                     "username": user.name,
-                    "cartefav": None,
-                    "vaact_name": None,
-                    "fav_decks_vaact": None
+                    "cartefav": "Non défini",
+                    "vaact_name": "Non défini",
+                    "fav_decks_vaact": "Non défini"
                 }
                 supabase.table("profil").insert(profil).execute()
-
-            # Normalisation des champs
-            profil["cartefav"] = profil.get("cartefav") or "Non défini"
-            profil["vaact_name"] = profil.get("vaact_name") or "Non défini"
-            deck = profil.get("fav_decks_vaact") or "Non défini"
-            profil["fav_decks_vaact"] = deck
+            else:
+                profil["cartefav"] = profil.get("cartefav") or "Non défini"
+                profil["vaact_name"] = profil.get("vaact_name") or "Non défini"
+                profil["fav_decks_vaact"] = profil.get("fav_decks_vaact") or "Non défini"
 
             return profil
 
