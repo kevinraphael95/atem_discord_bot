@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 banlist.py — Commande simple /banlist et !banlist
 # Objectif : Affiche les cartes d'une banlist (TCG, OCG, GOAT)
-# Catégorie : Autre
+# Catégorie : 
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -101,5 +101,5 @@ async def setup(bot: commands.Bot):
     cog = Banlist(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Autre"
+            command.category = "🃏 Yu-Gi-Oh!"
     await bot.add_cog(cog)
