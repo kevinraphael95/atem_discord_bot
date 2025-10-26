@@ -2,10 +2,12 @@
 # 📌 art.py — Commande interactive !art
 # Objectif :
 #   - Afficher les illustrations d’une carte Yu-Gi-Oh!
-#   - Utiliser la recherche centralisée dans utils/card_utils.py
-#   - Pagination entre les différentes illustrations
-# Catégorie : 🎨 Illustrations
-# Accès : Public
+#   - Permettre de naviguer entre plusieurs illustrations si disponibles
+#   - Utilise utils/card_utils pour la recherche
+# Catégorie :
+#   - Illustrations
+# Accès :
+#   - Public
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,22 +16,24 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
+
 from utils.discord_utils import safe_send
-from utils.card_utils import search_card  # ✅ Utilisation du module centralisé
+from utils.card_utils import search_card
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ View — Pagination des illustrations
 # ────────────────────────────────────────────────────────────────────────────────
 class ArtPagination(View):
-    def __init__(self, images: list[str], card_name: str):
+    """Interface de navigation entre plusieurs illustrations."""
+    def __init__(self, images: list[str], titre: str):
         super().__init__(timeout=120)
         self.images = images
         self.index = 0
-        self.card_name = card_name
+        self.titre = titre
 
     async def update_embed(self, interaction: discord.Interaction):
         embed = discord.Embed(
-            title=f"{self.card_name} — Illustration {self.index+1}/{len(self.images)}",
+            title=f"{self.titre} — Illustration {self.index + 1}/{len(self.images)}",
             color=discord.Color.purple()
         )
         embed.set_image(url=self.images[self.index])
@@ -61,28 +65,30 @@ class Art(commands.Cog):
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def art(self, ctx: commands.Context, *, nom: str):
-        # ── Recherche centralisée via card_utils ────────────────────────────────
-        carte, langue, msg = await search_card(nom)
-        if not carte:
-            await safe_send(ctx.channel, msg or f"❌ Carte introuvable pour `{nom}`.")
+        carte, langue, message = await search_card(nom)
+
+        if message:  # Message d’erreur ou d’avertissement
+            await safe_send(ctx, message)
             return
 
-        # ── Récupération des images ─────────────────────────────────────────────
+        if not carte:
+            await safe_send(ctx, f"❌ Impossible de trouver la carte `{nom}`.")
+            return
+
+        # Récupération des illustrations
         images = [img.get("image_url") for img in carte.get("card_images", []) if img.get("image_url")]
         if not images:
-            await safe_send(ctx.channel, "❌ Aucune illustration disponible pour cette carte.")
+            await safe_send(ctx, "❌ Aucune illustration disponible pour cette carte.")
             return
 
-        # ── Embed initial ───────────────────────────────────────────────────────
-        card_name = carte.get("name", "Carte inconnue")
+        titre = f"{carte.get('name', 'Carte inconnue')} ({langue.upper()})"
         embed = discord.Embed(
-            title=f"{card_name} — Illustration 1/{len(images)}",
+            title=f"{titre} — Illustration 1/{len(images)}",
             color=discord.Color.purple()
         )
         embed.set_image(url=images[0])
-        embed.set_footer(text=f"Langue : {langue.upper()}")
 
-        await safe_send(ctx.channel, embed=embed, view=ArtPagination(images, card_name))
+        await safe_send(ctx, embed=embed, view=ArtPagination(images, titre))
 
     def cog_load(self):
         self.art.category = "🎨 Illustrations"
