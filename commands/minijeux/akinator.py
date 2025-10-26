@@ -49,11 +49,6 @@ class AkinatorView(View):
 
     # 🔹 Choix de la meilleure question
     def choose_best_question(self):
-        """
-        Sélectionne la question la plus discriminante parmi celles restantes.
-        La logique : on cherche la question qui divise le plus équitablement
-        les cartes restantes (proche de la moitié pour Oui/Non).
-        """
         best_q = None
         best_balance = float("inf")
 
@@ -63,20 +58,17 @@ class AkinatorView(View):
                 continue
 
             values = q.get("filter_value", [])
-            # On ne garde que les valeurs présentes dans les cartes restantes
             available_values = [
                 v for v in values if any(v in c.get(key, []) for c in self.remaining_cards)
             ]
             if not available_values:
                 continue
 
-            # On calcule pour chaque valeur l'équilibre Oui/Non
             for val in available_values:
                 count_yes = sum(1 for c in self.remaining_cards if val in c.get(key, []))
                 count_no = len(self.remaining_cards) - count_yes
                 balance = abs(count_yes - count_no)
 
-                # On priorise les questions qui divisent presque en deux
                 if balance < best_balance:
                     best_balance = balance
                     best_q = q
@@ -140,7 +132,9 @@ class AkinatorView(View):
     async def process_answer(self, answer: str, interaction: discord.Interaction):
         if answer == "Abandonner":
             await safe_edit(interaction.message, embed=discord.Embed(
-                title="🛑 Partie arrêtée", description="Tu as abandonné l'Akinator.", color=discord.Color.red()
+                title="🛑 Partie arrêtée",
+                description="Tu as abandonné l'Akinator.",
+                color=discord.Color.red()
             ), view=None)
             return
 
@@ -224,12 +218,17 @@ class Akinator(commands.Cog):
             return
 
         view = AkinatorView(self.bot, questions, cards)
+
+        # Embed initial + view attachée dès le départ
         embed = discord.Embed(
             title="🎩 Akinator Yu-Gi-Oh!",
             description="Pense à une carte Yu-Gi-Oh! et je vais essayer de la deviner. Clique sur un bouton pour commencer.",
             color=discord.Color.green()
         )
+
         view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
+
+        # Pose la première vraie question (boutons inclus)
         await view.ask_question()
 
     # ────────── Slash command
@@ -242,7 +241,6 @@ class Akinator(commands.Cog):
     @commands.command(name="akinator", help="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def prefix_akinator(self, ctx):
         await self.start_akinator(ctx)
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
