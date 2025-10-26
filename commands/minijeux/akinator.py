@@ -6,14 +6,11 @@
 # Cooldown : 1 utilisation / 15 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-from utils.discord_utils import safe_send, safe_edit
+from utils.discord_utils import safe_send, safe_edit, safe_followup
 import aiohttp
 import asyncio
 import json
@@ -169,7 +166,6 @@ class Akinator(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # 📥 Téléchargement aléatoire de cartes (max 150, sûr)
     async def fetch_random_cards(self, limit=150):
         safe_limit = min(limit, 150)
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
@@ -201,7 +197,6 @@ class Akinator(commands.Cog):
                 "linkval": c.get("linkval", 0),
                 "card_images": c.get("card_images", []),
             })
-
         return cards
 
     # 🎮 Lancement du jeu
@@ -217,27 +212,27 @@ class Akinator(commands.Cog):
             return
 
         view = AkinatorView(self.bot, questions, cards)
-
         embed = discord.Embed(
             title="🎩 Akinator Yu-Gi-Oh!",
             description="Pense à une carte Yu-Gi-Oh! et clique sur **Commencer** pour débuter le jeu.",
             color=discord.Color.green()
         )
-        view.clear_items()
         view.add_item(StartButton(view))
-        view.message = await safe_send(ctx_or_interaction, embed=embed, view=view)
 
-    # ────────── Slash command
+        # ✅ Gestion ctx vs interaction
+        if isinstance(ctx_or_interaction, discord.Interaction):
+            await ctx_or_interaction.response.send_message(embed=embed, view=view)
+            view.message = await ctx_or_interaction.original_response()
+        else:
+            view.message = await safe_send(ctx_or_interaction, embed=embed, view=view)
+
     @app_commands.command(name="akinator", description="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def slash_akinator(self, interaction: discord.Interaction):
         await self.start_akinator(interaction)
 
-    # ────────── Prefix command
     @commands.command(name="akinator", help="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def prefix_akinator(self, ctx):
         await self.start_akinator(ctx)
-
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
@@ -248,7 +243,3 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "Minijeux"
     await bot.add_cog(cog)
-    
-
-
-
