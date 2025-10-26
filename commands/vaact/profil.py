@@ -15,7 +15,6 @@ from discord.ext import commands
 from discord.ui import View, Select
 from utils.discord_utils import safe_send, safe_respond, safe_followup
 from utils.supabase_client import supabase
-import json
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -35,7 +34,7 @@ class ProfilCommand(commands.Cog):
         user_id = str(user.id)
         try:
             profil_data = supabase.table("profil").select("*").eq("user_id", user_id).execute()
-            profil = profil_data.data[0] if profil_data.data and len(profil_data.data) > 0 else None
+            profil = profil_data.data[0] if profil_data.data else None
 
             if not profil:
                 profil = {
@@ -47,15 +46,11 @@ class ProfilCommand(commands.Cog):
                 }
                 supabase.table("profil").insert(profil).execute()
 
-            # Normalisation
+            # Normalisation des champs
             profil["cartefav"] = profil.get("cartefav") or "Non défini"
             profil["vaact_name"] = profil.get("vaact_name") or "Non défini"
-            fav_decks = profil.get("fav_decks_vaact") or []
-            if isinstance(fav_decks, str):
-                fav_decks = fav_decks.split(",") if fav_decks else []
-            elif not isinstance(fav_decks, list):
-                fav_decks = []
-            profil["fav_decks_vaact"] = fav_decks
+            deck = profil.get("fav_decks_vaact") or "Non défini"
+            profil["fav_decks_vaact"] = deck
 
             return profil
 
@@ -66,7 +61,7 @@ class ProfilCommand(commands.Cog):
                 "username": user.name,
                 "cartefav": "Non défini",
                 "vaact_name": "Non défini",
-                "fav_decks_vaact": []
+                "fav_decks_vaact": "Non défini"
             }
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -76,18 +71,16 @@ class ProfilCommand(commands.Cog):
         user = target_user or author
         profil = await self.get_or_create_profile(user)
 
-        # Valeurs par défaut
         cartefav = profil.get("cartefav") or "Non défini"
         vaact_name = profil.get("vaact_name") or "Non défini"
-        fav_decks = profil.get("fav_decks_vaact") or []
-        decks_text = ", ".join(fav_decks) if fav_decks else "Non défini"
+        fav_deck = profil.get("fav_decks_vaact") or "Non défini"
 
         embed = discord.Embed(
             title=f"__**Profil de {user.display_name}**__",
             description=(
                 f"**Carte préférée** : {cartefav}\n"
                 f"**Pseudo VAACT** : {vaact_name}\n"
-                f"**Decks VAACT préférés** : {decks_text}"
+                f"**Deck VAACT préféré** : {fav_deck}"
             ),
             color=discord.Color.green() if vaact_name != "Non défini" else discord.Color.blurple()
         )
