@@ -3,6 +3,7 @@ Liste des Commandes
 ### 📂 Admin
 - **commandslist :** Génère un .md avec toutes les commandes et les envoie en fichier.
 - **re :** (Admin) Préviens les membres et redémarre le bot via Render.
+- **stats :** Pas de description.
 - **sync :** Commande préfixe pour synchroniser les commandes (guild ou global).
 - **tournoidate :** (Admin) 🛠️ Change la date du prochain tournoi VAACT.
 
@@ -28,8 +29,7 @@ Liste des Commandes
 - **tournoi :** 📅 Affiche la date du prochain tournoi VAACT.
 
 ### 📂 🃏 Yu-Gi-Oh!
-- **carte :** 🔍 Rechercher une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT).
+- **carte :** 🔍 Rechercher une carte Yu-Gi-Oh! ou tirer une carte aléatoire avec `!carte random`.
 - **cartefav :** ⭐ Affiche les cartes favorites de l’utilisateur mentionné ou de vous-même.
 - **packopening :** Ouvre un booster aléatoire de Yu-Gi-Oh! (cartes en français)
-- **random :** 🎲 Affiche une carte Yu-Gi-Oh! aléatoire.
 - **vocabulaire :** 📘 Affiche la définition des termes du jeu, par mot-clé ou catégorie.
