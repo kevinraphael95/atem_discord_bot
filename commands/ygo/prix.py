@@ -1,50 +1,27 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 prix.py — Commande améliorée /prix et !prix
-# Objectif : Affiche le prix d'une carte Yu-Gi-Oh! depuis l'API YGOPRODeck
+# Objectif :
+#   - Affiche le prix d'une carte Yu-Gi-Oh! depuis l'API YGOPRODeck
+#   - Recherche multi-langue, fallback aléatoire
+#   - Utilise utils/card_utils pour la recherche
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 📦 Imports nécessaires
+# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord import app_commands
 from discord.ext import commands
-import aiohttp
-import urllib.parse
+
 from utils.discord_utils import safe_send, safe_respond
-
-BASE_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
+from utils.card_utils import search_card, fetch_random_card  # ✅ Centralisé
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Helpers
+# 🔧 Helper de formatage
 # ────────────────────────────────────────────────────────────────────────────────
-async def fetch_card_multilang(name: str):
-    """Recherche multi-langue (fr, de, it, pt, en)"""
-    name_encode = urllib.parse.quote(name)
-    languages = ["fr", "de", "it", "pt", ""]
-    async with aiohttp.ClientSession() as session:
-        for lang in languages:
-            url = f"{BASE_URL}?name={name_encode}"
-            if lang:
-                url += f"&language={lang}"
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if "data" in data and len(data["data"]) > 0:
-                        return data["data"][0], (lang or "en")
-    return None, "?"
-
-async def fetch_random_card():
-    """Récupère une carte aléatoire"""
-    async with aiohttp.ClientSession() as session:
-        for lang in ["fr", "en"]:
-            async with session.get(f"https://db.ygoprodeck.com/api/v7/randomcard.php?language={lang}") as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if "data" in data:
-                        return data["data"][0], lang
-    return None, "?"
-
 def format_price(price: str, currency: str) -> str:
     try:
         return f"{currency}{float(price):.2f}"
@@ -60,6 +37,7 @@ class Prix(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    # ── Fonction commune d'affichage ────────────────────────────────────────────
     async def send_price_embed(self, card: dict, ctx_or_interaction):
         prices = card.get("card_prices", [{}])[0]
         description = (
@@ -76,7 +54,9 @@ class Prix(commands.Cog):
             color=discord.Color.gold()
         )
         embed.set_thumbnail(url=card.get("card_images", [{}])[0].get("image_url_small"))
+        embed.set_footer(text=f"ID : {card.get('id', '?')} | Konami ID : {card.get('konami_id', '?')}")
 
+        # Envoie du message (compatibilité interaction + message classique)
         if isinstance(ctx_or_interaction, discord.Interaction):
             await ctx_or_interaction.edit_original_response(embed=embed)
         else:
@@ -91,12 +71,16 @@ class Prix(commands.Cog):
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_prix(self, interaction: discord.Interaction, carte: str):
         await safe_respond(interaction, f"🔄 Recherche du prix pour **{carte}**…")
-        card, lang = await fetch_card_multilang(carte)
+
+        card, lang, message = await search_card(carte)
+        if message:
+            return await safe_respond(interaction, message)
         if not card:
             card, lang = await fetch_random_card()
             if not card:
                 return await safe_respond(interaction, "❌ Carte introuvable.")
             await safe_respond(interaction, f"❌ Carte `{carte}` introuvable. 🔄 Voici une carte aléatoire à la place :")
+
         await self.send_price_embed(card, interaction)
 
     # ── Commande préfixe ───────────────────────────────────────────────────────
@@ -104,15 +88,21 @@ class Prix(commands.Cog):
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_prix(self, ctx: commands.Context, *, carte: str):
         msg = await safe_send(ctx.channel, f"🔄 Recherche du prix pour **{carte}**…")
-        card, lang = await fetch_card_multilang(carte)
+
+        card, lang, message = await search_card(carte)
+        if message:
+            return await safe_send(ctx, message)
         if not card:
             card, lang = await fetch_random_card()
             if not card:
-                return await safe_send(ctx.channel, "❌ Carte introuvable.")
-            await safe_send(ctx.channel, f"❌ Carte `{carte}` introuvable. 🔄 Voici une carte aléatoire à la place :")
+                return await safe_send(ctx, "❌ Carte introuvable.")
+            await safe_send(ctx, f"❌ Carte `{carte}` introuvable. 🔄 Voici une carte aléatoire à la place :")
+
         await self.send_price_embed(card, msg)
 
-# ── Setup du Cog ─────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔌 Setup du Cog
+# ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = Prix(bot)
     for command in cog.get_commands():
