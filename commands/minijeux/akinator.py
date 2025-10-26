@@ -13,7 +13,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-from utils.discord_utils import safe_send, safe_respond, safe_edit
+from utils.discord_utils import safe_send, safe_edit
 import aiohttp
 import asyncio
 import json
@@ -89,18 +89,12 @@ class AkinatorView(View):
             if top_cards and "card_images" in top_cards[0]:
                 embed.set_image(url=top_cards[0]["card_images"][0].get("image_url", ""))
 
-            if interaction:
-                await safe_edit(interaction.message, embed=embed, view=None)
-            else:
-                await safe_edit(self.message, embed=embed, view=None)
+            await safe_edit(self.message, embed=embed, view=None)
             return
 
         q = self.choose_best_question()
         if not q:
-            if interaction:
-                await safe_edit(interaction.message, content="❌ Plus de questions disponibles.", view=None)
-            else:
-                await safe_edit(self.message, content="❌ Plus de questions disponibles.", view=None)
+            await safe_edit(self.message, content="❌ Plus de questions disponibles.", view=None)
             return
 
         self.current_question = q
@@ -118,15 +112,12 @@ class AkinatorView(View):
             style = discord.ButtonStyle.danger if label == "Abandonner" else discord.ButtonStyle.primary
             self.add_item(AkinatorButton(self, label, style))
 
-        if interaction:
-            await safe_edit(interaction.message, embed=embed, view=self)
-        else:
-            await safe_edit(self.message, embed=embed, view=self)
+        await safe_edit(self.message, embed=embed, view=self)
 
     # 🔹 Réponse du joueur
     async def process_answer(self, answer: str, interaction: discord.Interaction):
         if answer == "Abandonner":
-            await safe_edit(interaction.message, embed=discord.Embed(
+            await safe_edit(self.message, embed=discord.Embed(
                 title="🛑 Partie arrêtée",
                 description="Tu as abandonné l'Akinator.",
                 color=discord.Color.red()
@@ -142,7 +133,7 @@ class AkinatorView(View):
             self.remaining_cards = [c for c in self.remaining_cards if val not in c.get(key, [])]
 
         self.question_count += 1
-        await self.ask_question(interaction)
+        await self.ask_question()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔘 Boutons de réponses
@@ -164,10 +155,9 @@ class StartButton(Button):
         self.view = view
 
     async def callback(self, interaction: discord.Interaction):
-        # Référence du message pour que ask_question puisse éditer
         self.view.message = interaction.message
         self.view.clear_items()
-        await self.view.ask_question(interaction)
+        await self.view.ask_question()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧩 Cog principal : Commande Akinator
@@ -215,44 +205,39 @@ class Akinator(commands.Cog):
         return cards
 
     # 🎮 Lancement du jeu
-    async def start_akinator(self, ctx_or_channel, interaction=None):
+    async def start_akinator(self, ctx_or_interaction):
         questions = load_questions()
         if not questions:
-            await safe_send(ctx_or_channel, "❌ Impossible de charger les questions.")
+            await safe_send(ctx_or_interaction, "❌ Impossible de charger les questions.")
             return
 
         cards = await self.fetch_random_cards()
         if not cards:
-            await safe_send(ctx_or_channel, "❌ Impossible de récupérer les cartes.")
+            await safe_send(ctx_or_interaction, "❌ Impossible de récupérer les cartes.")
             return
 
         view = AkinatorView(self.bot, questions, cards)
 
-        # Embed initial + bouton "Commencer"
         embed = discord.Embed(
             title="🎩 Akinator Yu-Gi-Oh!",
-            description="Pense à une carte Yu-Gi-Oh! et je vais essayer de la deviner. Clique sur **Commencer** pour débuter le jeu.",
+            description="Pense à une carte Yu-Gi-Oh! et clique sur **Commencer** pour débuter le jeu.",
             color=discord.Color.green()
         )
         view.clear_items()
         view.add_item(StartButton(view))
-
-        # Envoi du message initial
-        if interaction:
-            view.message = await safe_send(interaction, embed=embed, view=view)
-        else:
-            view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
+        view.message = await safe_send(ctx_or_interaction, embed=embed, view=view)
 
     # ────────── Slash command
     @app_commands.command(name="akinator", description="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def slash_akinator(self, interaction: discord.Interaction):
-        await interaction.response.defer()
         await self.start_akinator(interaction)
 
     # ────────── Prefix command
     @commands.command(name="akinator", help="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def prefix_akinator(self, ctx):
         await self.start_akinator(ctx)
+
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
