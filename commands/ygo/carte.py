@@ -230,9 +230,11 @@ class Carte(commands.Cog):
 
         # ── Thumbnail ────────────────────────────────────────────────────────────
         if "card_images" in carte and carte["card_images"]:
-            thumb = carte["card_images"][0].get("image_url_small") or carte["card_images"][0].get("image_url")
+            thumb = carte["card_images"][0].get("image_url_cropped")  # <-- ici
             if thumb:
                 embed.set_thumbnail(url=thumb)
+
+
 
         embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()}")
 
