@@ -6,11 +6,14 @@
 # Cooldown : 1 utilisation / 15 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 📦 Imports nécessaires
+# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-from utils.discord_utils import safe_send, safe_edit, safe_followup
+from utils.discord_utils import safe_send, safe_respond, safe_edit
 import aiohttp
 import asyncio
 import json
@@ -46,26 +49,39 @@ class AkinatorView(View):
 
     # 🔹 Choix de la meilleure question
     def choose_best_question(self):
+        """
+        Sélectionne la question la plus discriminante parmi celles restantes.
+        La logique : on cherche la question qui divise le plus équitablement
+        les cartes restantes (proche de la moitié pour Oui/Non).
+        """
         best_q = None
         best_balance = float("inf")
+
         for q in self.questions:
             key = q.get("filter_key")
             if not key or key in self.asked:
                 continue
+
             values = q.get("filter_value", [])
+            # On ne garde que les valeurs présentes dans les cartes restantes
             available_values = [
                 v for v in values if any(v in c.get(key, []) for c in self.remaining_cards)
             ]
             if not available_values:
                 continue
+
+            # On calcule pour chaque valeur l'équilibre Oui/Non
             for val in available_values:
                 count_yes = sum(1 for c in self.remaining_cards if val in c.get(key, []))
                 count_no = len(self.remaining_cards) - count_yes
                 balance = abs(count_yes - count_no)
+
+                # On priorise les questions qui divisent presque en deux
                 if balance < best_balance:
                     best_balance = balance
                     best_q = q
                     self.current_value = val
+
         return best_q
 
     # 🔹 Pose la question suivante
@@ -86,12 +102,18 @@ class AkinatorView(View):
             if top_cards and "card_images" in top_cards[0]:
                 embed.set_image(url=top_cards[0]["card_images"][0].get("image_url", ""))
 
-            await safe_edit(self.message, embed=embed, view=None)
+            if interaction:
+                await safe_edit(interaction.message, embed=embed, view=None)
+            else:
+                await safe_edit(self.message, embed=embed, view=None)
             return
 
         q = self.choose_best_question()
         if not q:
-            await safe_edit(self.message, content="❌ Plus de questions disponibles.", view=None)
+            if interaction:
+                await safe_edit(interaction.message, content="❌ Plus de questions disponibles.", view=None)
+            else:
+                await safe_edit(self.message, content="❌ Plus de questions disponibles.", view=None)
             return
 
         self.current_question = q
@@ -109,15 +131,16 @@ class AkinatorView(View):
             style = discord.ButtonStyle.danger if label == "Abandonner" else discord.ButtonStyle.primary
             self.add_item(AkinatorButton(self, label, style))
 
-        await safe_edit(self.message, embed=embed, view=self)
+        if interaction:
+            await safe_edit(interaction.message, embed=embed, view=self)
+        else:
+            await safe_edit(self.message, embed=embed, view=self)
 
     # 🔹 Réponse du joueur
     async def process_answer(self, answer: str, interaction: discord.Interaction):
         if answer == "Abandonner":
-            await safe_edit(self.message, embed=discord.Embed(
-                title="🛑 Partie arrêtée",
-                description="Tu as abandonné l'Akinator.",
-                color=discord.Color.red()
+            await safe_edit(interaction.message, embed=discord.Embed(
+                title="🛑 Partie arrêtée", description="Tu as abandonné l'Akinator.", color=discord.Color.red()
             ), view=None)
             return
 
@@ -130,7 +153,7 @@ class AkinatorView(View):
             self.remaining_cards = [c for c in self.remaining_cards if val not in c.get(key, [])]
 
         self.question_count += 1
-        await self.ask_question()
+        await self.ask_question(interaction)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔘 Boutons de réponses
@@ -144,19 +167,6 @@ class AkinatorButton(Button):
         await self.view.process_answer(self.label, interaction)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔘 Bouton "Commencer"
-# ────────────────────────────────────────────────────────────────────────────────
-class StartButton(Button):
-    def __init__(self, view, label="Commencer"):
-        super().__init__(label=label, style=discord.ButtonStyle.success)
-        self.view = view
-
-    async def callback(self, interaction: discord.Interaction):
-        self.view.message = interaction.message
-        self.view.clear_items()
-        await self.view.ask_question()
-
-# ────────────────────────────────────────────────────────────────────────────────
 # 🧩 Cog principal : Commande Akinator
 # ────────────────────────────────────────────────────────────────────────────────
 class Akinator(commands.Cog):
@@ -166,6 +176,7 @@ class Akinator(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    # 📥 Téléchargement aléatoire de cartes (max 150, sûr)
     async def fetch_random_cards(self, limit=150):
         safe_limit = min(limit, 150)
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
@@ -197,39 +208,41 @@ class Akinator(commands.Cog):
                 "linkval": c.get("linkval", 0),
                 "card_images": c.get("card_images", []),
             })
+
         return cards
 
     # 🎮 Lancement du jeu
-    async def start_akinator(self, ctx_or_interaction):
+    async def start_akinator(self, ctx_or_channel, interaction=None):
         questions = load_questions()
         if not questions:
-            await safe_send(ctx_or_interaction.channel, "❌ Impossible de charger les questions.")
+            await safe_send(ctx_or_channel, "❌ Impossible de charger les questions.")
             return
 
         cards = await self.fetch_random_cards()
         if not cards:
-            await safe_send(ctx_or_interaction.channel, "❌ Impossible de récupérer les cartes.")
+            await safe_send(ctx_or_channel, "❌ Impossible de récupérer les cartes.")
             return
 
         view = AkinatorView(self.bot, questions, cards)
         embed = discord.Embed(
             title="🎩 Akinator Yu-Gi-Oh!",
-            description="Pense à une carte Yu-Gi-Oh! et clique sur **Commencer** pour débuter le jeu.",
+            description="Pense à une carte Yu-Gi-Oh! et je vais essayer de la deviner. Clique sur un bouton pour commencer.",
             color=discord.Color.green()
         )
-        view.add_item(StartButton(view))
+        view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
+        await view.ask_question()
 
-        # ✅ Correction : envoie toujours via le channel
-        channel = ctx_or_interaction.channel if hasattr(ctx_or_interaction, "channel") else ctx_or_interaction
-        view.message = await safe_send(channel, embed=embed, view=view)
-
+    # ────────── Slash command
     @app_commands.command(name="akinator", description="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def slash_akinator(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         await self.start_akinator(interaction)
 
+    # ────────── Prefix command
     @commands.command(name="akinator", help="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def prefix_akinator(self, ctx):
         await self.start_akinator(ctx)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
