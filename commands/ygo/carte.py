@@ -108,7 +108,7 @@ def format_race(race: str) -> str:
     return TYPE_EMOJI.get(race, race) if race else "?"
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Fetch carte multi-langues
+# 🔧 Fetch carte (multi-langue, fuzzy & random)
 # ────────────────────────────────────────────────────────────────────────────────
 async def fetch_card_multilang(nom: str) -> tuple[dict, str]:
     nom_encode = urllib.parse.quote(nom)
@@ -128,7 +128,7 @@ async def fetch_card_multilang(nom: str) -> tuple[dict, str]:
 async def fetch_card_fuzzy(nom: str) -> list[dict]:
     nom_encode = urllib.parse.quote(nom)
     async with aiohttp.ClientSession() as session:
-        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
+        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}&language=fr"
         async with session.get(url) as resp:
             if resp.status == 200:
                 data = await resp.json()
@@ -141,7 +141,11 @@ async def fetch_random_card() -> tuple[dict, str]:
         for lang in ["fr", "en"]:
             async with session.get(f"https://db.ygoprodeck.com/api/v7/randomcard.php?language={lang}") as resp:
                 if resp.status == 200:
-                    return await resp.json(), lang
+                    data = await resp.json()
+                    # Normalisation : uniformiser le format avec cardinfo
+                    if "data" in data:
+                        data = data["data"][0]
+                    return data, lang
     return None, "?"
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -173,12 +177,15 @@ class Carte(commands.Cog):
             if not carte:
                 fuzzy_data = await fetch_card_fuzzy(nom)
                 if fuzzy_data:
-                    # on prend la première carte trouvée proche du nom
                     carte = fuzzy_data[0]
                     langue = "fr"
                 else:
-                    await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.")
-                    return
+                    # si aucune carte trouvée, fallback sur une carte aléatoire
+                    carte, langue = await fetch_random_card()
+                    if not carte:
+                        await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}` et impossible d’en proposer une similaire.")
+                        return
+                    await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`. 🔄 Voici une carte aléatoire à la place :")
 
         # ── Infos carte ──────────────────────────────────────────────────────────
         card_name = carte.get("name", "Carte inconnue")
