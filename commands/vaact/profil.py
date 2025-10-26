@@ -35,32 +35,24 @@ class ProfilCommand(commands.Cog):
         user_id = str(user.id)
         try:
             profil_data = supabase.table("profil").select("*").eq("user_id", user_id).execute()
-            profil = None
-            if profil_data.data and len(profil_data.data) > 0:
-                profil = profil_data.data[0]
+            profil = profil_data.data[0] if profil_data.data and len(profil_data.data) > 0 else None
 
             if not profil:
-                # Crée un profil vide si inexistant
                 profil = {
                     "user_id": user_id,
                     "username": user.name,
-                    "cartefav": "Aucune",
+                    "cartefav": None,
                     "vaact_name": None,
-                    "fav_decks_vaact": []
+                    "fav_decks_vaact": None
                 }
                 supabase.table("profil").insert(profil).execute()
 
-            # Normalisation des champs
-            profil["cartefav"] = profil.get("cartefav") or "Aucune"
-            profil["vaact_name"] = profil.get("vaact_name") or None
-            fav_decks = profil.get("fav_decks_vaact", [])
+            # Normalisation
+            profil["cartefav"] = profil.get("cartefav") or "Non défini"
+            profil["vaact_name"] = profil.get("vaact_name") or "Non défini"
+            fav_decks = profil.get("fav_decks_vaact") or []
             if isinstance(fav_decks, str):
-                try:
-                    fav_decks = json.loads(fav_decks)
-                    if not isinstance(fav_decks, list):
-                        fav_decks = []
-                except:
-                    fav_decks = []
+                fav_decks = fav_decks.split(",") if fav_decks else []
             elif not isinstance(fav_decks, list):
                 fav_decks = []
             profil["fav_decks_vaact"] = fav_decks
@@ -72,8 +64,8 @@ class ProfilCommand(commands.Cog):
             return {
                 "user_id": user_id,
                 "username": user.name,
-                "cartefav": "Aucune",
-                "vaact_name": None,
+                "cartefav": "Non défini",
+                "vaact_name": "Non défini",
                 "fav_decks_vaact": []
             }
 
@@ -84,30 +76,12 @@ class ProfilCommand(commands.Cog):
         user = target_user or author
         profil = await self.get_or_create_profile(user)
 
-        # Valeurs par défaut si profil vide
-        if not profil:
-            profil = {
-                "user_id": str(user.id),
-                "username": user.name,
-                "cartefav": "Aucune",
-                "vaact_name": "Non défini",
-                "fav_decks_vaact": []
-            }
-
-        # Normalisation
-        cartefav = profil.get("cartefav") or "Aucune"
+        # Valeurs par défaut
+        cartefav = profil.get("cartefav") or "Non défini"
         vaact_name = profil.get("vaact_name") or "Non défini"
         fav_decks = profil.get("fav_decks_vaact") or []
-        if isinstance(fav_decks, str):
-            try:
-                fav_decks = json.loads(fav_decks)
-                if not isinstance(fav_decks, list):
-                    fav_decks = []
-            except:
-                fav_decks = []
-        decks_text = ", ".join(fav_decks) if fav_decks else "Aucun"
+        decks_text = ", ".join(fav_decks) if fav_decks else "Non défini"
 
-        # Embed
         embed = discord.Embed(
             title=f"__**Profil de {user.display_name}**__",
             description=(
@@ -122,7 +96,7 @@ class ProfilCommand(commands.Cog):
             embed.set_thumbnail(url=user.avatar.url)
         embed.set_footer(text=f"Utilisateur : {user.name} ({user.id})")
 
-        # View si pseudo non défini (et si c’est ton propre profil)
+        # View pour choisir pseudo si non défini
         view = None
         if vaact_name == "Non défini" and (target_user is None or target_user == author):
             taken = [p["vaact_name"] for p in supabase.table("profil")
@@ -160,23 +134,14 @@ class ProfilCommand(commands.Cog):
 
                 view = VAACSelectView(str(user.id))
 
-        # Debug
-        print(f"[DEBUG] Profil affiché pour {user.display_name}: {profil}")
-
         # Envoi du message
         if isinstance(ctx_or_interaction, discord.Interaction):
-            try:
-                if ctx_or_interaction.response.is_done():
-                    await safe_followup(ctx_or_interaction, embed=embed, view=view)
-                else:
-                    await safe_respond(ctx_or_interaction, embed=embed, view=view)
-            except Exception as e:
-                print(f"[ERREUR send profil interaction] {e}")
+            if ctx_or_interaction.response.is_done():
+                await safe_followup(ctx_or_interaction, embed=embed, view=view)
+            else:
+                await safe_respond(ctx_or_interaction, embed=embed, view=view)
         else:
-            try:
-                await safe_send(ctx_or_interaction.channel, embed=embed, view=view)
-            except Exception as e:
-                print(f"[ERREUR send profil ctx] {e}")
+            await safe_send(ctx_or_interaction.channel, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH /profil
