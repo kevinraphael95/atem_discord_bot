@@ -3,10 +3,7 @@
 # Objectif :
 #   - Rechercher et afficher les détails d’une carte Yu-Gi-Oh!
 #   - OU tirer une carte aléatoire avec !carte random
-# - Thumbnail en haut à droite
-# - Labels en français
-# - Décoration par emoji (race & attribut)
-# - Recherche multi-langues
+#   - Utilise utils/card_utils pour toutes les requêtes API
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -17,13 +14,12 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
-import aiohttp
-import urllib.parse
 import json
-import random
 from pathlib import Path
+
 from utils.discord_utils import safe_send
 from utils.supabase_client import supabase
+from utils.card_utils import search_card, fetch_random_card  # ✅ Import centralisé
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎨 Chargement du mappage décoratif depuis data/cardinfofr.json
@@ -108,47 +104,6 @@ def format_race(race: str) -> str:
     return TYPE_EMOJI.get(race, race) if race else "?"
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Fetch carte (multi-langue, fuzzy & random)
-# ────────────────────────────────────────────────────────────────────────────────
-async def fetch_card_multilang(nom: str) -> tuple[dict, str]:
-    nom_encode = urllib.parse.quote(nom)
-    languages = ["fr", "de", "it", "pt", ""]
-    async with aiohttp.ClientSession() as session:
-        for lang in languages:
-            url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
-            if lang:
-                url += f"&language={lang}"
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if "data" in data and len(data["data"]) > 0:
-                        return data["data"][0], (lang or "en")
-    return None, "?"
-
-async def fetch_card_fuzzy(nom: str) -> list[dict]:
-    nom_encode = urllib.parse.quote(nom)
-    async with aiohttp.ClientSession() as session:
-        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}&language=fr"
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                return data.get("data", [])
-    return []
-
-async def fetch_random_card() -> tuple[dict, str]:
-    """Récupère une carte aléatoire en français (fallback anglais)."""
-    async with aiohttp.ClientSession() as session:
-        for lang in ["fr", "en"]:
-            async with session.get(f"https://db.ygoprodeck.com/api/v7/randomcard.php?language={lang}") as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    # Normalisation : uniformiser le format avec cardinfo
-                    if "data" in data:
-                        data = data["data"][0]
-                    return data, lang
-    return None, "?"
-
-# ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Carte(commands.Cog):
@@ -169,23 +124,17 @@ class Carte(commands.Cog):
         if not nom or nom.lower() == "random":
             carte, langue = await fetch_random_card()
             if not carte:
-                await safe_send(ctx.channel, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
+                await safe_send(ctx, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
                 return
         else:
-            # ── Recherche classique multi-langues ────────────────────────────────
-            carte, langue = await fetch_card_multilang(nom)
+            # ── Recherche classique via utils/card_utils ─────────────────────────
+            carte, langue, message = await search_card(nom)
+            if message:
+                await safe_send(ctx, message)
+                return
             if not carte:
-                fuzzy_data = await fetch_card_fuzzy(nom)
-                if fuzzy_data:
-                    carte = fuzzy_data[0]
-                    langue = "fr"
-                else:
-                    # si aucune carte trouvée, fallback sur une carte aléatoire
-                    carte, langue = await fetch_random_card()
-                    if not carte:
-                        await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}` et impossible d’en proposer une similaire.")
-                        return
-                    await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`. 🔄 Voici une carte aléatoire à la place :")
+                await safe_send(ctx, f"❌ Aucune carte trouvée pour `{nom}`.")
+                return
 
         # ── Infos carte ──────────────────────────────────────────────────────────
         card_name = carte.get("name", "Carte inconnue")
@@ -204,7 +153,7 @@ class Carte(commands.Cog):
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
 
-        # ── Construction des infos affichées ─────────────────────────────────────
+        # ── Construction du texte ───────────────────────────────────────────────
         lines = [f"**Type de carte** : {card_type_fr}"]
         if race:
             lines.append(f"**Type** : {format_race(race)}")
@@ -230,16 +179,14 @@ class Carte(commands.Cog):
 
         # ── Thumbnail ────────────────────────────────────────────────────────────
         if "card_images" in carte and carte["card_images"]:
-            thumb = carte["card_images"][0].get("image_url_cropped")  # <-- ici
+            thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb:
                 embed.set_thumbnail(url=thumb)
-
-
 
         embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()}")
 
         view = CarteFavoriteButton(card_name, ctx.author)
-        await safe_send(ctx.channel, embed=embed, view=view)
+        await safe_send(ctx, embed=embed, view=view)
 
     def cog_load(self):
         self.carte.category = "🃏 Yu-Gi-Oh!"
