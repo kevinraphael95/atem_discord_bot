@@ -1,9 +1,11 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 carte.py — Commande interactive !carte
-# Objectif : Rechercher et afficher les détails d’une carte Yu-Gi-Oh!
-# - Thumbnail (petit) en haut à droite
+# Objectif :
+#   - Rechercher et afficher les détails d’une carte Yu-Gi-Oh!
+#   - OU tirer une carte aléatoire avec !carte random
+# - Thumbnail en haut à droite
 # - Labels en français
-# - Décoration par emoji pour race & attribut
+# - Décoration par emoji (race & attribut)
 # - Recherche multi-langues
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
@@ -18,8 +20,9 @@ from discord.ui import View, Button
 import aiohttp
 import urllib.parse
 import json
+import random
 from pathlib import Path
-from utils.discord_utils import safe_send, safe_respond
+from utils.discord_utils import safe_send
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -32,7 +35,7 @@ try:
         CARDINFO = json.load(f)
 except FileNotFoundError:
     print("[ERREUR] Fichier data/cardinfofr.json introuvable. Vérifie le chemin.")
-    CARDINFO = {"ATTRIBUT_EMOJI": {}, "TYPE_EMOJI": {}, "TYPE_TRANSLATION": {}, "TYPE_COLOR": {}}
+    CARDINFO = {"ATTRIBUT_EMOJI": {}, "TYPE_EMOJI": {}, "TYPE_TRANSLATION": {}}
 
 ATTRIBUT_EMOJI = CARDINFO.get("ATTRIBUT_EMOJI", {})
 TYPE_EMOJI = CARDINFO.get("TYPE_EMOJI", {})
@@ -93,7 +96,7 @@ def pick_embed_color(type_str: str) -> discord.Color:
     if "trap" in t:
         return TYPE_COLOR["trap"]
     if "link" in t:
-        return TYPE_COLOR.get("link", TYPE_COLOR["default"])
+        return TYPE_COLOR["link"]
     if "monster" in t:
         return TYPE_COLOR["monster"]
     return TYPE_COLOR["default"]
@@ -109,7 +112,7 @@ def format_race(race: str) -> str:
 # ────────────────────────────────────────────────────────────────────────────────
 async def fetch_card_multilang(nom: str) -> tuple[dict, str]:
     nom_encode = urllib.parse.quote(nom)
-    languages = ["fr", "de", "it", "pt", ""]  # fallback = anglais
+    languages = ["fr", "de", "it", "pt", ""]
     async with aiohttp.ClientSession() as session:
         for lang in languages:
             url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
@@ -122,21 +125,30 @@ async def fetch_card_multilang(nom: str) -> tuple[dict, str]:
                         return data["data"][0], (lang or "en")
     return None, "?"
 
-async def fetch_card_fuzzy(nom: str) -> list[str]:
+async def fetch_card_fuzzy(nom: str) -> list[dict]:
     nom_encode = urllib.parse.quote(nom)
     async with aiohttp.ClientSession() as session:
-        url_fuzzy = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
-        async with session.get(url_fuzzy) as resp:
+        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}"
+        async with session.get(url) as resp:
             if resp.status == 200:
                 data = await resp.json()
-                return [c.get("name") for c in data.get("data", [])]
+                return data.get("data", [])
     return []
+
+async def fetch_random_card() -> tuple[dict, str]:
+    """Récupère une carte aléatoire en français (fallback anglais)."""
+    async with aiohttp.ClientSession() as session:
+        for lang in ["fr", "en"]:
+            async with session.get(f"https://db.ygoprodeck.com/api/v7/randomcard.php?language={lang}") as resp:
+                if resp.status == 200:
+                    return await resp.json(), lang
+    return None, "?"
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Carte(commands.Cog):
-    """Commande !carte — Rechercher une carte Yu-Gi-Oh! avec embed intelligent et traduction FR"""
+    """Commande !carte — Rechercher ou tirer une carte Yu-Gi-Oh! aléatoire"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -144,51 +156,58 @@ class Carte(commands.Cog):
     @commands.command(
         name="carte",
         aliases=["card"],
-        help="🔍 Rechercher une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT).",
-        description="Affiche les infos d’une carte Yu-Gi-Oh! à partir de son nom."
+        help="🔍 Rechercher une carte Yu-Gi-Oh! ou tirer une carte aléatoire avec `!carte random`.",
+        description="Affiche les infos d’une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT)."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
-    async def carte(self, ctx: commands.Context, *, nom: str):
-        # Recherche multi-langues
-        carte, langue_detectee = await fetch_card_multilang(nom)
-        if not carte:
-            suggestions = await fetch_card_fuzzy(nom)
-            if suggestions:
-                suggestion_msg = "\n".join(f"• **{s}**" for s in suggestions[:3])
-                await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.\n🔎 Suggestions :\n{suggestion_msg}")
+    async def carte(self, ctx: commands.Context, *, nom: str = None):
+        # ── Mode aléatoire ────────────────────────────────────────────────────────
+        if not nom or nom.lower() == "random":
+            carte, langue = await fetch_random_card()
+            if not carte:
+                await safe_send(ctx.channel, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
                 return
-            await safe_send(ctx.channel, f"❌ Carte introuvable. Vérifie l’orthographe exacte : `{nom}`.")
-            return
+        else:
+            # ── Recherche classique multi-langues ────────────────────────────────
+            carte, langue = await fetch_card_multilang(nom)
+            if not carte:
+                fuzzy_data = await fetch_card_fuzzy(nom)
+                if fuzzy_data:
+                    # on prend la première carte trouvée proche du nom
+                    carte = fuzzy_data[0]
+                    langue = "fr"
+                else:
+                    await safe_send(ctx.channel, f"❌ Carte introuvable pour `{nom}`.")
+                    return
 
-        # infos cartes
+        # ── Infos carte ──────────────────────────────────────────────────────────
         card_name = carte.get("name", "Carte inconnue")
         card_id = carte.get("id", "?")
-        card_id_konami = carte.get("card_images", [{}])[0].get("id", "?") if "card_images" in carte else "?"
-        card_type_raw = carte.get("type", "")
-        card_race = carte.get("race", "")
-        attribute = carte.get("attribute", "")
+        konami_id = carte.get("card_images", [{}])[0].get("id", "?")
+        type_raw = carte.get("type", "")
+        race = carte.get("race", "")
+        attr = carte.get("attribute", "")
         desc = carte.get("desc", "Pas de description disponible.")
         atk = carte.get("atk")
         defe = carte.get("def")
         level = carte.get("level")
         rank = carte.get("rank")
-        linkval = carte.get("linkval") or carte.get("link_rating") or carte.get("link")
+        linkval = carte.get("linkval") or carte.get("link_rating")
 
-        card_type_fr = translate_card_type(card_type_raw)
-        color = pick_embed_color(card_type_raw)
+        card_type_fr = translate_card_type(type_raw)
+        color = pick_embed_color(type_raw)
 
-        # construction description FR — n'afficher que les infos utiles
+        # ── Construction des infos affichées ─────────────────────────────────────
         lines = [f"**Type de carte** : {card_type_fr}"]
-        if card_race:
-            lines.append(f"**Type** : {format_race(card_race)}")
-        if "monster" in card_type_raw.lower() or attribute:
-            if attribute:
-                lines.append(f"**Attribut** : {format_attribute(attribute)}")
+        if race:
+            lines.append(f"**Type** : {format_race(race)}")
+        if attr:
+            lines.append(f"**Attribut** : {format_attribute(attr)}")
         if linkval:
             lines.append(f"**Lien** : 🔗 {linkval}")
-        elif rank is not None:
+        elif rank:
             lines.append(f"**Niveau/Rang** : ⭐ {rank}")
-        elif level is not None:
+        elif level:
             lines.append(f"**Niveau/Rang** : ⭐ {level}")
         if atk is not None or defe is not None:
             atk_text = f"⚔️ {atk}" if atk is not None else "⚔️ ?"
@@ -202,15 +221,13 @@ class Carte(commands.Cog):
             color=color
         )
 
-        # thumbnail uniquement
+        # ── Thumbnail ────────────────────────────────────────────────────────────
         if "card_images" in carte and carte["card_images"]:
-            img = carte["card_images"][0]
-            thumb = img.get("image_url_small") or img.get("image_url")
+            thumb = carte["card_images"][0].get("image_url_small") or carte["card_images"][0].get("image_url")
             if thumb:
                 embed.set_thumbnail(url=thumb)
 
-        # footer avec ID API, ID Konami et langue
-        embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {card_id_konami} | Langue : {langue_detectee.upper()}")
+        embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()}")
 
         view = CarteFavoriteButton(card_name, ctx.author)
         await safe_send(ctx.channel, embed=embed, view=view)
