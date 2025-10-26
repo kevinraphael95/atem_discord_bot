@@ -84,18 +84,30 @@ class ProfilCommand(commands.Cog):
         user = target_user or author
         profil = await self.get_or_create_profile(user)
 
+        # Valeurs par défaut si profil vide
         if not profil:
-            if isinstance(ctx_or_interaction, discord.Interaction):
-                await safe_respond(ctx_or_interaction, "❌ Impossible de charger le profil.", ephemeral=True)
-            else:
-                await safe_send(ctx_or_interaction.channel, "❌ Impossible de charger le profil.")
-            return
+            profil = {
+                "user_id": str(user.id),
+                "username": user.name,
+                "cartefav": "Aucune",
+                "vaact_name": "Non défini",
+                "fav_decks_vaact": []
+            }
 
-        cartefav = profil.get("cartefav", "Aucune")
+        # Normalisation
+        cartefav = profil.get("cartefav") or "Aucune"
         vaact_name = profil.get("vaact_name") or "Non défini"
-        fav_decks = profil.get("fav_decks_vaact", [])
+        fav_decks = profil.get("fav_decks_vaact") or []
+        if isinstance(fav_decks, str):
+            try:
+                fav_decks = json.loads(fav_decks)
+                if not isinstance(fav_decks, list):
+                    fav_decks = []
+            except:
+                fav_decks = []
         decks_text = ", ".join(fav_decks) if fav_decks else "Aucun"
 
+        # Embed
         embed = discord.Embed(
             title=f"__**Profil de {user.display_name}**__",
             description=(
@@ -148,14 +160,23 @@ class ProfilCommand(commands.Cog):
 
                 view = VAACSelectView(str(user.id))
 
+        # Debug
+        print(f"[DEBUG] Profil affiché pour {user.display_name}: {profil}")
+
         # Envoi du message
         if isinstance(ctx_or_interaction, discord.Interaction):
-            if ctx_or_interaction.response.is_done():
-                await safe_followup(ctx_or_interaction, embed=embed, view=view)
-            else:
-                await safe_respond(ctx_or_interaction, embed=embed, view=view)
+            try:
+                if ctx_or_interaction.response.is_done():
+                    await safe_followup(ctx_or_interaction, embed=embed, view=view)
+                else:
+                    await safe_respond(ctx_or_interaction, embed=embed, view=view)
+            except Exception as e:
+                print(f"[ERREUR send profil interaction] {e}")
         else:
-            await safe_send(ctx_or_interaction.channel, embed=embed, view=view)
+            try:
+                await safe_send(ctx_or_interaction.channel, embed=embed, view=view)
+            except Exception as e:
+                print(f"[ERREUR send profil ctx] {e}")
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH /profil
