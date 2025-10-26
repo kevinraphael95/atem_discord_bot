@@ -1,0 +1,62 @@
+{
+  "ATTRIBUT_EMOJI": {
+    "LIGHT": "☀️ Lumière",
+    "DARK": "🌑 Ténèbres",
+    "EARTH": "🌍 Terre",
+    "WATER": "💧 Eau",
+    "FIRE": "🔥 Feu",
+    "WIND": "🌪️ Vent",
+    "DIVINE": "✨ Divin"
+  },
+
+  "TYPE_EMOJI": {
+    "Aqua": "💦 Aqua",
+    "Beast": "🐾 Bête",
+    "Beast-Warrior": "🐺⚔️ Bête-Guerrier",
+    "Winged Beast": "🦅 Bête Ailée",
+    "Cyberse": "🖥️ Cyberse",
+    "Fiend": "😈 Démon",
+    "Dinosaur": "🦖 Dinosaure",
+    "Dragon": "🐉 Dragon",
+    "Fairy": "🧝 Elfe",
+    "Warrior": "🗡️ Guerrier",
+    "Insect": "🐛 Insecte",
+    "Illusion": "🎭 Illusion",
+    "Machine": "🤖 Machine",
+    "Spellcaster": "🔮 Magicien",
+    "Plant": "🌱 Plante",
+    "Fish": "🐟 Poisson",
+    "Psychic": "🧠 Psychique",
+    "Pyro": "🔥 Pyro",
+    "Reptile": "🦎 Reptile",
+    "Rock": "🪨 Rocher",
+    "Sea Serpent": "🐍 Serpent de mer",
+    "Thunder": "⚡ Tonnerre",
+    "Wyrm": "🐲 Wyrm",
+    "Zombie": "🧟 Zombie",
+    "Divine-Beast": "👑 Bête-Divine"
+  },
+
+  "TYPE_TRANSLATION": {
+    "normal monster": "Monstre Normal",
+    "effect monster": "Monstre à effet",
+    "fusion monster": "Monstre Fusion",
+    "ritual monster": "Monstre Rituel",
+    "synchro monster": "Monstre Synchro",
+    "xyz monster": "Monstre Xyz",
+    "link monster": "Monstre Lien",
+    "pendulum monster": "Monstre Pendule",
+    "spell card": "Magie",
+    "trap card": "Piège",
+    "skill card": "Carte Compétence",
+    "token": "Jeton"
+  },
+
+  "TYPE_COLOR": {
+    "monster": "red",
+    "spell": "green",
+    "trap": "blue",
+    "link": "purple",
+    "default": "dark_grey"
+  }
+}
