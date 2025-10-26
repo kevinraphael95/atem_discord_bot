@@ -33,8 +33,8 @@ class ProfilCommand(commands.Cog):
     async def get_or_create_profile(self, user):
         user_id = str(user.id)
         try:
-            profil_data = supabase.table("profil").select("*").eq("user_id", user_id).execute()
-            profil = profil_data.data[0] if profil_data.data else None
+            res = supabase.table("profil").select("*").eq("user_id", user_id).execute()
+            profil = res.data[0] if res.data else None
 
             if not profil:
                 profil = {
@@ -46,6 +46,7 @@ class ProfilCommand(commands.Cog):
                 }
                 supabase.table("profil").insert(profil).execute()
             else:
+                # Toujours s'assurer que rien n'est vide
                 profil["cartefav"] = profil.get("cartefav") or "Non défini"
                 profil["vaact_name"] = profil.get("vaact_name") or "Non défini"
                 profil["fav_decks_vaact"] = profil.get("fav_decks_vaact") or "Non défini"
@@ -69,9 +70,9 @@ class ProfilCommand(commands.Cog):
         user = target_user or author
         profil = await self.get_or_create_profile(user)
 
-        cartefav = profil.get("cartefav") or "Non défini"
-        vaact_name = profil.get("vaact_name") or "Non défini"
-        fav_deck = profil.get("fav_decks_vaact") or "Non défini"
+        cartefav = profil["cartefav"]
+        vaact_name = profil["vaact_name"]
+        fav_deck = profil["fav_decks_vaact"]
 
         embed = discord.Embed(
             title=f"__**Profil de {user.display_name}**__",
@@ -155,6 +156,7 @@ class ProfilCommand(commands.Cog):
     @commands.cooldown(1, 3.0, commands.BucketType.user)
     async def prefix_profil(self, ctx: commands.Context, member: discord.Member = None):
         await self._send_profil(ctx, ctx.author, ctx.guild, member)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
