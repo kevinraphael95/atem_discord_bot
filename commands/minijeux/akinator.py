@@ -168,11 +168,7 @@ class Akinator(commands.Cog):
 
     # 📥 Téléchargement aléatoire de cartes (max 150, sûr)
     async def fetch_random_cards(self, limit=150):
-        """
-        Récupère un nombre limité de cartes Yu-Gi-Oh! aléatoires depuis l'API v7
-        en respectant les limites et sans dépendre d'offset aléatoire.
-        """
-        safe_limit = min(limit, 150)  # sécurité : max 150 cartes
+        safe_limit = min(limit, 150)
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
 
         async with aiohttp.ClientSession() as session:
@@ -186,7 +182,6 @@ class Akinator(commands.Cog):
         if not all_cards:
             return []
 
-        # Tirage aléatoire local pour limiter le nombre de cartes
         sampled_cards = random.sample(all_cards, min(safe_limit, len(all_cards)))
 
         cards = []
@@ -194,6 +189,7 @@ class Akinator(commands.Cog):
             cards.append({
                 "id": c.get("id"),
                 "name": c.get("name", "Inconnue"),
+                "type_general": ["Monstre" if "Monster" in c.get("type", "") else "Sort" if "Spell" in c.get("type", "") else "Piège"],
                 "type_subtype": (c.get("type", "") + " " + c.get("race", "")).split(),
                 "attribute": [c.get("attribute")] if c.get("attribute") else [],
                 "archetype": [c.get("archetype")] if c.get("archetype") else [],
@@ -226,10 +222,10 @@ class Akinator(commands.Cog):
             color=discord.Color.purple
         )
 
-        if interaction:  # Slash command
+        if interaction:
             view.message = await interaction.followup.send(embed=embed, view=view)
             await view.ask_question(interaction)
-        else:  # Préfix command
+        else:
             view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
             await view.ask_question()
 
