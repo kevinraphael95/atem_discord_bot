@@ -1,202 +1,254 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 akinator.py — Commande interactive !akinator
-# Objectif : Deviner une carte Yu-Gi-Oh! via questions Oui/Non/Je sais pas avec sélection intelligente
+# 📌 akinator.py — Commande /akinator et !akinator
+# Objectif : Mini-jeu Akinator Yu-Gi-Oh! devinant la carte à laquelle le joueur pense
 # Catégorie : Minijeux
-# Accès : Public
+# Accès : Tous
+# Cooldown : 1 utilisation / 15 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
+from utils.discord_utils import safe_send, safe_respond, safe_edit
 import aiohttp
+import asyncio
 import json
-import os
-import math
-from utils.discord_utils import safe_send, safe_edit
+import random
 
-DATA_QUESTIONS_PATH = os.path.join("data", "akiquestions.json")
+QUESTIONS_JSON_PATH = "data/akinator_questions.json"
 
+# ────────────────────────────────────────────────────────────────────────────────
+# ⚙️ Fonction utilitaire : chargement des questions
+# ────────────────────────────────────────────────────────────────────────────────
 def load_questions():
     try:
-        with open(DATA_QUESTIONS_PATH, "r", encoding="utf-8") as f:
+        with open(QUESTIONS_JSON_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        print(f"[ERREUR JSON] Impossible de charger {DATA_QUESTIONS_PATH} : {e}")
+        print(f"[ERREUR] Impossible de charger {QUESTIONS_JSON_PATH}: {e}")
         return []
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 🧠 Classe principale de l’Akinator (logique de jeu)
+# ────────────────────────────────────────────────────────────────────────────────
 class AkinatorView(View):
-    def __init__(self, bot, ctx, all_cards, questions, message=None):
-        super().__init__(timeout=180)
+    def __init__(self, bot, questions, cards):
+        super().__init__(timeout=300)
         self.bot = bot
-        self.ctx = ctx
-        self.all_cards = all_cards
-        self.remaining = all_cards[:]
         self.questions = questions
-        self.message = message
-        self.used_questions = []
-        self.current_q = None
-        self.max_questions = 20
-        self.proposed_cards = set()
+        self.remaining_cards = cards
+        self.message = None
+        self.current_question = None
+        self.current_value = None
+        self.asked = set()
+        self.question_count = 0
 
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        return interaction.user == self.ctx.author
-
-    async def on_timeout(self):
-        await safe_edit(self.message, content="⏰ Temps écoulé.", embed=None, view=None)
-        self.stop()
-
-    async def start(self):
-        if not self.message:
-            embed = discord.Embed(
-                title="Akinator Yu-Gi-Oh!",
-                description="Chargement des cartes...",
-                color=discord.Color.dark_red()
-            )
-            self.message = await safe_send(self.ctx, embed=embed)
-        await self.ask_next_question()
-
-    async def ask_next_question(self):
-        if len(self.remaining) <= 1 or len(self.used_questions) >= self.max_questions:
-            await self.finish_game()
-            return
-
-        self.current_q = self.select_best_question()
-        if not self.current_q:
-            await self.finish_game()
-            return
-
-        self.used_questions.append(self.current_q)
-        embed = discord.Embed(
-            title=f"Question {len(self.used_questions)} / {self.max_questions}",
-            description=self.current_q['text'],
-            color=discord.Color.dark_gold()
-        )
-        await safe_edit(self.message, embed=embed, view=self)
-
-    def select_best_question(self):
-        """Sélectionne la question qui maximise l'information (entropie)"""
+    # 🔹 Choix de la meilleure question
+    def choose_best_question(self):
+        """
+        Sélectionne la question la plus discriminante parmi celles restantes.
+        La logique : on cherche la question qui divise le plus équitablement
+        les cartes restantes (proche de la moitié pour Oui/Non).
+        """
         best_q = None
-        best_score = -1
+        best_balance = float("inf")
+
         for q in self.questions:
-            if q in self.used_questions:
+            key = q.get("filter_key")
+            if not key or key in self.asked:
                 continue
-            yes_count = sum(1 for c in self.remaining if self.match_filter(c, q))
-            no_count = len(self.remaining) - yes_count
-            if yes_count == 0 or no_count == 0:
+
+            values = q.get("filter_value", [])
+            # On ne garde que les valeurs présentes dans les cartes restantes
+            available_values = [
+                v for v in values if any(v in c.get(key, []) for c in self.remaining_cards)
+            ]
+            if not available_values:
                 continue
-            p_yes = yes_count / len(self.remaining)
-            p_no = no_count / len(self.remaining)
-            entropy = - (p_yes * math.log2(p_yes) + p_no * math.log2(p_no))
-            if entropy > best_score:
-                best_score = entropy
-                best_q = q
+
+            # On calcule pour chaque valeur l'équilibre Oui/Non
+            for val in available_values:
+                count_yes = sum(1 for c in self.remaining_cards if val in c.get(key, []))
+                count_no = len(self.remaining_cards) - count_yes
+                balance = abs(count_yes - count_no)
+
+                # On priorise les questions qui divisent presque en deux
+                if balance < best_balance:
+                    best_balance = balance
+                    best_q = q
+                    self.current_value = val
+
         return best_q
 
-    def match_filter(self, card, question):
-        key, value = question['filter_key'], question['filter_value']
-        if key not in card:
-            return False
-        return value.lower() in str(card[key]).lower()
+    # 🔹 Pose la question suivante
+    async def ask_question(self, interaction=None):
+        top_cards = sorted(self.remaining_cards, key=lambda c: c.get("atk", 0), reverse=True)[:3]
+        can_propose = self.question_count >= 8 or len(self.remaining_cards) <= 3
 
-    async def process_answer(self, answer):
-        if answer != "idk":
-            self.remaining = [
-                c for c in self.remaining
-                if (answer == "oui" and self.match_filter(c, self.current_q)) or
-                   (answer == "non" and not self.match_filter(c, self.current_q))
-            ]
-            if not self.remaining:
-                await safe_edit(self.message, content="❌ Plus aucune carte ne correspond aux critères.", embed=None, view=None)
-                self.stop()
-                return
-        await self.ask_next_question()
-
-    async def finish_game(self):
-        if self.remaining:
-            card = self.remaining[0]
-            card_id = card.get('id') or card.get('card_id') or card.get('name')
-            self.proposed_cards.add(card_id)
+        if can_propose or not self.remaining_cards:
             embed = discord.Embed(
-                title="Je pense à cette carte !",
-                description=f"**{card['name']}**\nEst-ce bien ta carte ?",
-                color=discord.Color.green()
+                title="🔮 Résultat Akinator",
+                description=(
+                    "Voici mes meilleures prédictions :\n\n"
+                    + "\n".join(f"• **{c['name']}**" for c in top_cards)
+                    if top_cards else "❌ Aucune carte correspondante trouvée."
+                ),
+                color=discord.Color.purple()
             )
-            if 'card_images' in card and card['card_images']:
-                embed.set_image(url=card['card_images'][0]['image_url'])
-            await safe_edit(self.message, content=None, embed=embed, view=ConfirmGuessView(self))
-        else:
-            await safe_edit(self.message, content="❌ Je n'ai pas trouvé de carte correspondante.", embed=None, view=None)
-            self.stop()
+            if top_cards and "card_images" in top_cards[0]:
+                embed.set_image(url=top_cards[0]["card_images"][0].get("image_url", ""))
 
-    @discord.ui.button(label="Oui", style=discord.ButtonStyle.success)
-    async def yes(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.defer()
-        await self.process_answer("oui")
+            if interaction:
+                await safe_edit(interaction.message, embed=embed, view=None)
+            else:
+                await safe_edit(self.message, embed=embed, view=None)
+            return
 
-    @discord.ui.button(label="Non", style=discord.ButtonStyle.danger)
-    async def no(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.defer()
-        await self.process_answer("non")
+        q = self.choose_best_question()
+        if not q:
+            if interaction:
+                await safe_edit(interaction.message, content="❌ Plus de questions disponibles.", view=None)
+            else:
+                await safe_edit(self.message, content="❌ Plus de questions disponibles.", view=None)
+            return
 
-    @discord.ui.button(label="Je sais pas", style=discord.ButtonStyle.secondary)
-    async def idk(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.defer()
-        await self.process_answer("idk")
+        self.current_question = q
+        self.asked.add(q["filter_key"])
+        question_text = (q.get("text") or "").replace("{value}", self.current_value or "…")
 
-class ConfirmGuessView(View):
-    def __init__(self, akinator_view):
-        super().__init__(timeout=60)
-        self.akinator_view = akinator_view
-
-    @discord.ui.button(label="Oui, c'est la bonne carte", style=discord.ButtonStyle.success)
-    async def confirm(self, interaction: discord.Interaction, button: Button):
-        await interaction.followup.send(
-            content="🎉 **Super ! J'ai trouvé ta carte !** Merci d'avoir joué à Akinator Yu-Gi-Oh!",
-            ephemeral=False
+        embed = discord.Embed(
+            title="❓ Question Akinator",
+            description=f"{question_text}\n\n({len(self.remaining_cards)} cartes restantes)",
+            color=discord.Color.blue()
         )
-        await interaction.message.edit(view=None)
-        self.akinator_view.stop()
 
-    @discord.ui.button(label="Non, essaie encore", style=discord.ButtonStyle.danger)
-    async def deny(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.defer()
-        self.akinator_view.max_questions += 20
-        self.akinator_view.used_questions = []
-        await safe_edit(self.akinator_view.message, embed=None, view=self.akinator_view)
-        await self.akinator_view.ask_next_question()
+        self.clear_items()
+        for label in ["Oui", "Non", "Ne sais pas", "Abandonner"]:
+            style = discord.ButtonStyle.danger if label == "Abandonner" else discord.ButtonStyle.primary
+            self.add_item(AkinatorButton(self, label, style))
 
-class AkinatorCog(commands.Cog):
+        if interaction:
+            await safe_edit(interaction.message, embed=embed, view=self)
+        else:
+            await safe_edit(self.message, embed=embed, view=self)
+
+    # 🔹 Réponse du joueur
+    async def process_answer(self, answer: str, interaction: discord.Interaction):
+        if answer == "Abandonner":
+            await safe_edit(interaction.message, embed=discord.Embed(
+                title="🛑 Partie arrêtée", description="Tu as abandonné l'Akinator.", color=discord.Color.red()
+            ), view=None)
+            return
+
+        q, val = self.current_question, self.current_value
+        key = q.get("filter_key")
+
+        if answer == "Oui":
+            self.remaining_cards = [c for c in self.remaining_cards if val in c.get(key, [])]
+        elif answer == "Non":
+            self.remaining_cards = [c for c in self.remaining_cards if val not in c.get(key, [])]
+
+        self.question_count += 1
+        await self.ask_question(interaction)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔘 Boutons de réponses
+# ────────────────────────────────────────────────────────────────────────────────
+class AkinatorButton(Button):
+    def __init__(self, view, label, style=discord.ButtonStyle.primary):
+        super().__init__(label=label, style=style)
+        self.view = view
+
+    async def callback(self, interaction: discord.Interaction):
+        await self.view.process_answer(self.label, interaction)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🧩 Cog principal : Commande Akinator
+# ────────────────────────────────────────────────────────────────────────────────
+class Akinator(commands.Cog):
+    """
+    Commande /akinator et !akinator — Fait deviner une carte Yu-Gi-Oh! à l’Akinator
+    """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.questions = load_questions()
 
-    @commands.command(name="akinator", help="Devine une carte Yu-Gi-Oh! à laquelle tu penses.")
-    async def akinator(self, ctx: commands.Context):
-        try:
-            await safe_send(ctx, "🔍 Chargement des cartes...")
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://db.ygoprodeck.com/api/v7/cardinfo.php") as resp:
-                    data = await resp.json()
-                    cards = data.get("data", [])
-            embed = discord.Embed(
-                title="Akinator Yu-Gi-Oh!",
-                description="Je vais deviner à quoi tu penses en 20 questions maximum.",
-                color=discord.Color.dark_red()
-            )
-            msg = await safe_send(ctx, embed=embed)
-            view = AkinatorView(self.bot, ctx, cards, self.questions, msg)
-            await view.start()
-        except Exception as e:
-            await safe_send(ctx, f"❌ Une erreur est survenue : {e}")
+    # 📥 Téléchargement aléatoire de cartes (max 150, sûr)
+    async def fetch_random_cards(self, limit=150):
+        safe_limit = min(limit, 150)
+        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    print(f"[ERREUR] Impossible de récupérer les cartes: HTTP {resp.status}")
+                    return []
+                data = await resp.json()
+
+        all_cards = data.get("data", [])
+        if not all_cards:
+            return []
+
+        sampled_cards = random.sample(all_cards, min(safe_limit, len(all_cards)))
+        cards = []
+        for c in sampled_cards:
+            cards.append({
+                "id": c.get("id"),
+                "name": c.get("name", "Inconnue"),
+                "type_subtype": (c.get("type", "") + " " + c.get("race", "")).split(),
+                "attribute": [c.get("attribute")] if c.get("attribute") else [],
+                "archetype": [c.get("archetype")] if c.get("archetype") else [],
+                "effect": ["Effect"] if c.get("desc") and "effect" in c.get("desc").lower() else ["Normal"],
+                "level": c.get("level", 0),
+                "atk": c.get("atk", 0),
+                "def": c.get("def", 0),
+                "linkval": c.get("linkval", 0),
+                "card_images": c.get("card_images", []),
+            })
+
+        return cards
+
+    # 🎮 Lancement du jeu
+    async def start_akinator(self, ctx_or_channel, interaction=None):
+        questions = load_questions()
+        if not questions:
+            await safe_send(ctx_or_channel, "❌ Impossible de charger les questions.")
+            return
+
+        cards = await self.fetch_random_cards()
+        if not cards:
+            await safe_send(ctx_or_channel, "❌ Impossible de récupérer les cartes.")
+            return
+
+        view = AkinatorView(self.bot, questions, cards)
+        embed = discord.Embed(
+            title="🎩 Akinator Yu-Gi-Oh!",
+            description="Pense à une carte Yu-Gi-Oh! et je vais essayer de la deviner. Clique sur un bouton pour commencer.",
+            color=discord.Color.green()
+        )
+        view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
+        await view.ask_question()
+
+    # ────────── Slash command
+    @app_commands.command(name="akinator", description="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
+    async def slash_akinator(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self.start_akinator(interaction)
+
+    # ────────── Prefix command
+    @commands.command(name="akinator", help="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
+    async def prefix_akinator(self, ctx):
+        await self.start_akinator(ctx)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
-    cog = AkinatorCog(bot)
+    cog = Akinator(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
             command.category = "Minijeux"
