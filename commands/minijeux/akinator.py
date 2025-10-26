@@ -49,24 +49,34 @@ class AkinatorView(View):
 
     # 🔹 Choix de la meilleure question
     def choose_best_question(self):
+        """
+        Sélectionne la question la plus discriminante parmi celles restantes.
+        La logique : on cherche la question qui divise le plus équitablement
+        les cartes restantes (proche de la moitié pour Oui/Non).
+        """
         best_q = None
         best_balance = float("inf")
 
         for q in self.questions:
             key = q.get("filter_key")
-            values = q.get("filter_value", [])
             if not key or key in self.asked:
                 continue
 
+            values = q.get("filter_value", [])
+            # On ne garde que les valeurs présentes dans les cartes restantes
             available_values = [
                 v for v in values if any(v in c.get(key, []) for c in self.remaining_cards)
             ]
             if not available_values:
                 continue
 
+            # On calcule pour chaque valeur l'équilibre Oui/Non
             for val in available_values:
-                count = sum(1 for c in self.remaining_cards if val in c.get(key, []))
-                balance = abs(len(self.remaining_cards) / 2 - count)
+                count_yes = sum(1 for c in self.remaining_cards if val in c.get(key, []))
+                count_no = len(self.remaining_cards) - count_yes
+                balance = abs(count_yes - count_no)
+
+                # On priorise les questions qui divisent presque en deux
                 if balance < best_balance:
                     best_balance = balance
                     best_q = q
@@ -183,13 +193,11 @@ class Akinator(commands.Cog):
             return []
 
         sampled_cards = random.sample(all_cards, min(safe_limit, len(all_cards)))
-
         cards = []
         for c in sampled_cards:
             cards.append({
                 "id": c.get("id"),
                 "name": c.get("name", "Inconnue"),
-                "type_general": ["Monstre" if "Monster" in c.get("type", "") else "Sort" if "Spell" in c.get("type", "") else "Piège"],
                 "type_subtype": (c.get("type", "") + " " + c.get("race", "")).split(),
                 "attribute": [c.get("attribute")] if c.get("attribute") else [],
                 "archetype": [c.get("archetype")] if c.get("archetype") else [],
@@ -218,29 +226,23 @@ class Akinator(commands.Cog):
         view = AkinatorView(self.bot, questions, cards)
         embed = discord.Embed(
             title="🎩 Akinator Yu-Gi-Oh!",
-            description="Pense à une carte Yu-Gi-Oh!... Je vais la deviner 👀",
-            color=discord.Color.purple
+            description="Pense à une carte Yu-Gi-Oh! et je vais essayer de la deviner. Clique sur un bouton pour commencer.",
+            color=discord.Color.green()
         )
+        view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
+        await view.ask_question()
 
-        if interaction:
-            view.message = await interaction.followup.send(embed=embed, view=view)
-            await view.ask_question(interaction)
-        else:
-            view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
-            await view.ask_question()
-
-    # 🔹 Commande SLASH
-    @app_commands.command(name="akinator", description="Joue à l’Akinator Yu-Gi-Oh! 🎩")
-    @app_commands.checks.cooldown(1, 15.0, key=lambda i: i.user.id)
+    # ────────── Slash command
+    @app_commands.command(name="akinator", description="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def slash_akinator(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self.start_akinator(interaction.channel, interaction)
+        await self.start_akinator(interaction)
 
-    # 🔹 Commande PREFIX
-    @commands.command(name="akinator")
-    @commands.cooldown(1, 15.0, commands.BucketType.user)
-    async def prefix_akinator(self, ctx: commands.Context):
-        await self.start_akinator(ctx.channel)
+    # ────────── Prefix command
+    @commands.command(name="akinator", help="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
+    async def prefix_akinator(self, ctx):
+        await self.start_akinator(ctx)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
