@@ -53,15 +53,23 @@ class ProfilCommand(commands.Cog):
                     "fav_decks_vaact": []
                 }
 
+            # Normalisation des decks préférés
             fav_decks = profil.get("fav_decks_vaact", [])
             if isinstance(fav_decks, str):
                 try:
                     fav_decks = json.loads(fav_decks)
+                    if not isinstance(fav_decks, list):
+                        fav_decks = []
                 except:
                     fav_decks = []
             elif not isinstance(fav_decks, list):
                 fav_decks = []
             profil["fav_decks_vaact"] = fav_decks
+
+            # Normalisation carte préférée
+            if not profil.get("cartefav"):
+                profil["cartefav"] = "Aucune"
+
             return profil
 
         except Exception as e:
@@ -83,7 +91,7 @@ class ProfilCommand(commands.Cog):
             return
 
         cartefav = profil.get("cartefav", "Aucune")
-        vaact_name = profil.get("vaact_name", None)
+        vaact_name = profil.get("vaact_name") or "Non défini"
         fav_decks = profil.get("fav_decks_vaact", [])
         decks_text = ", ".join(fav_decks) if fav_decks else "Aucun"
 
@@ -91,10 +99,10 @@ class ProfilCommand(commands.Cog):
             title=f"__**Profil de {user.display_name}**__",
             description=(
                 f"**Carte préférée** : {cartefav}\n"
-                f"**Pseudo VAACT** : {vaact_name or 'Non défini'}\n"
+                f"**Pseudo VAACT** : {vaact_name}\n"
                 f"**Decks VAACT préférés** : {decks_text}"
             ),
-            color=discord.Color.green() if vaact_name else discord.Color.blurple()
+            color=discord.Color.green() if vaact_name != "Non défini" else discord.Color.blurple()
         )
 
         if user.avatar:
@@ -103,7 +111,7 @@ class ProfilCommand(commands.Cog):
 
         # View si pseudo non défini (et si c’est ton propre profil)
         view = None
-        if not vaact_name and (target_user is None or target_user == author):
+        if vaact_name == "Non défini" and (target_user is None or target_user == author):
             taken = [p["vaact_name"] for p in supabase.table("profil")
                      .select("vaact_name").not_("vaact_name", "is", None).execute().data]
             available = [f"VAACT_Player_{i}" for i in range(1, 26) if f"VAACT_Player_{i}" not in taken]
