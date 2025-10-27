@@ -150,17 +150,6 @@ class Carte(commands.Cog):
         rank = carte.get("rank")
         linkval = carte.get("linkval") or carte.get("link_rating")
 
-        # ── Nouveaux champs ─────────────────────────────────────────────────────
-        genre = carte.get("type") or "?"
-        archetype = carte.get("archetype") or "Aucun"
-        tcg_limit = carte.get("tcg_limit") or "?"
-        ocg_limit = carte.get("ocg_limit") or "?"
-        md_limit = carte.get("md_limit") or "?"
-        goat_limit = carte.get("goat_limit") or "?"
-        genesys_points = carte.get("genesys_points") or "?"
-        staple = carte.get("staple", False)
-        release_date = carte.get("release_date", "?")
-
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
 
@@ -180,15 +169,6 @@ class Carte(commands.Cog):
             atk_text = f"⚔️ {atk}" if atk is not None else "⚔️ ?"
             def_text = f"🛡️ {defe}" if defe is not None else "🛡️ ?"
             lines.append(f"**ATK/DEF** : {atk_text}/{def_text}")
-
-        # ── Nouveaux champs ─────────────────────────────────────────────────────
-        lines.append(f"**Genre** : {genre}")
-        lines.append(f"**Archétype** : {archetype}")
-        lines.append(f"**Formats** : TCG: {tcg_limit} / OCG: {ocg_limit} / MD: {md_limit} / GOAT: {goat_limit}")
-        lines.append(f"**Genesys points** : {genesys_points}")
-        if staple:
-            lines.append(f"**Staple** : ✅")
-
         lines.append(f"**Description**\n{desc}")
 
         embed = discord.Embed(
@@ -203,8 +183,7 @@ class Carte(commands.Cog):
             if thumb:
                 embed.set_thumbnail(url=thumb)
 
-        # ── Footer avec date de sortie ───────────────────────────────────────────
-        embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()} | Sortie : {release_date}")
+        embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()}")
 
         view = CarteFavoriteButton(card_name, ctx.author)
         await safe_send(ctx, embed=embed, view=view)
