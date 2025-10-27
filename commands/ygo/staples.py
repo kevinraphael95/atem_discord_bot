@@ -34,16 +34,20 @@ class StaplesPagination(discord.ui.View):
         return self.staples[start:end]
 
     async def update_embed(self, interaction: discord.Interaction):
-        """Met à jour l'embed affiché."""
+        """Met à jour l'embed affiché avec noms et types en français."""
         current = self.get_page_data()
         total_pages = (len(self.staples) - 1) // self.per_page + 1
 
+        description = "\n".join(
+            f"**{c['name']}** — {c.get('type', 'Inconnu')}" for c in current
+        )
+
         embed = discord.Embed(
             title=f"📌 Cartes Staples (Page {self.page + 1}/{total_pages})",
-            description="\n".join(f"**{c['name']}** — {c['type']}" for c in current),
+            description=description,
             color=discord.Color.blue()
         )
-        embed.set_footer(text=f"{len(self.staples)} cartes au total • 20 par page")
+        embed.set_footer(text=f"{len(self.staples)} cartes au total • {self.per_page} par page")
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="⬅️ Précédent", style=discord.ButtonStyle.secondary)
@@ -62,13 +66,13 @@ class StaplesPagination(discord.ui.View):
 class Staples(commands.Cog):
     """Commande /staples et !staples — Liste des cartes Staples"""
 
-    API_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes"
+    API_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     async def fetch_staples(self):
-        """Récupère les cartes staples depuis l'API"""
+        """Récupère les cartes staples depuis l'API (noms et types en français)."""
         async with aiohttp.ClientSession() as session:
             async with session.get(self.API_URL) as resp:
                 if resp.status != 200:
@@ -94,12 +98,16 @@ class Staples(commands.Cog):
         current = view.get_page_data()
         total_pages = (len(staples) - 1) // view.per_page + 1
 
+        description = "\n".join(
+            f"**{c['name']}** — {c.get('type', 'Inconnu')}" for c in current
+        )
+
         embed = discord.Embed(
             title=f"📌 Cartes Staples (Page 1/{total_pages})",
-            description="\n".join(f"**{c['name']}** — {c['type']}" for c in current),
+            description=description,
             color=discord.Color.blue()
         )
-        embed.set_footer(text=f"{len(staples)} cartes au total • 20 par page")
+        embed.set_footer(text=f"{len(staples)} cartes au total • {view.per_page} par page")
         await interaction.edit_original_response(embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -117,12 +125,16 @@ class Staples(commands.Cog):
         current = view.get_page_data()
         total_pages = (len(staples) - 1) // view.per_page + 1
 
+        description = "\n".join(
+            f"**{c['name']}** — {c.get('type', 'Inconnu')}" for c in current
+        )
+
         embed = discord.Embed(
             title=f"📌 Cartes Staples (Page 1/{total_pages})",
-            description="\n".join(f"**{c['name']}** — {c['type']}" for c in current),
+            description=description,
             color=discord.Color.blue()
         )
-        embed.set_footer(text=f"{len(staples)} cartes au total • 20 par page")
+        embed.set_footer(text=f"{len(staples)} cartes au total • {view.per_page} par page")
         await msg.edit(content=None, embed=embed, view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
