@@ -8,9 +8,6 @@
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
@@ -28,8 +25,17 @@ class LatestPagination(View):
         super().__init__(timeout=120)
         self.cards = cards
         self.index = 0
+        self.message: discord.Message | None = None  # Message lié au View
 
-    async def update_embed(self, interaction: discord.Interaction):
+    async def send_initial(self, ctx: commands.Context):
+        """Envoie le message initial et stocke le message dans self.message"""
+        self.message = await safe_send(ctx, embed=discord.Embed(title="🔄 Chargement…", color=discord.Color.red()), view=self)
+        await self.update_embed()  # met à jour avec la première carte
+
+    async def update_embed(self):
+        if not self.message:
+            return
+
         carte = self.cards[self.index]
         card_name = carte.get("name", "Carte inconnue")
         type_raw = carte.get("type", "")
@@ -74,18 +80,19 @@ class LatestPagination(View):
                 embed.set_thumbnail(url=thumb)
 
         embed.set_footer(text=f"ID Carte : {carte.get('id', '?')} | ID Konami : {carte.get('konami_id', '?')}")
+        await self.message.edit(embed=embed, view=self)
 
-        await interaction.response.edit_message(embed=embed, view=self)
-
+    # ────────────── Boutons ──────────────
     @discord.ui.button(label="⬅️", style=discord.ButtonStyle.secondary)
     async def prev(self, interaction: discord.Interaction, button: Button):
         self.index = (self.index - 1) % len(self.cards)
-        await self.update_embed(interaction)
+        await self.update_embed()
 
     @discord.ui.button(label="➡️", style=discord.ButtonStyle.secondary)
     async def next(self, interaction: discord.Interaction, button: Button):
         self.index = (self.index + 1) % len(self.cards)
-        await self.update_embed(interaction)
+        await self.update_embed()
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -101,34 +108,19 @@ class Latest(commands.Cog):
         help="🆕 Affiche les dernières cartes ajoutées dans la base YGOPRODeck."
     )
     async def latest(self, ctx: commands.Context, limit: int = 10):
-        """Limit facultatif — par défaut 10 dernières cartes"""
         if limit < 1:
             limit = 1
         if limit > 50:
-            limit = 50  # sécurité
+            limit = 50
 
         cards = await fetch_latest_cards(limit)
         if not cards:
             await safe_send(ctx, "❌ Impossible de récupérer les dernières cartes.")
             return
 
-        # Premier embed
-        carte = cards[0]
-        embed_lines = [
-            f"**Type de carte** : {translate_card_type(carte.get('type', ''))}",
-            f"**Description** : {carte.get('desc', 'Pas de description disponible.')}"
-        ]
-        embed = discord.Embed(
-            title=f"**{carte.get('name', 'Carte inconnue')}** — Carte 1/{len(cards)}",
-            description="\n".join(embed_lines),
-            color=pick_embed_color(carte.get('type', ''))
-        )
-        if "card_images" in carte and carte["card_images"]:
-            thumb = carte["card_images"][0].get("image_url_cropped")
-            if thumb:
-                embed.set_thumbnail(url=thumb)
+        pagination = LatestPagination(cards)
+        await pagination.send_initial(ctx)
 
-        await safe_send(ctx, embed=embed, view=LatestPagination(cards))
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
