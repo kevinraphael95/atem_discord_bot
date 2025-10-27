@@ -61,7 +61,7 @@ class BanlistPagination(discord.ui.View):
         current = self.get_page_data()
         total_pages = (len(self.cards) - 1) // self.per_page + 1
 
-        # 🗂️ Traduction du type pour chaque carte
+        # 🗂️ Traduction du type pour chaque carte, noms en français
         description = "\n".join(
             f"**{c['name']}** — {translate_card_type(c.get('type', 'Inconnu'))}"
             for c in current
@@ -97,8 +97,8 @@ class Banlist(commands.Cog):
         self.bot = bot
 
     async def fetch_banlist(self, banlist_type: str):
-        """Récupère les cartes selon la banlist choisie"""
-        params = {"banlist": banlist_type, "sort": "name"}
+        """Récupère les cartes selon la banlist choisie (noms en français)."""
+        params = {"banlist": banlist_type, "sort": "name", "language": "fr"}  # <-- noms en français
         async with aiohttp.ClientSession() as session:
             async with session.get(self.BASE_URL, params=params) as resp:
                 if resp.status != 200:
