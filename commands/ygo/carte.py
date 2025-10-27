@@ -150,10 +150,36 @@ class Carte(commands.Cog):
         rank = carte.get("rank")
         linkval = carte.get("linkval") or carte.get("link_rating")
 
+        # ── Section Archétype / Limites / Genesys ────────────────────────────────
+        archetype = carte.get("archetype")
+        banlist_info = carte.get("banlist_info", {})
+        genesys_points = carte.get("genesys_points")
+
+        def format_limit(val):
+            mapping = {
+                "Banned": "0",
+                "Limited": "1",
+                "Semi-Limited": "2",
+                "3": "3",
+                "Unlimited": "3"
+            }
+            return mapping.get(val, "3")
+
+        tcg_limit = format_limit(banlist_info.get("ban_tcg"))
+        ocg_limit = format_limit(banlist_info.get("ban_ocg"))
+        goat_limit = format_limit(banlist_info.get("ban_goat"))
+
+        header_lines = []
+        if archetype:
+            header_lines.append(f"**Archétype** : 🧬 {archetype}")
+        header_lines.append(f"**Limites** : TCG {tcg_limit} / OCG {ocg_limit} / GOAT {goat_limit}")
+        if genesys_points is not None:
+            header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
+
+        # ── Partie principale de la carte ────────────────────────────────────────
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
 
-        # ── Construction du texte ───────────────────────────────────────────────
         lines = [f"**Type de carte** : {card_type_fr}"]
         if race:
             lines.append(f"**Type** : {format_race(race)}")
@@ -171,13 +197,13 @@ class Carte(commands.Cog):
             lines.append(f"**ATK/DEF** : {atk_text}/{def_text}")
         lines.append(f"**Description**\n{desc}")
 
+        # ── Embed final ──────────────────────────────────────────────────────────
         embed = discord.Embed(
             title=f"**{card_name}**",
-            description="\n".join(lines),
+            description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
 
-        # ── Thumbnail ────────────────────────────────────────────────────────────
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb:
