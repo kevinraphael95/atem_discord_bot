@@ -5,7 +5,7 @@
 #   - Permettre de naviguer entre plusieurs illustrations si disponibles
 #   - Utilise utils/card_utils pour la recherche
 # Catégorie :
-#   - 
+#   - 🃏 Yu-Gi-Oh!
 # Accès :
 #   - Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -75,8 +75,16 @@ class Art(commands.Cog):
             await safe_send(ctx, f"❌ Impossible de trouver la carte `{nom}`.")
             return
 
-        # Récupération des illustrations
-        images = [img.get("image_url") for img in carte.get("card_images", []) if img.get("image_url")]
+        # Récupération des illustrations (préférence pour cropped si dispo)
+        images = []
+        for img in carte.get("card_images", []):
+            cropped = img.get("image_url_cropped")
+            full = img.get("image_url")
+            if cropped:
+                images.append(cropped)
+            elif full:
+                images.append(full)
+
         if not images:
             await safe_send(ctx, "❌ Aucune illustration disponible pour cette carte.")
             return
