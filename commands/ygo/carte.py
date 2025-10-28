@@ -7,6 +7,7 @@
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
@@ -85,14 +86,31 @@ def translate_card_type(type_str: str) -> str:
     return type_str
 
 def pick_embed_color(type_str: str) -> discord.Color:
+    """Renvoie la couleur correspondant au type de carte Yu-Gi-Oh!"""
     if not type_str:
-        return TYPE_COLOR.get("default")
+        return TYPE_COLOR.get("default", discord.Color.dark_grey())
+
     t = type_str.lower()
-    # Recherche intelligente dans TYPE_COLOR
-    for key, color in TYPE_COLOR.items():
-        if key in t:
-            return color
-    return TYPE_COLOR.get("default")
+
+    # 🔹 Ordre de priorité pour éviter que 'monster' écrase les sous-types
+    priority_keys = [
+        "fusion",
+        "ritual",
+        "synchro",
+        "xyz",
+        "link",
+        "pendulum",
+        "spell",
+        "trap",
+        "token",
+        "monster",
+    ]
+
+    for key in priority_keys:
+        if key in t and key in TYPE_COLOR:
+            return TYPE_COLOR[key]
+
+    return TYPE_COLOR.get("default", discord.Color.dark_grey())
 
 def format_attribute(attr: str) -> str:
     return ATTRIBUT_EMOJI.get(attr.upper(), attr) if attr else "?"
@@ -113,6 +131,7 @@ def format_race(race: str, type_raw: str) -> str:
 # ────────────────────────────────────────────────────────────────────────────────
 class Carte(commands.Cog):
     """Commande !carte — Rechercher ou tirer une carte Yu-Gi-Oh! aléatoire"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -207,6 +226,7 @@ class Carte(commands.Cog):
             description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
+
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb:
@@ -228,6 +248,5 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "🃏 Yu-Gi-Oh!"
     await bot.add_cog(cog)
-
 
 
