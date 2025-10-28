@@ -7,7 +7,6 @@
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
-
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
@@ -16,7 +15,6 @@ from discord.ext import commands
 from discord.ui import View, Button
 import json
 from pathlib import Path
-
 from utils.discord_utils import safe_send
 from utils.supabase_client import supabase
 from utils.card_utils import search_card, fetch_random_card  # ✅ Import centralisé
@@ -25,7 +23,6 @@ from utils.card_utils import search_card, fetch_random_card  # ✅ Import centra
 # 🎨 Chargement du mappage décoratif depuis data/cardinfofr.json
 # ────────────────────────────────────────────────────────────────────────────────
 CARDINFO_PATH = Path("data/cardinfofr.json")
-
 try:
     with CARDINFO_PATH.open("r", encoding="utf-8") as f:
         CARDINFO = json.load(f)
@@ -36,14 +33,18 @@ except FileNotFoundError:
 ATTRIBUT_EMOJI = CARDINFO.get("ATTRIBUT_EMOJI", {})
 TYPE_EMOJI = CARDINFO.get("TYPE_EMOJI", {})
 TYPE_TRANSLATION = CARDINFO.get("TYPE_TRANSLATION", {})
+SPELL_RACE_TRANSLATION = CARDINFO.get("SPELL_RACE_TRANSLATION", {})
+TRAP_RACE_TRANSLATION = CARDINFO.get("TRAP_RACE_TRANSLATION", {})
 
-TYPE_COLOR = {
-    "monster": discord.Color.red(),
-    "spell": discord.Color.green(),
-    "trap": discord.Color.blue(),
-    "link": discord.Color.purple(),
-    "default": discord.Color.dark_grey()
-}
+# Conversion des couleurs hexadécimales en discord.Color
+TYPE_COLOR = {}
+for key, hex_code in CARDINFO.get("TYPE_COLOR", {}).items():
+    try:
+        TYPE_COLOR[key] = discord.Color.from_str(hex_code)
+    except Exception:
+        TYPE_COLOR[key] = discord.Color.dark_grey()
+if "default" not in TYPE_COLOR:
+    TYPE_COLOR["default"] = discord.Color.dark_grey()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ View — bouton "Carte favorite"
@@ -85,30 +86,33 @@ def translate_card_type(type_str: str) -> str:
 
 def pick_embed_color(type_str: str) -> discord.Color:
     if not type_str:
-        return TYPE_COLOR["default"]
+        return TYPE_COLOR.get("default")
     t = type_str.lower()
-    if "spell" in t:
-        return TYPE_COLOR["spell"]
-    if "trap" in t:
-        return TYPE_COLOR["trap"]
-    if "link" in t:
-        return TYPE_COLOR["link"]
-    if "monster" in t:
-        return TYPE_COLOR["monster"]
-    return TYPE_COLOR["default"]
+    # Recherche intelligente dans TYPE_COLOR
+    for key, color in TYPE_COLOR.items():
+        if key in t:
+            return color
+    return TYPE_COLOR.get("default")
 
 def format_attribute(attr: str) -> str:
     return ATTRIBUT_EMOJI.get(attr.upper(), attr) if attr else "?"
 
-def format_race(race: str) -> str:
-    return TYPE_EMOJI.get(race, race) if race else "?"
+def format_race(race: str, type_raw: str) -> str:
+    """Traduit le type de carte selon le type global (monstre, magie, piège)."""
+    if not race:
+        return "?"
+    t = type_raw.lower()
+    if "spell" in t:
+        return SPELL_RACE_TRANSLATION.get(race, race)
+    if "trap" in t:
+        return TRAP_RACE_TRANSLATION.get(race, race)
+    return TYPE_EMOJI.get(race, race)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Carte(commands.Cog):
     """Commande !carte — Rechercher ou tirer une carte Yu-Gi-Oh! aléatoire"""
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -182,7 +186,7 @@ class Carte(commands.Cog):
 
         lines = [f"**Type de carte** : {card_type_fr}"]
         if race:
-            lines.append(f"**Type** : {format_race(race)}")
+            lines.append(f"**Type** : {format_race(race, type_raw)}")
         if attr:
             lines.append(f"**Attribut** : {format_attribute(attr)}")
         if linkval:
@@ -203,14 +207,12 @@ class Carte(commands.Cog):
             description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
-
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb:
                 embed.set_thumbnail(url=thumb)
 
         embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()}")
-
         view = CarteFavoriteButton(card_name, ctx.author)
         await safe_send(ctx, embed=embed, view=view)
 
@@ -226,3 +228,6 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "🃏 Yu-Gi-Oh!"
     await bot.add_cog(cog)
+
+
+
