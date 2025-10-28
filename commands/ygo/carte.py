@@ -143,7 +143,7 @@ class Carte(commands.Cog):
                     "`synchro` — Monstre Synchro\n"
                     "`magie` ou `s` — Carte Magie\n"
                     "`piège` ou `p` — Carte Piège\n"
-                    "`random` ou `r` — Carte aléatoire (français)\n\n"
+                    "`random` ou `r` — Carte aléatoire en français\n\n"
                     "Exemple : `!carte m Dragon` ou `!carte random`"
                 ),
                 color=discord.Color.blurple()
@@ -151,9 +151,9 @@ class Carte(commands.Cog):
             await safe_send(ctx, embed=help_embed)
             return
 
-        # ── Mode aléatoire ─────────────────────────────────────────────────
+        # ── Mode aléatoire (français) ─────────────────────────────────────
         if nom.lower() in ["random", "r"]:
-            carte, langue = await fetch_random_card()
+            carte, langue = await fetch_random_card(lang="fr")
             if not carte:
                 await safe_send(ctx, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
                 return
@@ -256,3 +256,6 @@ async def setup(bot: commands.Bot):
             command.category = "🃏 Yu-Gi-Oh!"
     await bot.add_cog(cog)
 
+
+
+            
