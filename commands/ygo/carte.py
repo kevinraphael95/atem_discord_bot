@@ -3,7 +3,6 @@
 # Objectif :
 #   - Rechercher et afficher les détails d’une carte Yu-Gi-Oh!
 #   - OU tirer une carte aléatoire avec !carte random
-#   - Affiche un embed d’aide si aucun argument
 #   - Utilise utils/card_utils pour toutes les requêtes API
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
@@ -90,14 +89,27 @@ def pick_embed_color(type_str: str) -> discord.Color:
     """Renvoie la couleur correspondant au type de carte Yu-Gi-Oh!"""
     if not type_str:
         return TYPE_COLOR.get("default", discord.Color.dark_grey())
+
     t = type_str.lower()
+
+    # 🔹 Ordre de priorité pour éviter que 'monster' écrase les sous-types
     priority_keys = [
-        "fusion", "ritual", "synchro", "xyz", "link", "pendulum",
-        "spell", "trap", "token", "monster",
+        "fusion",
+        "ritual",
+        "synchro",
+        "xyz",
+        "link",
+        "pendulum",
+        "spell",
+        "trap",
+        "token",
+        "monster",
     ]
+
     for key in priority_keys:
         if key in t and key in TYPE_COLOR:
             return TYPE_COLOR[key]
+
     return TYPE_COLOR.get("default", discord.Color.dark_grey())
 
 def format_attribute(attr: str) -> str:
@@ -119,6 +131,7 @@ def format_race(race: str, type_raw: str) -> str:
 # ────────────────────────────────────────────────────────────────────────────────
 class Carte(commands.Cog):
     """Commande !carte — Rechercher ou tirer une carte Yu-Gi-Oh! aléatoire"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -130,35 +143,14 @@ class Carte(commands.Cog):
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def carte(self, ctx: commands.Context, *, nom: str = None):
-        # ── Embed d'aide si aucun argument ────────────────────────────────
-        if not nom:
-            help_embed = discord.Embed(
-                title="🃏 Commande `!carte`",
-                description=(
-                    "Rechercher ou tirer une carte Yu-Gi-Oh!\n\n"
-                    "**Arguments possibles :**\n"
-                    "`monstre` ou `m` — Monstre normal ou effet\n"
-                    "`fusion` — Monstre Fusion\n"
-                    "`xyz` — Monstre Xyz\n"
-                    "`synchro` — Monstre Synchro\n"
-                    "`magie` ou `s` — Carte Magie\n"
-                    "`piège` ou `p` — Carte Piège\n"
-                    "`random` ou `r` — Carte aléatoire en français\n\n"
-                    "Exemple : `!carte m Dragon` ou `!carte random`"
-                ),
-                color=discord.Color.blurple()
-            )
-            await safe_send(ctx, embed=help_embed)
-            return
-
-        # ── Mode aléatoire (français) ─────────────────────────────────────
-        if nom.lower() in ["random", "r"]:
-            carte, langue = await fetch_random_card(lang="fr")
+        # ── Mode aléatoire ────────────────────────────────────────────────────────
+        if not nom or nom.lower() == "random":
+            carte, langue = await fetch_random_card()
             if not carte:
                 await safe_send(ctx, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
                 return
         else:
-            # ── Recherche classique via utils/card_utils ─────────────────
+            # ── Recherche classique via utils/card_utils ─────────────────────────
             carte, langue, message = await search_card(nom)
             if message:
                 await safe_send(ctx, message)
@@ -167,7 +159,7 @@ class Carte(commands.Cog):
                 await safe_send(ctx, f"❌ Aucune carte trouvée pour `{nom}`.")
                 return
 
-        # ── Infos carte ───────────────────────────────────────────────
+        # ── Infos carte ──────────────────────────────────────────────────────────
         card_name = carte.get("name", "Carte inconnue")
         card_id = carte.get("id", "?")
         konami_id = carte.get("konami_id", "?")
@@ -181,7 +173,7 @@ class Carte(commands.Cog):
         rank = carte.get("rank")
         linkval = carte.get("linkval") or carte.get("link_rating")
 
-        # ── Section Archétype / Limites / Genesys ─────────────────────
+        # ── Section Archétype / Limites / Genesys ────────────────────────────────
         archetype = carte.get("archetype")
         banlist_info = carte.get("banlist_info", {})
         genesys_points = carte.get("genesys_points")
@@ -207,7 +199,7 @@ class Carte(commands.Cog):
         if genesys_points is not None:
             header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
 
-        # ── Partie principale de la carte ─────────────────────────────
+        # ── Partie principale de la carte ────────────────────────────────────────
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
 
@@ -228,18 +220,19 @@ class Carte(commands.Cog):
             lines.append(f"**ATK/DEF** : {atk_text}/{def_text}")
         lines.append(f"**Description**\n{desc}")
 
-        # ── Embed final ─────────────────────────────────────────────
+        # ── Embed final ──────────────────────────────────────────────────────────
         embed = discord.Embed(
             title=f"**{card_name}**",
             description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
+
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb:
                 embed.set_thumbnail(url=thumb)
-        embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()}")
 
+        embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()}")
         view = CarteFavoriteButton(card_name, ctx.author)
         await safe_send(ctx, embed=embed, view=view)
 
@@ -258,4 +251,3 @@ async def setup(bot: commands.Bot):
 
 
 
-            
