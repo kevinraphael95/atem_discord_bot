@@ -2,15 +2,12 @@
 # 📌 banlist.py — Commande interactive /banlist et !banlist
 # Objectif :
 #   - Affiche les cartes d'une banlist (TCG, OCG, GOAT)
-#   - Pagination interactive (20 cartes par page)
+#   - Pagination interactive (20 cartes par page) via boutons
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -61,7 +58,6 @@ class BanlistPagination(discord.ui.View):
         current = self.get_page_data()
         total_pages = (len(self.cards) - 1) // self.per_page + 1
 
-        # 🗂️ Traduction du type pour chaque carte, noms en français
         description = "\n".join(
             f"**{c['name']}** — {translate_card_type(c.get('type', 'Inconnu'))}"
             for c in current
@@ -69,7 +65,7 @@ class BanlistPagination(discord.ui.View):
 
         embed = discord.Embed(
             title=f"📌 Cartes sur la banlist {banlist_name.upper()} (Page {self.page + 1}/{total_pages})",
-            description=description,
+            description=description or "Aucune carte à afficher.",
             color=discord.Color.red()
         )
         embed.set_footer(text=f"{len(self.cards)} cartes au total • 20 par page")
@@ -98,7 +94,7 @@ class Banlist(commands.Cog):
 
     async def fetch_banlist(self, banlist_type: str):
         """Récupère les cartes selon la banlist choisie (noms en français)."""
-        params = {"banlist": banlist_type, "sort": "name", "language": "fr"}  # <-- noms en français
+        params = {"banlist": banlist_type, "sort": "name", "language": "fr"}
         async with aiohttp.ClientSession() as session:
             async with session.get(self.BASE_URL, params=params) as resp:
                 if resp.status != 200:
@@ -156,7 +152,7 @@ class Banlist(commands.Cog):
 
         embed = discord.Embed(
             title=f"📌 Cartes sur la banlist {banlist_type.upper()} (Page 1/{total_pages})",
-            description=description,
+            description=description or "Aucune carte à afficher.",
             color=discord.Color.red()
         )
         embed.set_footer(text=f"{len(cards)} cartes au total • 20 par page")
