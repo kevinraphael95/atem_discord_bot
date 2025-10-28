@@ -8,7 +8,6 @@
     "WATER": "💧 Eau",
     "WIND": "🌪️ Vent"
   },
-
   "TYPE_EMOJI": {
     "Aqua": "💦 Aqua",
     "Beast": "🐾 Bête",
@@ -37,7 +36,6 @@
     "Wyrm": "🐲 Wyrm",
     "Zombie": "🧟 Zombie"
   },
-
   "TYPE_TRANSLATION": {
     "effect monster": "Monstre à effet",
     "flip effect monster": "Monstre à effet Flip",
@@ -69,21 +67,19 @@
     "xyz monster": "Monstre Xyz",
     "xyz pendulum effect monster": "Monstre Xyz Pendule à effet"
   },
-
   "TYPE_COLOR": {
     "default": "#444444",
-    "fusion": "#6f42c1",
-    "link": "#406aff",
-    "monster": "#c23b22",
-    "pendulum": "#4ecdc4",
-    "ritual": "#4a86e8",
-    "spell": "#3ca370",
-    "synchro": "#d9d9d9",
-    "token": "#999999",
-    "trap": "#7b3fa3",
-    "xyz": "#2f2f2f"
+    "monster": "#c69c6d",
+    "fusion": "#7f4acb",
+    "ritual": "#3d8bef",
+    "synchro": "#e6e6e6",
+    "xyz": "#1a1a1a",
+    "link": "#1a53ff",
+    "pendulum": "#3bd8c6",
+    "spell": "#2ecc71",
+    "trap": "#b33a3a",
+    "token": "#aaaaaa"
   },
-
   "SPELL_RACE_TRANSLATION": {
     "Continuous": "Continue",
     "Equip": "Équipement",
@@ -92,13 +88,11 @@
     "Quick-Play": "Jeu-Rapide",
     "Ritual": "Rituel"
   },
-
   "TRAP_RACE_TRANSLATION": {
     "Continuous": "Continue",
     "Counter": "Contre",
     "Normal": "Normale"
   },
-
   "FRAME_TYPE_TRANSLATION": {
     "effect": "Effet",
     "effect_pendulum": "Pendule à effet",
@@ -119,3 +113,6 @@
     "xyz_pendulum": "Xyz Pendule"
   }
 }
+
+
+
