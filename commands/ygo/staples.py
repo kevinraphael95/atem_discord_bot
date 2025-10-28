@@ -15,7 +15,45 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import aiohttp
+import json
+from pathlib import Path
 from utils.discord_utils import safe_send, safe_respond  # ✅ Utilitaires sécurisés
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 📖 Chargement du dictionnaire de traduction des types
+# ────────────────────────────────────────────────────────────────────────────────
+CARDINFO_PATH = Path("data/cardinfofr.json")
+try:
+    with CARDINFO_PATH.open("r", encoding="utf-8") as f:
+        CARDINFO = json.load(f)
+except FileNotFoundError:
+    print("[ERREUR] Fichier data/cardinfofr.json introuvable.")
+    CARDINFO = {
+        "TYPE_TRANSLATION": {},
+        "TYPE_EMOJI": {},
+        "ATTRIBUT_EMOJI": {}
+    }
+
+TYPE_TRANSLATION = CARDINFO.get("TYPE_TRANSLATION", {})
+TYPE_EMOJI = CARDINFO.get("TYPE_EMOJI", {})
+ATTRIBUT_EMOJI = CARDINFO.get("ATTRIBUT_EMOJI", {})
+
+def translate_card_type(type_str: str) -> str:
+    """Traduit le type de carte anglais → français avec emoji si disponible."""
+    if not type_str:
+        return "Inconnu"
+    t = type_str.lower()
+    for eng, fr in TYPE_TRANSLATION.items():
+        if eng in t:
+            emoji = TYPE_EMOJI.get(eng, "")
+            return f"{emoji} {fr}" if emoji else fr
+    return type_str
+
+def translate_card_attribute(attr_str: str) -> str:
+    """Traduit l'attribut de la carte avec emoji."""
+    if not attr_str:
+        return "Inconnu"
+    return ATTRIBUT_EMOJI.get(attr_str.upper(), attr_str)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ View — Pagination des staples
@@ -34,12 +72,13 @@ class StaplesPagination(discord.ui.View):
         return self.staples[start:end]
 
     async def update_embed(self, interaction: discord.Interaction):
-        """Met à jour l'embed affiché avec noms et types en français."""
+        """Met à jour l'embed affiché avec noms, types et attributs en français."""
         current = self.get_page_data()
         total_pages = (len(self.staples) - 1) // self.per_page + 1
 
         description = "\n".join(
-            f"**{c['name']}** — {c.get('type', 'Inconnu')}" for c in current
+            f"**{c['name']}** — {translate_card_type(c.get('type', 'Inconnu'))} — {translate_card_attribute(c.get('attribute', 'Inconnu'))}"
+            for c in current
         )
 
         embed = discord.Embed(
@@ -72,7 +111,7 @@ class Staples(commands.Cog):
         self.bot = bot
 
     async def fetch_staples(self):
-        """Récupère les cartes staples depuis l'API (noms et types en français)."""
+        """Récupère les cartes staples depuis l'API (noms, types et attributs en français)."""
         async with aiohttp.ClientSession() as session:
             async with session.get(self.API_URL) as resp:
                 if resp.status != 200:
@@ -99,7 +138,8 @@ class Staples(commands.Cog):
         total_pages = (len(staples) - 1) // view.per_page + 1
 
         description = "\n".join(
-            f"**{c['name']}** — {c.get('type', 'Inconnu')}" for c in current
+            f"**{c['name']}** — {translate_card_type(c.get('type', 'Inconnu'))} — {translate_card_attribute(c.get('attribute', 'Inconnu'))}"
+            for c in current
         )
 
         embed = discord.Embed(
@@ -126,7 +166,8 @@ class Staples(commands.Cog):
         total_pages = (len(staples) - 1) // view.per_page + 1
 
         description = "\n".join(
-            f"**{c['name']}** — {c.get('type', 'Inconnu')}" for c in current
+            f"**{c['name']}** — {translate_card_type(c.get('type', 'Inconnu'))} — {translate_card_attribute(c.get('attribute', 'Inconnu'))}"
+            for c in current
         )
 
         embed = discord.Embed(
