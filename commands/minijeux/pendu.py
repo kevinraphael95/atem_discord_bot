@@ -1,12 +1,13 @@
-# ────────────────────────────────────────────────────────────────────────────────#
+# ────────────────────────────────────────────────────────────────────────────────
 # 📌 pendu.py — Commande interactive !pendu
 # Objectif :
 #   - Jeu du pendu interactif avec noms de cartes Yu-Gi-Oh! françaises
+#   - Les espaces ne comptent pas comme lettres
 # Catégorie : Jeux
 # Accès : Public
-# ────────────────────────────────────────────────────────────────────────────────#
+# ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────#
+# ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
@@ -16,7 +17,7 @@ import asyncio
 from utils.discord_utils import safe_send, safe_edit, safe_respond  # ✅ Utilisation safe_#
 from utils.card_utils import fetch_random_card  # 🔹 Tirer une carte aléatoire
 
-# ────────────────────────────────────────────────────────────────────────────────#
+# ────────────────────────────────────────────────────────────────────────────────
 # 🎨 Constantes et ASCII
 # ────────────────────────────────────────────────────────────────────────────────
 PENDU_ASCII = [
@@ -33,13 +34,13 @@ PENDU_ASCII = [
 MAX_ERREURS = 7
 INACTIVITE_MAX = 180  # ⏰ 3 minutes (en secondes)
 
-# ────────────────────────────────────────────────────────────────────────────────#
+# ────────────────────────────────────────────────────────────────────────────────
 # 🧩 Classe PenduGame
 # ────────────────────────────────────────────────────────────────────────────────
 class PenduGame:
     def __init__(self, mot: str, indice: str = None, mode: str = "solo"):
         self.mot = mot.lower()
-        self.indice = indice  # 🔹 Nouveau champ pour l’indice
+        self.indice = indice  # 🔹 Indice facultatif
         self.trouve = set()
         self.rate = set()
         self.terminee = False
@@ -47,7 +48,8 @@ class PenduGame:
         self.max_erreurs = min(len(mot) + 1, MAX_ERREURS)
 
     def get_display_word(self) -> str:
-        return " ".join([l if l in self.trouve else "_" for l in self.mot])
+        """Affiche le mot avec _ pour les lettres non trouvées, espaces visibles"""
+        return " ".join([l if (l in self.trouve or l == " ") else "_" for l in self.mot])
 
     def get_pendu_ascii(self) -> str:
         return PENDU_ASCII[min(len(self.rate), self.max_erreurs)]
@@ -65,7 +67,7 @@ class PenduGame:
         embed.add_field(name="Mot", value=f"`{self.get_display_word()}`", inline=False)
         embed.add_field(name="Erreurs", value=f"`{len(self.rate)} / {self.max_erreurs}`", inline=False)
         embed.add_field(name="Lettres tentées", value=f"`{self.get_lettres_tentees()}`", inline=False)
-        if self.indice:  # 🔹 Affichage de l’indice si disponible
+        if self.indice:
             embed.add_field(name="Indice", value=f"`{self.indice}`", inline=False)
         embed.set_footer(text="✉️ Propose une lettre en répondant par un message contenant UNE lettre.")
         return embed
@@ -78,29 +80,34 @@ class PenduGame:
             self.trouve.add(lettre)
         else:
             self.rate.add(lettre)
-        if all(l in self.trouve for l in set(self.mot)):
+
+        # Vérifie si toutes les lettres (hors espaces) sont trouvées
+        lettres_uniques = {l for l in self.mot if l.isalpha()}
+        if lettres_uniques.issubset(self.trouve):
             self.terminee = True
             return "gagne"
+
         if len(self.rate) >= self.max_erreurs:
             self.terminee = True
             return "perdu"
+
         return "continue"
 
-# ────────────────────────────────────────────────────────────────────────────────#
+# ────────────────────────────────────────────────────────────────────────────────
 # 🧩 Classe PenduSession (pour solo et multi)
 # ────────────────────────────────────────────────────────────────────────────────
 class PenduSession:
     def __init__(self, game: PenduGame, message: discord.Message, mode: str = "solo", author_id: int = None):
         self.game = game
         self.message = message
-        self.mode = mode  # "solo" ou "multi"
-        self.last_activity = asyncio.get_event_loop().time()  # ⏱️ Pour le timer
+        self.mode = mode
+        self.last_activity = asyncio.get_event_loop().time()
         if mode == "multi":
             self.players = set()
         else:
             self.player_id = author_id
 
-# ────────────────────────────────────────────────────────────────────────────────#
+# ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Pendu(commands.Cog):
@@ -109,7 +116,7 @@ class Pendu(commands.Cog):
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.sessions = {}  # dict channel_id -> PenduSession
+        self.sessions = {}
         self.http_session = aiohttp.ClientSession()
         self.verif_inactivite.start()
 
@@ -147,11 +154,10 @@ class Pendu(commands.Cog):
     async def _fetch_random_word(self) -> tuple[str | None, str | None]:
         """Tire aléatoirement le nom d'une carte Yu-Gi-Oh! française et génère un indice"""
         try:
-            carte, langue = await fetch_random_card()
+            carte, langue = await fetch_random_card(lang="fr")  # ✅ Nom français
             if not carte:
                 return None, None
             nom = carte.get("name", "").lower()
-            # 🔹 Construction de l’indice : type + attribut si disponible
             type_raw = carte.get("type", "Inconnu")
             attr = carte.get("attribute", None)
             indice = type_raw
@@ -161,8 +167,6 @@ class Pendu(commands.Cog):
         except Exception:
             return None, None
 
-    # ───────────────────────────────────────────────────────────────────────
-    # 🔄 Vérification d’inactivité toutes les 30 secondes
     # ───────────────────────────────────────────────────────────────────────
     @tasks.loop(seconds=30)
     async def verif_inactivite(self):
@@ -180,8 +184,6 @@ class Pendu(commands.Cog):
                 )
 
     # ───────────────────────────────────────────────────────────────────────
-    # 💬 Réception des messages (propositions)
-    # ───────────────────────────────────────────────────────────────────────
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
@@ -192,16 +194,14 @@ class Pendu(commands.Cog):
         if not session:
             return
 
-        # Solo : uniquement le joueur qui a lancé la partie
         if session.mode == "solo" and message.author.id != session.player_id:
             return
 
-        # Multi : tout le monde peut proposer
         content = message.content.strip().lower()
         if len(content) != 1 or not content.isalpha():
             return
 
-        session.last_activity = asyncio.get_event_loop().time()  # 🔁 reset timer
+        session.last_activity = asyncio.get_event_loop().time()
         game = session.game
         resultat = game.propose_lettre(content)
 
@@ -230,7 +230,7 @@ class Pendu(commands.Cog):
             del self.sessions[channel_id]
             return
 
-# ────────────────────────────────────────────────────────────────────────────────#
+# ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
@@ -239,4 +239,3 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "Minijeux"
     await bot.add_cog(cog)
-    
