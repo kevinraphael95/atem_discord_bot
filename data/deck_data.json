@@ -316,7 +316,15 @@
         "Deck: https://www.duelingbook.com/deck?id=17049558"
       ],
       "astuces": "📝 Ajouter ici des astuces et conseils de jeu pour ce personnage."
+    },
+    "Princesse Cologne" : {
+      "deck" : [
+        "Main/Extra/Side : https://www.duelingbook.com/deck?id=17009011",
+        "Ext. Duel : https://www.duelingbook.com/deck?id=17867721"
+      ],
+      "astuces": "📝 Ajouter ici des astuces et conseils de jeu pour ce personnage."
     }
+
 
     
   }
