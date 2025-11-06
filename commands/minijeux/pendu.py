@@ -14,6 +14,7 @@ import discord
 from discord.ext import commands, tasks
 import aiohttp
 import asyncio
+import random
 from utils.discord_utils import safe_send, safe_edit, safe_respond  # ✅ Utilisation safe_#
 from utils.card_utils import fetch_random_card  # 🔹 Tirer une carte aléatoire
 
@@ -156,16 +157,39 @@ class Pendu(commands.Cog):
         try:
             carte, langue = await fetch_random_card(lang="fr")  # ✅ Nom français
             if not carte:
-                return None, None
-            nom = carte.get("name", "").lower()
-            type_raw = carte.get("type", "Inconnu")
-            attr = carte.get("attribute", None)
-            indice = type_raw
-            if attr:
-                indice += f" / {attr}"
-            return nom if nom else None, indice
-        except Exception:
-            return None, None
+                raise ValueError("Carte introuvable depuis fetch_random_card()")
+
+            # Gestion flexible : dict ou string
+            if isinstance(carte, dict):
+                nom = carte.get("name", "").lower()
+                type_raw = carte.get("type", "Inconnu")
+                attr = carte.get("attribute", None)
+                indice = type_raw
+                if attr:
+                    indice += f" / {attr}"
+            elif isinstance(carte, str):
+                nom = carte.lower()
+                indice = "Carte Yu-Gi-Oh!"
+            else:
+                raise TypeError("Format de carte inattendu")
+
+            if not nom or len(nom.strip()) < 3:
+                raise ValueError("Nom de carte invalide")
+
+            return nom, indice
+
+        except Exception as e:
+            print(f"[ERREUR] _fetch_random_word : {e}")
+            # 🔸 Fallback : cartes de secours
+            fallback_cards = [
+                ("Dragon Blanc aux Yeux Bleus", "Monstre / LUMIÈRE"),
+                ("Magicien Sombre", "Magicien / TÉNÈBRES"),
+                ("Kuriboh", "Monstre / TÉNÈBRES"),
+                ("Pot de Cupidité", "Magie"),
+                ("Force de Miroir", "Piège"),
+            ]
+            mot, indice = random.choice(fallback_cards)
+            return mot.lower(), indice
 
     # ───────────────────────────────────────────────────────────────────────
     @tasks.loop(seconds=30)
@@ -221,7 +245,7 @@ class Pendu(commands.Cog):
         await message.delete()
 
         if resultat == "gagne":
-            await safe_send(message.channel, f"🎉 Bravo {message.author.mention}, le mot `{game.mot}` a été deviné !")
+            await safe_send(message.channel, f"🎉 Bravo {message.author.mention}, le mot était `{game.mot}` !")
             del self.sessions[channel_id]
             return
 
