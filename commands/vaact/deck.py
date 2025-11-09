@@ -14,7 +14,7 @@ from discord.ui import View, Select, Button
 import json
 import os
 
-from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.discord_utils import safe_send, safe_edit
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -27,15 +27,54 @@ def load_data():
         return json.load(f)
 
 # ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ View — bouton "Deck favori"
+# ────────────────────────────────────────────────────────────────────────────────
+class DeckFavoriteButton(Button):
+    def __init__(self, duelliste_name: str, user: discord.User):
+        super().__init__(label="Deck favori", style=discord.ButtonStyle.success, emoji="🏆")
+        self.duelliste_name = duelliste_name
+        self.user = user
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user.id:
+            try:
+                await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            except Exception: pass
+            return
+        try:
+            supabase.table("profil").upsert({
+                "user_id": str(interaction.user.id),
+                "username": interaction.user.name,
+                "fav_decks_vaact": self.duelliste_name
+            }, on_conflict="user_id").execute()
+
+            try:
+                await interaction.response.send_message(
+                    f"✅ **{self.duelliste_name}** est maintenant ton deck favori !",
+                    ephemeral=True
+                )
+            except Exception: pass
+        except Exception as e:
+            print(f"[ERREUR Supabase] {e}")
+            try:
+                await interaction.response.send_message(
+                    "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
+                    ephemeral=True
+                )
+            except Exception: pass
+
+# ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Sélection de saison et duelliste
 # ────────────────────────────────────────────────────────────────────────────────
 class DeckSelectView(View):
-    def __init__(self, bot, deck_data, saison=None, duelliste=None):
+    def __init__(self, bot, deck_data, saison=None, duelliste=None, user=None):
         super().__init__(timeout=300)
         self.bot = bot
         self.deck_data = deck_data
         self.saison = saison or list(deck_data.keys())[0]
         self.duelliste = duelliste
+        self.user = user
+
         self.add_item(SaisonSelect(self))
         self.add_item(DuellisteSelect(self))
 
@@ -49,59 +88,15 @@ class SaisonSelect(Select):
         super().__init__(placeholder="📅 Choisis une saison du tournoi VAACT", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        saison = self.values[0]
-        if saison == self.parent_view.saison:
-            try: await interaction.response.defer()
-            except Exception: pass
-            return
-        new_view = DeckSelectView(self.parent_view.bot, self.parent_view.deck_data, saison)
-        await safe_respond(
-            interaction,
-            content=f"🎴 Saison choisie : **{saison}**\nSélectionne un deck :",
-            embed=None,
-            view=new_view
-        )
+        self.parent_view.saison = self.values[0]
+        await self.update_message(interaction)
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View — bouton "Deck favori"
-# ────────────────────────────────────────────────────────────────────────────────
-class DeckFavoriteButton(View):
-    def __init__(self, duelliste_name: str, user: discord.User):
-        super().__init__(timeout=120)
-        self.duelliste_name = duelliste_name
-        self.user = user
-
-    @discord.ui.button(label="Deck favori", style=discord.ButtonStyle.success, emoji="🏆")
-    async def add_fav_deck(self, interaction: discord.Interaction, button: Button):
-        if interaction.user.id != self.user.id:
-            try: await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
-            except Exception: pass
-            return
+    async def update_message(self, interaction: discord.Interaction):
+        content = f"🎴 Saison choisie : **{self.parent_view.saison}**\nSélectionne un duelliste :"
         try:
-            # Upsert dans la table profil
-            supabase.table("profil").upsert({
-                "user_id": str(interaction.user.id),
-                "username": interaction.user.name,
-                "fav_decks_vaact": self.duelliste_name
-            }, on_conflict="user_id").execute()
+            await interaction.response.edit_message(content=content, embed=None, view=self.parent_view)
+        except Exception: pass
 
-            try:
-                await interaction.response.send_message(
-                    f"✅ **{self.duelliste_name}** est maintenant ton deck favori !",
-                    ephemeral=True
-                )
-            except Exception: pass
-
-        except Exception as e:
-            print(f"[ERREUR Supabase] {e}")
-            try:
-                await interaction.response.send_message(
-                    "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
-                    ephemeral=True
-                )
-            except Exception: pass
-
-# ────────────────────────────────────────────────────────────────────────────────
 class DuellisteSelect(Select):
     def __init__(self, parent_view: DeckSelectView):
         self.parent_view = parent_view
@@ -113,15 +108,11 @@ class DuellisteSelect(Select):
         super().__init__(placeholder="👤 Choisis un deck", options=options)
 
     async def callback(self, interaction: discord.Interaction):
+        self.parent_view.duelliste = self.values[0]
+        duelliste = self.parent_view.duelliste
         saison = self.parent_view.saison
-        duelliste = self.values[0]
-        if duelliste == self.parent_view.duelliste:
-            try: await interaction.response.defer()
-            except Exception: pass
-            return
 
         infos = self.parent_view.deck_data[saison][duelliste]
-
         deck_data = infos.get("deck", "❌ Aucun deck trouvé.")
         astuces_data = infos.get("astuces", "❌ Aucune astuce disponible.")
 
@@ -135,20 +126,21 @@ class DuellisteSelect(Select):
         embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
         embed.add_field(name="💡 Astuces", value=astuces_text, inline=False)
 
-        # ── Intégration du bouton "Deck favori"
-        view = DeckSelectView(self.parent_view.bot, self.parent_view.deck_data, saison, duelliste)
-        fav_button = DeckFavoriteButton(duelliste, interaction.user)
-        view.add_item(fav_button)
+        # Ajout du bouton Deck favori
+        if self.parent_view.user:
+            fav_button = DeckFavoriteButton(duelliste, self.parent_view.user)
+            self.parent_view.clear_items()
+            self.parent_view.add_item(SaisonSelect(self.parent_view))
+            self.parent_view.add_item(DuellisteSelect(self.parent_view))
+            self.parent_view.add_item(fav_button)
 
         try:
-            await safe_respond(
-                interaction,
+            await interaction.response.edit_message(
                 content=f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :",
                 embed=embed,
-                view=view
+                view=self.parent_view
             )
-        except Exception:  # Interaction échouée
-            pass
+        except Exception: pass
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -166,7 +158,7 @@ class Deck(commands.Cog):
     async def deck(self, ctx: commands.Context):
         try:
             deck_data = load_data()
-            view = DeckSelectView(self.bot, deck_data)
+            view = DeckSelectView(self.bot, deck_data, user=ctx.author)
             await safe_send(ctx, "📦 Choisis une saison :", view=view)
         except Exception as e:
             print("[ERREUR DECK]", e)
