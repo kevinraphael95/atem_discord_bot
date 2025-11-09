@@ -83,11 +83,16 @@ class Profil(commands.Cog):
             color=discord.Color.blue()
         )
         embed.set_thumbnail(url=membre.display_avatar.url)
-        embed.add_field(name="🆔 ID", value=profil.get("user_id"), inline=True)
-        embed.add_field(name="💠 Carte favorite", value=profil.get("cartefav"), inline=True)
-        embed.add_field(name="🎴 VAAct", value=profil.get("vaact_name"), inline=True)
-        embed.add_field(name="📚 Decks favoris VAAct", value=profil.get("fav_decks_vaact"), inline=False)
+    
+        contenu = (
+            f"**Carte Yu-Gi-Oh préférée :** {profil.get('cartefav', 'Non défini')}\n"
+            f"**Pseudo VAACT :** {profil.get('vaact_name', 'Non défini')}\n"
+            f"**Deck VAACT préféré :** {profil.get('fav_decks_vaact', 'Non défini')}"
+        )
+        embed.add_field(name="Profil", value=contenu, inline=False)
+        
         return embed
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
