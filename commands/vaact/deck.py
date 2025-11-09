@@ -10,11 +10,12 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
-from discord.ui import View, Select
+from discord.ui import View, Select, Button
 import json
 import os
 
 from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Chargement des données JSON — deck_data.json
@@ -24,6 +25,39 @@ DECK_JSON_PATH = os.path.join("data", "deck_data.json")
 def load_data():
     with open(DECK_JSON_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ UI — Bouton Deck Favori
+# ────────────────────────────────────────────────────────────────────────────────
+class DeckFavoriteButton(View):
+    def __init__(self, duelliste_name: str, user: discord.User):
+        super().__init__(timeout=120)
+        self.duelliste_name = duelliste_name
+        self.user = user
+
+    @discord.ui.button(label="Deck favori", style=discord.ButtonStyle.success, emoji="🏆")
+    async def add_fav_deck(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            return
+        try:
+            # Upsert dans la table profil
+            supabase.table("profil").upsert({
+                "user_id": str(interaction.user.id),
+                "username": interaction.user.name,
+                "fav_decks_vaact": self.duelliste_name
+            }, on_conflict="user_id").execute()
+
+            await interaction.response.send_message(
+                f"✅ **{self.duelliste_name}** est maintenant ton deck favori !",
+                ephemeral=True
+            )
+        except Exception as e:
+            print(f"[ERREUR Supabase] {e}")
+            await interaction.response.send_message(
+                "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
+                ephemeral=True
+            )
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Sélection de saison et duelliste
@@ -92,11 +126,16 @@ class DuellisteSelect(Select):
         embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
         embed.add_field(name="💡 Astuces", value=astuces_text, inline=False)
 
+        # Création de la View avec bouton Deck Favori
+        view = DeckSelectView(self.parent_view.bot, self.parent_view.deck_data, saison, duelliste)
+        fav_button = DeckFavoriteButton(duelliste, interaction.user)
+        view.add_item(fav_button)
+
         await safe_respond(
             interaction,
             content=f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :",
             embed=embed,
-            view=DeckSelectView(self.parent_view.bot, self.parent_view.deck_data, saison, duelliste)
+            view=view
         )
 
 # ────────────────────────────────────────────────────────────────────────────────
