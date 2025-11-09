@@ -271,13 +271,21 @@ class TestQuestion(commands.Cog):
     @testquestion.command(name="top", aliases=["t"])
     async def testquestion_top(self, ctx: commands.Context):
         try:
-            resp = supabase.table("ygo_streaks").select("user_id,best_streak").order("best_streak", desc=True).limit(10).execute()
+            # Récupère uniquement les streaks > 0 et trie du plus grand au plus petit
+            resp = (
+                supabase.table("ygo_streaks")
+                .select("user_id,best_streak")
+                .gt("best_streak", 0)  # ignore 0 et NULL
+                .order("best_streak", desc=True)
+                .limit(10)
+                .execute()
+            )
             data = resp.data
             if not data:
                 return await safe_send(ctx, "📉 Aucun streak enregistré.")
             lines = []
             for i, row in enumerate(data, start=1):
-                uid = row["user_id"]
+                uid = row.get("user_id")
                 best = row.get("best_streak", 0)
                 user = await self.bot.fetch_user(int(uid)) if uid else None
                 name = user.name if user else f"ID {uid}"
