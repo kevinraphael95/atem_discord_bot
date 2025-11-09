@@ -164,24 +164,35 @@ class IllustrationCommand(commands.Cog):
     async def illustration_top(self, ctx: commands.Context):
         """Affiche le top 10 des meilleurs streaks du quiz d’illustration."""
         try:
-            resp = supabase.table("ygo_streaks").select("user_id,best_illustreak").order("best_illustreak", desc=True).limit(10).execute()
+            # Récupère uniquement les streaks > 0 et trie du plus grand au plus petit
+            resp = (
+                supabase.table("ygo_streaks")
+                .select("user_id,best_illustreak")
+                .gt("best_illustreak", 0)  # ignore 0 et NULL
+                .order("best_illustreak", desc=True)
+                .limit(10)
+                .execute()
+            )
             data = resp.data
             if not data:
                 return await safe_send(ctx, "📉 Aucun streak enregistré.")
+
             lines = []
             for i, row in enumerate(data, start=1):
-                uid = row["user_id"]
+                uid = row.get("user_id")
                 best = row.get("best_illustreak", 0)
                 user = await self.bot.fetch_user(int(uid)) if uid else None
                 name = user.name if user else f"ID {uid}"
                 medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i, f"`#{i}`")
                 lines.append(f"{medal} **{name}** – 🔥 {best}")
+
             embed = discord.Embed(
                 title="🏆 Top 10 Streaks Quiz Illustration",
                 description="\n".join(lines),
                 color=discord.Color.gold()
             )
             await safe_send(ctx, embed=embed)
+
         except Exception:
             await safe_send(ctx, "🚨 Erreur lors du classement.")
 
