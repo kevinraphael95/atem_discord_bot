@@ -34,7 +34,8 @@ class ProfilCommand(commands.Cog):
         user_id = str(user.id)
         try:
             res = supabase.table("profil").select("*").eq("user_id", user_id).execute()
-            profil = res.data[0] if res.data else None
+            profil_list = res.get("data") if isinstance(res, dict) else getattr(res, "data", None)
+            profil = profil_list[0] if profil_list and len(profil_list) > 0 else None
 
             if not profil:
                 profil = {
@@ -46,11 +47,11 @@ class ProfilCommand(commands.Cog):
                 }
                 supabase.table("profil").insert(profil).execute()
             else:
-                # Toujours s'assurer que rien n'est vide
                 profil["cartefav"] = profil.get("cartefav") or "Non défini"
                 profil["vaact_name"] = profil.get("vaact_name") or "Non défini"
                 profil["fav_decks_vaact"] = profil.get("fav_decks_vaact") or "Non défini"
 
+            print("[DEBUG] Profil récupéré :", profil)  # 🔹 debug
             return profil
 
         except Exception as e:
@@ -91,8 +92,10 @@ class ProfilCommand(commands.Cog):
         # View pour choisir pseudo si non défini
         view = None
         if vaact_name == "Non défini" and (target_user is None or target_user == author):
-            taken = [p["vaact_name"] for p in supabase.table("profil")
-                     .select("vaact_name").not_("vaact_name", "is", None).execute().data]
+            taken_res = supabase.table("profil").select("vaact_name").not_("vaact_name", "is", None).execute()
+            taken = taken_res.get("data") if isinstance(taken_res, dict) else getattr(taken_res, "data", [])
+            taken = [p["vaact_name"] for p in taken]
+
             available = [f"VAACT_Player_{i}" for i in range(1, 26) if f"VAACT_Player_{i}" not in taken]
 
             if available:
