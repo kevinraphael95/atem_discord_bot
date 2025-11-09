@@ -34,8 +34,8 @@ class ProfilCommand(commands.Cog):
         user_id = str(user.id)
         try:
             res = supabase.table("profil").select("*").eq("user_id", user_id).execute()
-            profil_list = res.get("data") if isinstance(res, dict) else getattr(res, "data", None)
-            profil = profil_list[0] if profil_list and len(profil_list) > 0 else None
+            profil_list = getattr(res, "data", None)
+            profil = profil_list[0] if profil_list else None
 
             if not profil:
                 profil = {
@@ -51,7 +51,6 @@ class ProfilCommand(commands.Cog):
                 profil["vaact_name"] = profil.get("vaact_name") or "Non défini"
                 profil["fav_decks_vaact"] = profil.get("fav_decks_vaact") or "Non défini"
 
-            print("[DEBUG] Profil récupéré :", profil)  # 🔹 debug
             return profil
 
         except Exception as e:
@@ -93,8 +92,8 @@ class ProfilCommand(commands.Cog):
         view = None
         if vaact_name == "Non défini" and (target_user is None or target_user == author):
             taken_res = supabase.table("profil").select("vaact_name").not_("vaact_name", "is", None).execute()
-            taken = taken_res.get("data") if isinstance(taken_res, dict) else getattr(taken_res, "data", [])
-            taken = [p["vaact_name"] for p in taken]
+            taken_list = getattr(taken_res, "data", [])
+            taken = [p["vaact_name"] for p in taken_list if p.get("vaact_name")]
 
             available = [f"VAACT_Player_{i}" for i in range(1, 26) if f"VAACT_Player_{i}" not in taken]
 
