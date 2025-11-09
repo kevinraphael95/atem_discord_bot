@@ -66,11 +66,11 @@ class IllustrationCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     class QuizView(View):
         def __init__(self, bot, choices, correct_idx):
-            super().__init__(timeout=60)  # ⏳ 1 minute
+            super().__init__(timeout=60)
             self.bot = bot
             self.choices = choices
             self.correct_idx = correct_idx
-            self.answers = {}  # user_id: choix
+            self.answers = {}
             for i, choice in enumerate(choices):
                 self.add_item(IllustrationCommand.QuizButton(label=choice, idx=i, parent_view=self))
 
@@ -91,17 +91,16 @@ class IllustrationCommand(commands.Cog):
                 self.parent_view.answers[interaction.user.id] = self.idx
             await interaction.response.send_message(f"✅ Réponse enregistrée : **{self.label}**", ephemeral=True)
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Lancement du quiz
+    # ────────────────────────────────────────────────────────────────────────────
     async def start_quiz(self, channel: discord.abc.Messageable):
-        """Lance le quiz dans le channel avec boutons."""
         try:
             all_cards = await self.fetch_all_cards()
             if not all_cards:
                 return await safe_send(channel, "🚨 Impossible de récupérer les cartes depuis l’API.")
 
-            candidates = [
-                c for c in all_cards
-                if "image_url_cropped" in c.get("card_images", [{}])[0]
-            ]
+            candidates = [c for c in all_cards if "image_url_cropped" in c.get("card_images", [{}])[0]]
             if not candidates:
                 return await safe_send(channel, "🚫 Pas de cartes avec images croppées.")
 
@@ -118,20 +117,15 @@ class IllustrationCommand(commands.Cog):
             random.shuffle(choices)
             correct_idx = choices.index(true_card["name"])
 
-            embed = discord.Embed(
-                title="🖼️ Devine la carte !",
-                color=discord.Color.purple()
-            )
+            embed = discord.Embed(title="🖼️ Devine la carte !", color=discord.Color.purple())
             embed.set_image(url=image_url)
             embed.set_footer(text=f"🔹 Archétype : ||{true_card.get('archetype','Aucun')}||")
 
             view = self.QuizView(self.bot, choices, correct_idx)
             view.message = await safe_send(channel, embed=embed, view=view)
-
-            # attente de fin du quiz
             await view.wait()
 
-            # Mise à jour des streaks Supabase
+            # Mise à jour des streaks
             for uid, choice in view.answers.items():
                 resp = supabase.table("ygo_streaks")\
                     .select("illu_streak,best_illustreak")\
@@ -166,8 +160,7 @@ class IllustrationCommand(commands.Cog):
                 for i, (uid, cur, best) in enumerate(scores)
             ) or "Aucun score."
 
-            await safe_send(
-                channel,
+            await safe_send(channel,
                 f"⏳ Temps écoulé ! La bonne réponse était **{true_card['name']}**.\n"
                 f"{result}\n\n**Classement :**\n{board}"
             )
@@ -208,6 +201,42 @@ class IllustrationCommand(commands.Cog):
         except Exception as e:
             traceback.print_exc()
             await safe_send(ctx.channel, "❌ Une erreur est survenue.")
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande TOP
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.group(name="illustration", invoke_without_command=True)
+    async def illustration_group(self, ctx: commands.Context):
+        pass
+
+    @illustration_group.command(name="top", aliases=["t"])
+    async def illustration_top(self, ctx: commands.Context):
+        """Affiche le top 10 des meilleurs streaks du quiz d’illustration."""
+        try:
+            resp = supabase.table("ygo_streaks").select("user_id,best_illustreak")\
+                .order("best_illustreak", desc=True).limit(10).execute()
+            data = resp.data
+            if not data:
+                return await safe_send(ctx, "📉 Aucun streak enregistré.")
+
+            lines = []
+            for i, row in enumerate(data, start=1):
+                uid = row["user_id"]
+                best = row.get("best_illustreak", 0)
+                user = await self.bot.fetch_user(int(uid)) if uid else None
+                name = user.name if user else f"ID {uid}"
+                medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i, f"`#{i}`")
+                lines.append(f"{medal} **{name}** – 🔥 {best}")
+
+            embed = discord.Embed(
+                title="🏆 Top 10 Streaks Quiz Illustration",
+                description="\n".join(lines),
+                color=discord.Color.gold()
+            )
+            await safe_send(ctx, embed=embed)
+
+        except Exception:
+            await safe_send(ctx, "🚨 Erreur lors du classement.")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
