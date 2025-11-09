@@ -27,39 +27,6 @@ def load_data():
         return json.load(f)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Bouton Deck Favori
-# ────────────────────────────────────────────────────────────────────────────────
-class DeckFavoriteButton(View):
-    def __init__(self, duelliste_name: str, user: discord.User):
-        super().__init__(timeout=120)
-        self.duelliste_name = duelliste_name
-        self.user = user
-
-    @discord.ui.button(label="Deck favori", style=discord.ButtonStyle.success, emoji="🏆")
-    async def add_fav_deck(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
-            return
-        try:
-            # Upsert dans la table profil
-            supabase.table("profil").upsert({
-                "user_id": str(interaction.user.id),
-                "username": interaction.user.name,
-                "fav_decks_vaact": self.duelliste_name
-            }, on_conflict="user_id").execute()
-
-            await interaction.response.send_message(
-                f"✅ **{self.duelliste_name}** est maintenant ton deck favori !",
-                ephemeral=True
-            )
-        except Exception as e:
-            print(f"[ERREUR Supabase] {e}")
-            await interaction.response.send_message(
-                "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
-                ephemeral=True
-            )
-
-# ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Sélection de saison et duelliste
 # ────────────────────────────────────────────────────────────────────────────────
 class DeckSelectView(View):
@@ -94,6 +61,40 @@ class SaisonSelect(Select):
             view=new_view
         )
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ View — bouton "Deck favori"
+# ────────────────────────────────────────────────────────────────────────────────
+class DeckFavoriteButton(View):
+    def __init__(self, duelliste_name: str, user: discord.User):
+        super().__init__(timeout=120)
+        self.duelliste_name = duelliste_name
+        self.user = user
+
+    @discord.ui.button(label="Deck favori", style=discord.ButtonStyle.success, emoji="🏆")
+    async def add_fav_deck(self, interaction: discord.Interaction, button: Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            return
+        try:
+            # Upsert dans la table profil
+            supabase.table("profil").upsert({
+                "user_id": str(interaction.user.id),
+                "username": interaction.user.name,
+                "fav_decks_vaact": self.duelliste_name
+            }, on_conflict="user_id").execute()
+
+            await interaction.response.send_message(
+                f"✅ **{self.duelliste_name}** est maintenant ton deck favori !",
+                ephemeral=True
+            )
+        except Exception as e:
+            print(f"[ERREUR Supabase] {e}")
+            await interaction.response.send_message(
+                "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
+                ephemeral=True
+            )
+
+# ────────────────────────────────────────────────────────────────────────────────
 class DuellisteSelect(Select):
     def __init__(self, parent_view: DeckSelectView):
         self.parent_view = parent_view
@@ -126,7 +127,7 @@ class DuellisteSelect(Select):
         embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
         embed.add_field(name="💡 Astuces", value=astuces_text, inline=False)
 
-        # Création de la View avec bouton Deck Favori
+        # ── Intégration du bouton "Deck favori"
         view = DeckSelectView(self.parent_view.bot, self.parent_view.deck_data, saison, duelliste)
         fav_button = DeckFavoriteButton(duelliste, interaction.user)
         view.add_item(fav_button)
