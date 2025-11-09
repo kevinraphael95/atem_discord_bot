@@ -1,21 +1,16 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 illustration.py — Commande interactive !illustration
-# Objectif : Jeu pour deviner une carte Yu-Gi-Oh! à partir de son image croppée.
+# Objectif : Jeu pour deviner une carte Yu-Gi-Oh! à partir de son image croppée
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
 import discord
-from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
 import random
-import asyncio
 import traceback
 
 from utils.supabase_client import supabase
@@ -25,12 +20,11 @@ from utils.discord_utils import safe_send, safe_edit, safe_respond
 # 🧠 Cog principal — IllustrationCommand
 # ────────────────────────────────────────────────────────────────────────────────
 class IllustrationCommand(commands.Cog):
-    """
-    Commande /illustration et !illustration — Jeu où tout le monde peut répondre à un quiz d’image Yu-Gi-Oh!
-    """
+    """Commande /illustration et !illustration — Devine une carte Yu-Gi-Oh! à partir de son illustration."""
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
         self.bot = bot
+        self.active_sessions = {}  # guild_id → message en cours
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonctions utilitaires
@@ -48,21 +42,13 @@ class IllustrationCommand(commands.Cog):
         archetype = true_card.get("archetype")
         card_type = true_card.get("type", "")
         if archetype:
-            group = [
-                c for c in all_cards
-                if c.get("archetype") == archetype and c["name"] != true_card["name"]
-            ]
+            group = [c for c in all_cards if c.get("archetype") == archetype and c["name"] != true_card["name"]]
         else:
-            group = [
-                c for c in all_cards
-                if c.get("type") == card_type
-                and not c.get("archetype")
-                and c["name"] != true_card["name"]
-            ]
+            group = [c for c in all_cards if c.get("type") == card_type and not c.get("archetype") and c["name"] != true_card["name"]]
         return random.sample(group, k=min(3, len(group))) if group else []
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Quiz avec boutons
+    # 🔹 View et Button pour le quiz
     # ────────────────────────────────────────────────────────────────────────────
     class QuizView(View):
         def __init__(self, bot, choices, correct_idx):
@@ -92,9 +78,14 @@ class IllustrationCommand(commands.Cog):
             await interaction.response.send_message(f"✅ Réponse enregistrée : **{self.label}**", ephemeral=True)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Lancement du quiz
+    # 🔹 Lancer le quiz
     # ────────────────────────────────────────────────────────────────────────────
     async def start_quiz(self, channel: discord.abc.Messageable):
+        guild_id = getattr(channel, "guild", None).id if hasattr(channel, "guild") else None
+        if guild_id and self.active_sessions.get(guild_id):
+            return await safe_send(channel, "⚠️ Un quiz est déjà en cours.")
+        if guild_id: self.active_sessions[guild_id] = True
+
         try:
             all_cards = await self.fetch_all_cards()
             if not all_cards:
@@ -125,11 +116,9 @@ class IllustrationCommand(commands.Cog):
             view.message = await safe_send(channel, embed=embed, view=view)
             await view.wait()
 
-            # Mise à jour des streaks
+            # Mettre à jour les streaks
             for uid, choice in view.answers.items():
-                resp = supabase.table("ygo_streaks")\
-                    .select("illu_streak,best_illustreak")\
-                    .eq("user_id", uid).execute()
+                resp = supabase.table("ygo_streaks").select("illu_streak,best_illustreak").eq("user_id", uid).execute()
                 data = resp.data or []
                 cur, best = (data[0].get("illu_streak",0), data[0].get("best_illustreak",0)) if data else (0,0)
                 if choice == correct_idx:
@@ -143,82 +132,39 @@ class IllustrationCommand(commands.Cog):
                     "best_illustreak": best
                 }).execute()
 
-            winners = [u for u, idx in view.answers.items() if idx == correct_idx]
-            mentions = ", ".join(self.bot.get_user(u).mention for u in winners if self.bot.get_user(u))
-            result = f"🎉 Bravo à : {mentions}" if mentions else "Personne n’a trouvé la bonne réponse."
-
-            scores = []
-            for uid in view.answers:
-                r = supabase.table("ygo_streaks")\
-                    .select("illu_streak,best_illustreak")\
-                    .eq("user_id", uid).execute().data or []
-                cur, best = (r[0]["illu_streak"], r[0]["best_illustreak"]) if r else (0,0)
-                scores.append((uid, cur, best))
-            scores.sort(key=lambda x: x[1], reverse=True)
-            board = "\n".join(
-                f"#{i+1} **{self.bot.get_user(uid)}** — Série: `{cur}`, Meilleure: `{best}`"
-                for i, (uid, cur, best) in enumerate(scores)
-            ) or "Aucun score."
-
-            await safe_send(channel,
-                f"⏳ Temps écoulé ! La bonne réponse était **{true_card['name']}**.\n"
-                f"{result}\n\n**Classement :**\n{board}"
+            winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if idx == correct_idx]
+            result_embed = discord.Embed(
+                title="⏰ Temps écoulé !",
+                description=(
+                    f"✅ Réponse : **{true_card['name']}**\n"
+                    + (f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}" if winners else "😢 Personne n'a trouvé...")
+                ),
+                color=discord.Color.green() if winners else discord.Color.red()
             )
+            await safe_send(channel, embed=result_embed)
 
         except Exception as e:
             traceback.print_exc()
             await safe_send(channel, f"❌ Une erreur est survenue : {e}")
+        finally:
+            if guild_id: self.active_sessions[guild_id] = None
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
+    # 💬 Commande principale et sous-commandes
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="illustration",
-        description="🖼️ Devine une carte Yu-Gi-Oh! à partir de son illustration."
-    )
-    @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.user.id))
-    async def slash_illustration(self, interaction: discord.Interaction):
-        try:
-            await interaction.response.defer()
-            await self.start_quiz(interaction.channel)
-            await interaction.delete_original_response()
-        except app_commands.CommandOnCooldown as e:
-            await safe_respond(interaction, f"⏳ Attends encore {e.retry_after:.1f}s.", ephemeral=True)
-        except Exception as e:
-            traceback.print_exc()
-            await safe_respond(interaction, "❌ Une erreur est survenue.", ephemeral=True)
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="illustration", aliases=["i", "devinelillustration","di"])
-    @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_illustration(self, ctx: commands.Context):
-        try:
-            await self.start_quiz(ctx.channel)
-        except commands.CommandOnCooldown as e:
-            await safe_send(ctx.channel, f"⏳ Attends encore {e.retry_after:.1f}s.")
-        except Exception as e:
-            traceback.print_exc()
-            await safe_send(ctx.channel, "❌ Une erreur est survenue.")
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande TOP
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.group(name="illustration", invoke_without_command=True)
+    @commands.group(name="illustration", aliases=["i","di"], invoke_without_command=True)
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def illustration_group(self, ctx: commands.Context):
-        pass
+        await self.start_quiz(ctx.channel)
 
     @illustration_group.command(name="top", aliases=["t"])
     async def illustration_top(self, ctx: commands.Context):
         """Affiche le top 10 des meilleurs streaks du quiz d’illustration."""
         try:
-            resp = supabase.table("ygo_streaks").select("user_id,best_illustreak")\
-                .order("best_illustreak", desc=True).limit(10).execute()
+            resp = supabase.table("ygo_streaks").select("user_id,best_illustreak").order("best_illustreak", desc=True).limit(10).execute()
             data = resp.data
             if not data:
                 return await safe_send(ctx, "📉 Aucun streak enregistré.")
-
             lines = []
             for i, row in enumerate(data, start=1):
                 uid = row["user_id"]
@@ -227,14 +173,12 @@ class IllustrationCommand(commands.Cog):
                 name = user.name if user else f"ID {uid}"
                 medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i, f"`#{i}`")
                 lines.append(f"{medal} **{name}** – 🔥 {best}")
-
             embed = discord.Embed(
                 title="🏆 Top 10 Streaks Quiz Illustration",
                 description="\n".join(lines),
                 color=discord.Color.gold()
             )
             await safe_send(ctx, embed=embed)
-
         except Exception:
             await safe_send(ctx, "🚨 Erreur lors du classement.")
 
@@ -243,7 +187,6 @@ class IllustrationCommand(commands.Cog):
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = IllustrationCommand(bot)
-    for cmd in cog.get_commands():
-        if not hasattr(cmd, "category"):
-            cmd.category = "Minijeux"
+    for command in cog.get_commands():
+        command.category = "Minijeux"
     await bot.add_cog(cog)
