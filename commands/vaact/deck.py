@@ -110,15 +110,24 @@ class SaisonSelect(Select):
 
         # Met à jour dynamiquement les options du DuellisteSelect selon la saison choisie
         duellistes = list(self.parent_view.deck_data.get(chosen, {}).keys())
-        new_options = [
+        new_duel_options = [
             discord.SelectOption(label=d, value=d, default=False)
             for d in duellistes
         ]
-        # Remplace les options sans recréer le Select
         try:
-            self.parent_view.duelliste_select.options = new_options
-            # Reset la sélection courante (on ne sélectionne rien automatiquement)
+            # met à jour les options du DuellisteSelect
+            self.parent_view.duelliste_select.options = new_duel_options
             self.parent_view.duelliste = None
+        except Exception:
+            pass
+
+        # Met à jour aussi les options du SaisonSelect pour marquer l'option sélectionnée
+        try:
+            new_saison_options = [
+                discord.SelectOption(label=s, value=s, default=(s == chosen))
+                for s in self.parent_view.deck_data
+            ]
+            self.parent_view.saison_select.options = new_saison_options
         except Exception:
             pass
 
@@ -149,6 +158,17 @@ class DuellisteSelect(Select):
         self.parent_view.duelliste = chosen
         duelliste = chosen
         saison = self.parent_view.saison
+
+        # Met à jour les options du DuellisteSelect pour indiquer la sélection
+        try:
+            current_duels = list(self.parent_view.deck_data.get(saison, {}).keys())
+            updated_options = [
+                discord.SelectOption(label=d, value=d, default=(d == chosen))
+                for d in current_duels
+            ]
+            self.parent_view.duelliste_select.options = updated_options
+        except Exception:
+            pass
 
         infos = self.parent_view.deck_data.get(saison, {}).get(duelliste, {})
         deck_data = infos.get("deck", "❌ Aucun deck trouvé.")
