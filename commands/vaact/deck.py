@@ -51,7 +51,8 @@ class SaisonSelect(Select):
     async def callback(self, interaction: discord.Interaction):
         saison = self.values[0]
         if saison == self.parent_view.saison:
-            await interaction.response.defer()
+            try: await interaction.response.defer()
+            except Exception: pass
             return
         new_view = DeckSelectView(self.parent_view.bot, self.parent_view.deck_data, saison)
         await safe_respond(
@@ -73,7 +74,8 @@ class DeckFavoriteButton(View):
     @discord.ui.button(label="Deck favori", style=discord.ButtonStyle.success, emoji="🏆")
     async def add_fav_deck(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.user.id:
-            await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            try: await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            except Exception: pass
             return
         try:
             # Upsert dans la table profil
@@ -83,16 +85,21 @@ class DeckFavoriteButton(View):
                 "fav_decks_vaact": self.duelliste_name
             }, on_conflict="user_id").execute()
 
-            await interaction.response.send_message(
-                f"✅ **{self.duelliste_name}** est maintenant ton deck favori !",
-                ephemeral=True
-            )
+            try:
+                await interaction.response.send_message(
+                    f"✅ **{self.duelliste_name}** est maintenant ton deck favori !",
+                    ephemeral=True
+                )
+            except Exception: pass
+
         except Exception as e:
             print(f"[ERREUR Supabase] {e}")
-            await interaction.response.send_message(
-                "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
-                ephemeral=True
-            )
+            try:
+                await interaction.response.send_message(
+                    "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
+                    ephemeral=True
+                )
+            except Exception: pass
 
 # ────────────────────────────────────────────────────────────────────────────────
 class DuellisteSelect(Select):
@@ -109,7 +116,8 @@ class DuellisteSelect(Select):
         saison = self.parent_view.saison
         duelliste = self.values[0]
         if duelliste == self.parent_view.duelliste:
-            await interaction.response.defer()
+            try: await interaction.response.defer()
+            except Exception: pass
             return
 
         infos = self.parent_view.deck_data[saison][duelliste]
@@ -132,12 +140,15 @@ class DuellisteSelect(Select):
         fav_button = DeckFavoriteButton(duelliste, interaction.user)
         view.add_item(fav_button)
 
-        await safe_respond(
-            interaction,
-            content=f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :",
-            embed=embed,
-            view=view
-        )
+        try:
+            await safe_respond(
+                interaction,
+                content=f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :",
+                embed=embed,
+                view=view
+            )
+        except Exception:  # Interaction échouée
+            pass
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
