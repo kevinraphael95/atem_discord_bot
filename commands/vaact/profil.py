@@ -104,18 +104,18 @@ class Profil(commands.Cog):
     
         # Champ Infos
         contenu = (
-            f"**Carte Yu-Gi-Oh préférée :** {profil.get('cartefav', 'Non défini')}\n"
-            f"**Pseudo VAACT :** {profil.get('vaact_name', 'Non défini')}\n"
-            f"**Deck VAACT préféré :** {profil.get('fav_decks_vaact', 'Non défini')}"
+            f"• Carte Yu-Gi-Oh préférée : {profil.get('cartefav', 'Non défini')}\n"
+            f"• Pseudo VAACT : {profil.get('vaact_name', 'Non défini')}\n"
+            f"• Deck VAACT préféré : {profil.get('fav_decks_vaact', 'Non défini')}"
         )
         embed.add_field(name="Infos", value=contenu, inline=False)
         
         # Nouveau champ Stats
         stats = (
-            f"**Série actuelle générale :** {profil.get('current_streak', 0)}\n"
-            f"**Meilleure série générale :** {profil.get('best_streak', 0)}\n"
-            f"**Série actuelle Devine l’illustration :** {profil.get('illu_streak', 0)}\n"
-            f"**Meilleure série Devine l’illustration :** {profil.get('best_illustreak', 0)}"
+            f"• Série actuelle générale : {profil.get('current_streak', 0)}\n"
+            f"• Meilleure série générale : {profil.get('best_streak', 0)}\n"
+            f"• Série actuelle Devine l’illustration : {profil.get('illu_streak', 0)}\n"
+            f"• Meilleure série Devine l’illustration : {profil.get('best_illustreak', 0)}"
         )
         embed.add_field(name="Stats", value=stats, inline=False)
         
