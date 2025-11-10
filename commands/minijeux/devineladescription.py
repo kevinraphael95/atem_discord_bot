@@ -90,7 +90,7 @@ async def fetch_archetype_cards(archetype):
 # 🔄 Mise à jour des streaks
 # ────────────────────────────────────────────────────────────────────────────────
 async def update_streak(user_id: str, correct: bool):
-    row = supabase.table("ygo_streaks").select("*").eq("user_id", user_id).execute().data
+    row = supabase.table("profil").select("*").eq("user_id", user_id).execute().data
     current = row[0]["current_streak"] if row else 0
     best    = row[0].get("best_streak", 0) if row else 0
     new_streak = current + 1 if correct else 0
@@ -101,9 +101,9 @@ async def update_streak(user_id: str, correct: bool):
         "best_streak": new_best
     }
     if row:
-        supabase.table("ygo_streaks").update(payload).eq("user_id", user_id).execute()
+        supabase.table("profil").update(payload).eq("user_id", user_id).execute()
     else:
-        supabase.table("ygo_streaks").insert(payload).execute()
+        supabase.table("profil").insert(payload).execute()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧐 Cog principal
@@ -243,7 +243,7 @@ class TestQuestion(commands.Cog):
     async def testquestion_score(self, ctx: commands.Context):
         user_id = str(ctx.author.id)
         try:
-            resp = supabase.table("ygo_streaks").select("current_streak,best_streak").eq("user_id", user_id).execute()
+            resp = supabase.table("profil").select("current_streak,best_streak").eq("user_id", user_id).execute()
             if resp.data:
                 cur = resp.data[0].get("current_streak", 0)
                 best = resp.data[0].get("best_streak", 0)
@@ -273,7 +273,7 @@ class TestQuestion(commands.Cog):
         try:
             # Récupère uniquement les streaks > 0 et trie du plus grand au plus petit
             resp = (
-                supabase.table("ygo_streaks")
+                supabase.table("profil")
                 .select("user_id,best_streak")
                 .gt("best_streak", 0)  # ignore 0 et NULL
                 .order("best_streak", desc=True)
