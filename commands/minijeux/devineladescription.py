@@ -89,21 +89,38 @@ async def fetch_archetype_cards(archetype):
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔄 Mise à jour des streaks
 # ────────────────────────────────────────────────────────────────────────────────
-async def update_streak(user_id: str, correct: bool):
+async def update_streak(user_id: str, correct: bool, bot=None):
+    # Récupérer le username si possible
+    username = f"ID {user_id}"
+    if bot:
+        try:
+            user = await bot.fetch_user(int(user_id))
+            if user:
+                username = user.name
+        except:
+            pass
+
     row = supabase.table("profil").select("*").eq("user_id", user_id).execute().data
     current = row[0]["current_streak"] if row else 0
     best    = row[0].get("best_streak", 0) if row else 0
+    illu_cur = row[0].get("illu_streak", 0) if row else 0
+    illu_best = row[0].get("best_illustreak", 0) if row else 0
     new_streak = current + 1 if correct else 0
     new_best   = max(best, new_streak)
+
     payload = {
         "user_id": user_id,
+        "username": username,
+        "cartefav": row[0].get("cartefav", "Non défini") if row else "Non défini",
+        "vaact_name": row[0].get("vaact_name", "Non défini") if row else "Non défini",
+        "fav_decks_vaact": row[0].get("fav_decks_vaact", "Non défini") if row else "Non défini",
         "current_streak": new_streak,
-        "best_streak": new_best
+        "best_streak": new_best,
+        "illu_streak": illu_cur,
+        "best_illustreak": illu_best
     }
-    if row:
-        supabase.table("profil").update(payload).eq("user_id", user_id).execute()
-    else:
-        supabase.table("profil").insert(payload).execute()
+
+    supabase.table("profil").upsert(payload).execute()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧐 Cog principal
@@ -122,11 +139,11 @@ class TestQuestion(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     class QuizView(View):
         def __init__(self, bot, choices, main_name):
-            super().__init__(timeout=60)  # ⏳ 1 minute
+            super().__init__(timeout=60)
             self.bot = bot
             self.choices = choices
             self.main_name = main_name
-            self.answers = {}  # user_id → choix
+            self.answers = {}
             for idx, name in enumerate(choices):
                 self.add_item(TestQuestion.QuizButton(label=name, idx=idx, parent_view=self))
 
@@ -145,7 +162,11 @@ class TestQuestion(commands.Cog):
         async def callback(self, interaction: discord.Interaction):
             if interaction.user.id not in self.parent_view.answers:
                 self.parent_view.answers[interaction.user.id] = self.idx
-                await update_streak(str(interaction.user.id), self.parent_view.choices[self.idx] == self.parent_view.main_name)
+                await update_streak(
+                    str(interaction.user.id),
+                    self.parent_view.choices[self.idx] == self.parent_view.main_name,
+                    bot=self.parent_view.bot
+                )
             await interaction.response.send_message(f"✅ Réponse enregistrée : **{self.label}**", ephemeral=True)
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -216,8 +237,6 @@ class TestQuestion(commands.Cog):
 
             view = self.QuizView(self.bot, choices, main_name)
             view.message = await safe_send(ctx, embed=embed, view=view)
-
-            # attendre la fin du quiz
             await view.wait()
 
             winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if choices[idx] == main_name]
@@ -271,11 +290,10 @@ class TestQuestion(commands.Cog):
     @testquestion.command(name="top", aliases=["t"])
     async def testquestion_top(self, ctx: commands.Context):
         try:
-            # Récupère uniquement les streaks > 0 et trie du plus grand au plus petit
             resp = (
                 supabase.table("profil")
                 .select("user_id,best_streak")
-                .gt("best_streak", 0)  # ignore 0 et NULL
+                .gt("best_streak", 0)
                 .order("best_streak", desc=True)
                 .limit(10)
                 .execute()
@@ -302,7 +320,7 @@ class TestQuestion(commands.Cog):
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = TestQuestion(bot)
     for command in cog.get_commands():
