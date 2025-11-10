@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 illustration.py — Commande interactive /illustration et !illustration
-# Objectif : Jeu pour deviner une carte Yu-Gi-Oh! à partir de son illustration
+# 📌 illustration.py — Commande interactive !illustration
+# Objectif : Jeu pour deviner une carte Yu-Gi-Oh! à partir de son image croppée
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
@@ -10,7 +10,6 @@
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
-from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
@@ -18,24 +17,22 @@ import random
 import traceback
 
 from utils.supabase_client import supabase
-from utils.discord_utils import safe_send, safe_respond, safe_edit  # ✅ Utilitaires sécurisés
+from utils.discord_utils import safe_send, safe_edit, safe_respond  
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal — IllustrationCommand
 # ────────────────────────────────────────────────────────────────────────────────
 class IllustrationCommand(commands.Cog):
-    """
-    Commande /illustration et !illustration — Devine une carte Yu-Gi-Oh! à partir de son illustration.
-    """
-    def __init__(self, bot: commands.Bot):
+    """Commande /illustration et !illustration — Devine une carte Yu-Gi-Oh! à partir de son illustration."""
+
+    def __init__(self, bot):
         self.bot = bot
-        self.active_sessions = {}  # guild_id → session en cours
+        self.active_sessions = {}  # guild_id → message en cours
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonctions utilitaires
     # ────────────────────────────────────────────────────────────────────────────
     async def fetch_all_cards(self):
-        """Récupère toutes les cartes Yu-Gi-Oh! depuis l'API officielle."""
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -45,7 +42,6 @@ class IllustrationCommand(commands.Cog):
         return data.get("data", [])
 
     async def get_similar_cards(self, all_cards, true_card):
-        """Retourne 3 cartes similaires pour créer des choix de quiz."""
         archetype = true_card.get("archetype")
         card_type = true_card.get("type", "")
         if archetype:
@@ -55,7 +51,7 @@ class IllustrationCommand(commands.Cog):
         return random.sample(group, k=min(3, len(group))) if group else []
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Vue et boutons du quiz
+    # 🔹 View et Button pour le quiz
     # ────────────────────────────────────────────────────────────────────────────
     class QuizView(View):
         def __init__(self, bot, choices, correct_idx):
@@ -123,29 +119,18 @@ class IllustrationCommand(commands.Cog):
             view.message = await safe_send(channel, embed=embed, view=view)
             await view.wait()
 
-            # Mettre à jour les streaks dans Supabase
+            # Mettre à jour les streaks
             for uid, choice in view.answers.items():
-                user = await self.bot.fetch_user(int(uid))
-                username = user.name if user else f"ID {uid}"
-
                 resp = supabase.table("profil").select("illu_streak,best_illustreak").eq("user_id", uid).execute()
                 data = resp.data or []
                 cur, best = (data[0].get("illu_streak",0), data[0].get("best_illustreak",0)) if data else (0,0)
-
                 if choice == correct_idx:
                     cur += 1
                     best = max(best, cur)
                 else:
                     cur = 0
-
                 supabase.table("profil").upsert({
                     "user_id": uid,
-                    "username": username,
-                    "cartefav": "Non défini",
-                    "vaact_name": "Non défini",
-                    "fav_decks_vaact": "Non défini",
-                    "current_streak": 0,
-                    "best_streak": 0,
                     "illu_streak": cur,
                     "best_illustreak": best
                 }).execute()
@@ -168,36 +153,22 @@ class IllustrationCommand(commands.Cog):
             if guild_id: self.active_sessions[guild_id] = None
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
+    # 💬 Commande principale et sous-commandes
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="illustration",
-        description="Devine une carte Yu-Gi-Oh! à partir de son illustration."
-    )
-    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
-    async def slash_illustration(self, interaction: discord.Interaction):
-        await self.start_quiz(interaction.channel)
-        await safe_respond(interaction, "✅ Quiz lancé !")
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="illustration")
-    @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_illustration(self, ctx: commands.Context):
+    @commands.group(name="illustration", aliases=["i","di"], invoke_without_command=True)
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    async def illustration_group(self, ctx: commands.Context):
         await self.start_quiz(ctx.channel)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande TOP 10 des streaks
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="illustration_top")
+    @illustration_group.command(name="top", aliases=["t"])
     async def illustration_top(self, ctx: commands.Context):
         """Affiche le top 10 des meilleurs streaks du quiz d’illustration."""
         try:
+            # Récupère uniquement les streaks > 0 et trie du plus grand au plus petit
             resp = (
                 supabase.table("profil")
                 .select("user_id,best_illustreak")
-                .gt("best_illustreak", 0)
+                .gt("best_illustreak", 0)  # ignore 0 et NULL
                 .order("best_illustreak", desc=True)
                 .limit(10)
                 .execute()
@@ -231,6 +202,5 @@ class IllustrationCommand(commands.Cog):
 async def setup(bot: commands.Bot):
     cog = IllustrationCommand(bot)
     for command in cog.get_commands():
-        if not hasattr(command, "category"):
-            command.category = "Minijeux"
+        command.category = "Minijeux"
     await bot.add_cog(cog)
