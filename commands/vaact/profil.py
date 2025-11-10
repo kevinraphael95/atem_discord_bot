@@ -50,56 +50,47 @@ class Profil(commands.Cog):
         await safe_send(ctx.channel, embed=embed)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Récupération du profil depuis Supabase (infos + stats depuis ygo_streaks)
+    # 🔹 Récupération du profil depuis Supabase
     # ────────────────────────────────────────────────────────────────────────────
     async def get_profil(self, user_id: int, username: str) -> dict:
-        profil = {
-            "user_id": str(user_id),
-            "username": username,
-            "cartefav": "Non défini",
-            "vaact_name": "Non défini",
-            "fav_decks_vaact": "Non défini",
-            "current_streak": 0,
-            "best_streak": 0,
-            "illu_streak": 0,
-            "best_illustreak": 0
-        }
-
         try:
-            # Récupération infos perso depuis table 'profil'
-            resp_profil = self.bot.supabase.table("profil").select("*").eq("user_id", str(user_id)).execute()
-            if resp_profil.data and len(resp_profil.data) > 0:
-                profil.update(resp_profil.data[0])
+            resp = self.bot.supabase.table("profil").select("*").eq("user_id", str(user_id)).execute()
+            if resp.data and len(resp.data) > 0:
+                return resp.data[0]
             else:
-                # Création profil par défaut si inexistant
+                # Crée un profil par défaut si inexistant
                 self.bot.supabase.table("profil").insert({
                     "user_id": str(user_id),
-                    "username": username
-                }).execute()
-
-            # Récupération stats depuis table 'ygo_streaks'
-            resp_stats = self.bot.supabase.table("ygo_streaks").select("*").eq("user_id", str(user_id)).execute()
-            if resp_stats.data and len(resp_stats.data) > 0:
-                stats = resp_stats.data[0]
-                profil["current_streak"] = stats.get("current_streak", 0)
-                profil["best_streak"] = stats.get("best_streak", 0)
-                profil["illu_streak"] = stats.get("illu_streak", 0)
-                profil["best_illustreak"] = stats.get("best_illustreak", 0)
-            else:
-                # Crée stats par défaut si inexistantes
-                self.bot.supabase.table("ygo_streaks").insert({
-                    "user_id": str(user_id),
+                    "username": username,
                     "current_streak": 0,
                     "best_streak": 0,
                     "illu_streak": 0,
                     "best_illustreak": 0
                 }).execute()
-
-            return profil
-
+                return {
+                    "user_id": str(user_id),
+                    "username": username,
+                    "cartefav": "Non défini",
+                    "vaact_name": "Non défini",
+                    "fav_decks_vaact": "Non défini",
+                    "current_streak": 0,
+                    "best_streak": 0,
+                    "illu_streak": 0,
+                    "best_illustreak": 0
+                }
         except Exception as e:
             print(f"[Supabase] Impossible de récupérer le profil : {e}")
-            return profil
+            return {
+                "user_id": str(user_id),
+                "username": username,
+                "cartefav": "Erreur",
+                "vaact_name": "Erreur",
+                "fav_decks_vaact": "Erreur",
+                "current_streak": 0,
+                "best_streak": 0,
+                "illu_streak": 0,
+                "best_illustreak": 0
+            }
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Création de l’embed
@@ -113,18 +104,18 @@ class Profil(commands.Cog):
     
         # Champ Infos
         contenu = (
-            f"Carte Yu-Gi-Oh préférée : {profil.get('cartefav', 'Non défini')}\n"
-            f"Pseudo VAACT : {profil.get('vaact_name', 'Non défini')}\n"
-            f"Deck VAACT préféré : {profil.get('fav_decks_vaact', 'Non défini')}"
+            f"**Carte Yu-Gi-Oh préférée :** {profil.get('cartefav', 'Non défini')}\n"
+            f"**Pseudo VAACT :** {profil.get('vaact_name', 'Non défini')}\n"
+            f"**Deck VAACT préféré :** {profil.get('fav_decks_vaact', 'Non défini')}"
         )
         embed.add_field(name="Infos", value=contenu, inline=False)
         
-        # Champ Stats
+        # Nouveau champ Stats
         stats = (
-            f"Série actuelle de "Devine la Description" : {profil.get('current_streak', 0)}\n"
-            f"Meilleure série de "Devine la Description" : {profil.get('best_streak', 0)}\n"
-            f"Série actuelle de "Devine l’illustration" : {profil.get('illu_streak', 0)}\n"
-            f"Meilleure série de "Devine l’illustration" : {profil.get('best_illustreak', 0)}"
+            f"**Série actuelle générale :** {profil.get('current_streak', 0)}\n"
+            f"**Meilleure série générale :** {profil.get('best_streak', 0)}\n"
+            f"**Série actuelle Devine l’illustration :** {profil.get('illu_streak', 0)}\n"
+            f"**Meilleure série Devine l’illustration :** {profil.get('best_illustreak', 0)}"
         )
         embed.add_field(name="Stats", value=stats, inline=False)
         
