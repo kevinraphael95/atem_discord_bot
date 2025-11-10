@@ -50,47 +50,56 @@ class Profil(commands.Cog):
         await safe_send(ctx.channel, embed=embed)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Récupération du profil depuis Supabase
+    # 🔹 Récupération du profil depuis Supabase (infos + stats depuis ygo_streaks)
     # ────────────────────────────────────────────────────────────────────────────
     async def get_profil(self, user_id: int, username: str) -> dict:
+        profil = {
+            "user_id": str(user_id),
+            "username": username,
+            "cartefav": "Non défini",
+            "vaact_name": "Non défini",
+            "fav_decks_vaact": "Non défini",
+            "current_streak": 0,
+            "best_streak": 0,
+            "illu_streak": 0,
+            "best_illustreak": 0
+        }
+
         try:
-            resp = self.bot.supabase.table("profil").select("*").eq("user_id", str(user_id)).execute()
-            if resp.data and len(resp.data) > 0:
-                return resp.data[0]
+            # Récupération infos perso depuis table 'profil'
+            resp_profil = self.bot.supabase.table("profil").select("*").eq("user_id", str(user_id)).execute()
+            if resp_profil.data and len(resp_profil.data) > 0:
+                profil.update(resp_profil.data[0])
             else:
-                # Crée un profil par défaut si inexistant
+                # Création profil par défaut si inexistant
                 self.bot.supabase.table("profil").insert({
                     "user_id": str(user_id),
-                    "username": username,
+                    "username": username
+                }).execute()
+
+            # Récupération stats depuis table 'ygo_streaks'
+            resp_stats = self.bot.supabase.table("ygo_streaks").select("*").eq("user_id", str(user_id)).execute()
+            if resp_stats.data and len(resp_stats.data) > 0:
+                stats = resp_stats.data[0]
+                profil["current_streak"] = stats.get("current_streak", 0)
+                profil["best_streak"] = stats.get("best_streak", 0)
+                profil["illu_streak"] = stats.get("illu_streak", 0)
+                profil["best_illustreak"] = stats.get("best_illustreak", 0)
+            else:
+                # Crée stats par défaut si inexistantes
+                self.bot.supabase.table("ygo_streaks").insert({
+                    "user_id": str(user_id),
                     "current_streak": 0,
                     "best_streak": 0,
                     "illu_streak": 0,
                     "best_illustreak": 0
                 }).execute()
-                return {
-                    "user_id": str(user_id),
-                    "username": username,
-                    "cartefav": "Non défini",
-                    "vaact_name": "Non défini",
-                    "fav_decks_vaact": "Non défini",
-                    "current_streak": 0,
-                    "best_streak": 0,
-                    "illu_streak": 0,
-                    "best_illustreak": 0
-                }
+
+            return profil
+
         except Exception as e:
             print(f"[Supabase] Impossible de récupérer le profil : {e}")
-            return {
-                "user_id": str(user_id),
-                "username": username,
-                "cartefav": "Erreur",
-                "vaact_name": "Erreur",
-                "fav_decks_vaact": "Erreur",
-                "current_streak": 0,
-                "best_streak": 0,
-                "illu_streak": 0,
-                "best_illustreak": 0
-            }
+            return profil
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Création de l’embed
@@ -110,7 +119,7 @@ class Profil(commands.Cog):
         )
         embed.add_field(name="Infos", value=contenu, inline=False)
         
-        # Nouveau champ Stats
+        # Champ Stats
         stats = (
             f"**Série actuelle générale :** {profil.get('current_streak', 0)}\n"
             f"**Meilleure série générale :** {profil.get('best_streak', 0)}\n"
