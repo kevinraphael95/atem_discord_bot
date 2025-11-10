@@ -121,7 +121,7 @@ class IllustrationCommand(commands.Cog):
 
             # Mettre à jour les streaks
             for uid, choice in view.answers.items():
-                resp = supabase.table("ygo_streaks").select("illu_streak,best_illustreak").eq("user_id", uid).execute()
+                resp = supabase.table("profil").select("illu_streak,best_illustreak").eq("user_id", uid).execute()
                 data = resp.data or []
                 cur, best = (data[0].get("illu_streak",0), data[0].get("best_illustreak",0)) if data else (0,0)
                 if choice == correct_idx:
@@ -129,7 +129,7 @@ class IllustrationCommand(commands.Cog):
                     best = max(best, cur)
                 else:
                     cur = 0
-                supabase.table("ygo_streaks").upsert({
+                supabase.table("profil").upsert({
                     "user_id": uid,
                     "illu_streak": cur,
                     "best_illustreak": best
@@ -166,7 +166,7 @@ class IllustrationCommand(commands.Cog):
         try:
             # Récupère uniquement les streaks > 0 et trie du plus grand au plus petit
             resp = (
-                supabase.table("ygo_streaks")
+                supabase.table("profil")
                 .select("user_id,best_illustreak")
                 .gt("best_illustreak", 0)  # ignore 0 et NULL
                 .order("best_illustreak", desc=True)
