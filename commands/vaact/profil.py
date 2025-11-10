@@ -112,10 +112,10 @@ class Profil(commands.Cog):
         
         # Nouveau champ Stats
         stats = (
-            f"• Série actuelle de "Devine la Description" : {profil.get('current_streak', 0)}\n"
-            f"• Meilleure série de "Devine la Description" : {profil.get('best_streak', 0)}\n"
-            f"• Série actuelle de "Devine l’illustration" : {profil.get('illu_streak', 0)}\n"
-            f"• Meilleure série de "Devine l’illustration" : {profil.get('best_illustreak', 0)}"
+            f"• Série actuelle de 'Devine la Description' : {profil.get('current_streak', 0)}\n"
+            f"• Meilleure série de 'Devine la Description' : {profil.get('best_streak', 0)}\n"
+            f"• Série actuelle de 'Devine l’illustration' : {profil.get('illu_streak', 0)}\n"
+            f"• Meilleure série de 'Devine l’illustration' : {profil.get('best_illustreak', 0)}"
         )
         embed.add_field(name="Stats", value=stats, inline=False)
         
