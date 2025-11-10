@@ -98,7 +98,8 @@ class IllustrationCommand(commands.Cog):
         guild_id = getattr(channel, "guild", None).id if hasattr(channel, "guild") else None
         if guild_id and self.active_sessions.get(guild_id):
             return await safe_send(channel, "⚠️ Un quiz est déjà en cours.")
-        if guild_id: self.active_sessions[guild_id] = True
+        if guild_id:
+            self.active_sessions[guild_id] = True
 
         try:
             all_cards = await self.fetch_all_cards()
@@ -131,16 +132,32 @@ class IllustrationCommand(commands.Cog):
             await view.wait()
 
             # ────────────────
-            # Mettre à jour les streaks correctement avec username
+            # ✅ Mise à jour intelligente des streaks (sans reset)
             # ────────────────
             for uid, choice in view.answers.items():
                 # Récupérer le nom Discord
                 user = await self.bot.fetch_user(int(uid))
                 username = user.name if user else f"ID {uid}"
 
-                resp = supabase.table("profil").select("illu_streak,best_illustreak").eq("user_id", uid).execute()
-                data = resp.data or []
-                cur, best = (data[0].get("illu_streak",0), data[0].get("best_illustreak",0)) if data else (0,0)
+                resp = supabase.table("profil").select("*").eq("user_id", uid).execute()
+                if resp.data and len(resp.data) > 0:
+                    data = resp.data[0]
+                else:
+                    # Si le profil n'existe pas encore
+                    data = {
+                        "user_id": uid,
+                        "username": username,
+                        "cartefav": "Non défini",
+                        "vaact_name": "Non défini",
+                        "fav_decks_vaact": "Non défini",
+                        "current_streak": 0,
+                        "best_streak": 0,
+                        "illu_streak": 0,
+                        "best_illustreak": 0
+                    }
+
+                cur = data.get("illu_streak", 0)
+                best = data.get("best_illustreak", 0)
 
                 if choice == correct_idx:
                     cur += 1
@@ -148,18 +165,15 @@ class IllustrationCommand(commands.Cog):
                 else:
                     cur = 0
 
-                supabase.table("profil").upsert({
-                    "user_id": uid,
-                    "username": username,
-                    "cartefav": "Non défini",
-                    "vaact_name": "Non défini",
-                    "fav_decks_vaact": "Non défini",
-                    "current_streak": 0,
-                    "best_streak": 0,
-                    "illu_streak": cur,
-                    "best_illustreak": best
-                }).execute()
+                data["illu_streak"] = cur
+                data["best_illustreak"] = best
+                data["username"] = username  # mise à jour pseudo
 
+                supabase.table("profil").upsert(data).execute()
+
+            # ────────────────
+            # Résultats
+            # ────────────────
             winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if idx == correct_idx]
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
@@ -175,12 +189,13 @@ class IllustrationCommand(commands.Cog):
             traceback.print_exc()
             await safe_send(channel, f"❌ Une erreur est survenue : {e}")
         finally:
-            if guild_id: self.active_sessions[guild_id] = None
+            if guild_id:
+                self.active_sessions[guild_id] = None
 
     # ────────────────────────────────────────────────────────────────────────────
     # 💬 Commande principale et sous-commandes
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.group(name="illustration", aliases=["i","di"], invoke_without_command=True)
+    @commands.group(name="illustration", aliases=["i", "di"], invoke_without_command=True)
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def illustration_group(self, ctx: commands.Context):
         await self.start_quiz(ctx.channel)
@@ -207,7 +222,7 @@ class IllustrationCommand(commands.Cog):
                 best = row.get("best_illustreak", 0)
                 user = await self.bot.fetch_user(int(uid)) if uid else None
                 name = user.name if user else f"ID {uid}"
-                medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i, f"`#{i}`")
+                medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"`#{i}`")
                 lines.append(f"{medal} **{name}** – 🔥 {best}")
 
             embed = discord.Embed(
