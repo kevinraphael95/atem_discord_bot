@@ -62,6 +62,8 @@ class Profil(commands.Cog):
                 self.bot.supabase.table("profil").insert({
                     "user_id": str(user_id),
                     "username": username,
+                    "niveau": 0,
+                    "exp": 0,
                     "current_streak": 0,
                     "best_streak": 0,
                     "illu_streak": 0,
@@ -70,6 +72,8 @@ class Profil(commands.Cog):
                 return {
                     "user_id": str(user_id),
                     "username": username,
+                    "niveau": 0,
+                    "exp": 0,
                     "cartefav": "Non défini",
                     "vaact_name": "Non défini",
                     "fav_decks_vaact": "Non défini",
@@ -83,6 +87,8 @@ class Profil(commands.Cog):
             return {
                 "user_id": str(user_id),
                 "username": username,
+                "niveau": 0,
+                "exp": 0,
                 "cartefav": "Erreur",
                 "vaact_name": "Erreur",
                 "fav_decks_vaact": "Erreur",
@@ -110,9 +116,11 @@ class Profil(commands.Cog):
         )
         embed.add_field(name="Infos", value=contenu, inline=False)
         
-        # Nouveau champ Stats
+        # Champ Stats avec XP affichée 0/5 max
+        niveau = profil.get("niveau", 1)
+        exp = profil.get("exp", 0)
         stats = (
-            f"• Niveau : 0 (XP : 0/5)\n"
+            f"• Niveau : {niveau} (XP : {exp}/5)\n"
             f"• ''Devine la Description'' : Série en cours : {profil.get('current_streak', 0)} / Série record : {profil.get('best_streak', 0)}\n"
             f"• ''Devine l’illustration'' : Série en cours : {profil.get('illu_streak', 0)} / Série record : {profil.get('best_illustreak', 0)}"
         )
