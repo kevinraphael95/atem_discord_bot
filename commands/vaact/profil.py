@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 profil.py — Affiche le profil d’un utilisateur
-# Objectif : Voir son profil ou celui de quelqu’un
+# Objectif : Voir son profil ou celui d’un membre
 # Catégorie : Autre
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
@@ -61,14 +61,22 @@ class Profil(commands.Cog):
                 # Crée un profil par défaut si inexistant
                 self.bot.supabase.table("profil").insert({
                     "user_id": str(user_id),
-                    "username": username
+                    "username": username,
+                    "current_streak": 0,
+                    "best_streak": 0,
+                    "illu_streak": 0,
+                    "best_illustreak": 0
                 }).execute()
                 return {
                     "user_id": str(user_id),
                     "username": username,
                     "cartefav": "Non défini",
                     "vaact_name": "Non défini",
-                    "fav_decks_vaact": "Non défini"
+                    "fav_decks_vaact": "Non défini",
+                    "current_streak": 0,
+                    "best_streak": 0,
+                    "illu_streak": 0,
+                    "best_illustreak": 0
                 }
         except Exception as e:
             print(f"[Supabase] Impossible de récupérer le profil : {e}")
@@ -77,7 +85,11 @@ class Profil(commands.Cog):
                 "username": username,
                 "cartefav": "Erreur",
                 "vaact_name": "Erreur",
-                "fav_decks_vaact": "Erreur"
+                "fav_decks_vaact": "Erreur",
+                "current_streak": 0,
+                "best_streak": 0,
+                "illu_streak": 0,
+                "best_illustreak": 0
             }
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -90,12 +102,22 @@ class Profil(commands.Cog):
         )
         embed.set_thumbnail(url=membre.display_avatar.url)
     
+        # Champ Infos
         contenu = (
             f"**Carte Yu-Gi-Oh préférée :** {profil.get('cartefav', 'Non défini')}\n"
             f"**Pseudo VAACT :** {profil.get('vaact_name', 'Non défini')}\n"
             f"**Deck VAACT préféré :** {profil.get('fav_decks_vaact', 'Non défini')}"
         )
-        embed.add_field(name="Profil", value=contenu, inline=False)
+        embed.add_field(name="Infos", value=contenu, inline=False)
+        
+        # Nouveau champ Stats
+        stats = (
+            f"**Série actuelle générale :** {profil.get('current_streak', 0)}\n"
+            f"**Meilleure série générale :** {profil.get('best_streak', 0)}\n"
+            f"**Série actuelle Devine l’illustration :** {profil.get('illu_streak', 0)}\n"
+            f"**Meilleure série Devine l’illustration :** {profil.get('best_illustreak', 0)}"
+        )
+        embed.add_field(name="Stats", value=stats, inline=False)
         
         return embed
 
