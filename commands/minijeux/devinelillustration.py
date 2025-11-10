@@ -119,18 +119,32 @@ class IllustrationCommand(commands.Cog):
             view.message = await safe_send(channel, embed=embed, view=view)
             await view.wait()
 
-            # Mettre à jour les streaks
+            # ────────────────
+            # Mettre à jour les streaks correctement avec username
+            # ────────────────
             for uid, choice in view.answers.items():
+                # Récupérer le nom Discord
+                user = await self.bot.fetch_user(int(uid))
+                username = user.name if user else f"ID {uid}"
+
                 resp = supabase.table("profil").select("illu_streak,best_illustreak").eq("user_id", uid).execute()
                 data = resp.data or []
                 cur, best = (data[0].get("illu_streak",0), data[0].get("best_illustreak",0)) if data else (0,0)
+
                 if choice == correct_idx:
                     cur += 1
                     best = max(best, cur)
                 else:
                     cur = 0
+
                 supabase.table("profil").upsert({
                     "user_id": uid,
+                    "username": username,
+                    "cartefav": "Non défini",
+                    "vaact_name": "Non défini",
+                    "fav_decks_vaact": "Non défini",
+                    "current_streak": 0,
+                    "best_streak": 0,
                     "illu_streak": cur,
                     "best_illustreak": best
                 }).execute()
@@ -164,11 +178,10 @@ class IllustrationCommand(commands.Cog):
     async def illustration_top(self, ctx: commands.Context):
         """Affiche le top 10 des meilleurs streaks du quiz d’illustration."""
         try:
-            # Récupère uniquement les streaks > 0 et trie du plus grand au plus petit
             resp = (
                 supabase.table("profil")
                 .select("user_id,best_illustreak")
-                .gt("best_illustreak", 0)  # ignore 0 et NULL
+                .gt("best_illustreak", 0)
                 .order("best_illustreak", desc=True)
                 .limit(10)
                 .execute()
