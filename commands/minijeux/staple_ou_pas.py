@@ -95,12 +95,14 @@ class StapleOuPas(commands.Cog):
                 return random.choice(cards)
 
     async def get_random_card(self):
-        """Récupère une carte totalement aléatoire"""
+        """Récupère une carte totalement aléatoire (format direct, sans data[])"""
         async with aiohttp.ClientSession() as session:
             async with session.get(ALL_CARDS_API) as resp:
                 if resp.status != 200:
                     return None
-                return await resp.json()
+                data = await resp.json()
+                # ✅ randomcard.php renvoie déjà la carte directement, pas besoin de 'data'
+                return data
 
     async def play_round(self, interaction_or_ctx, is_slash: bool):
         """Logique commune entre slash et prefix"""
@@ -109,6 +111,7 @@ class StapleOuPas(commands.Cog):
         # 50 % de chance d’être une staple
         is_staple = random.choice([True, False])
         card = await (self.get_random_staple() if is_staple else self.get_random_card())
+
         if not card:
             msg = "❌ Impossible de tirer une carte."
             return await (safe_respond(interaction_or_ctx, msg) if is_slash else safe_send(interaction_or_ctx, msg))
@@ -145,7 +148,7 @@ class StapleOuPas(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="staple_ou_pas")
+    @commands.command(name="staple_ou_pas", aliases=["sop"])
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_staple_ou_pas(self, ctx: commands.Context):
         """Version préfixe de la commande"""
