@@ -13,14 +13,13 @@ import discord
 from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
-import asyncio
 import random
 import re
 from difflib import SequenceMatcher
 
 from utils.supabase_client import supabase
 from utils.discord_utils import safe_send, safe_reply, safe_edit  
-from utils.vaact_utils import add_exp_for_streak  # ✅ ajout pour EXP
+from utils.vaact_utils import add_exp_for_streak  # ✅ EXP si record battu
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔒 Empêcher l'utilisation en MP
@@ -103,8 +102,6 @@ async def update_streak(user_id: str, correct: bool, bot=None):
     row = supabase.table("profil").select("*").eq("user_id", user_id).execute().data
     current = row[0]["current_streak"] if row else 0
     best    = row[0].get("best_streak", 0) if row else 0
-    illu_cur = row[0].get("illu_streak", 0) if row else 0
-    illu_best = row[0].get("best_illustreak", 0) if row else 0
     new_streak = current + 1 if correct else 0
     new_best   = max(best, new_streak)
 
@@ -115,11 +112,8 @@ async def update_streak(user_id: str, correct: bool, bot=None):
         "vaact_name": row[0].get("vaact_name", "Non défini") if row else "Non défini",
         "fav_decks_vaact": row[0].get("fav_decks_vaact", "Non défini") if row else "Non défini",
         "current_streak": new_streak,
-        "best_streak": new_best,
-        "illu_streak": illu_cur,
-        "best_illustreak": illu_best
+        "best_streak": new_best
     }
-
     supabase.table("profil").upsert(payload).execute()
 
     # 🔹 Ajouter EXP si record battu
