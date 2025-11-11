@@ -161,5 +161,5 @@ async def setup(bot: commands.Bot):
     cog = StapleOuPas(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🎮 Minijeux"
+            command.category = "Minijeux"
     await bot.add_cog(cog)
