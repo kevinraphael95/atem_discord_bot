@@ -138,7 +138,16 @@ class StapleOuPas(commands.Cog):
                 return random.choice(cards) if cards else None
 
     async def get_random_card(self):
+        """Récupère une carte aléatoire en FR (fallback anglais → traduit en FR si possible)."""
         card, lang = await fetch_random_card()
+        if card and lang == "en":
+            # On retente d’obtenir la version française de cette même carte
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card['id']}&language=fr") as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if "data" in data and len(data["data"]) > 0:
+                            return data["data"][0]
         return card
 
     async def build_card_embed(self, card: dict) -> discord.Embed:
