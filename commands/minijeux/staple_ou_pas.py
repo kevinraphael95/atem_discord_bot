@@ -3,6 +3,7 @@
 # Objectif :
 #   - Tire une carte aléatoire (50 % de chance d’être une staple)
 #   - L’utilisateur doit deviner si c’est une staple ou non
+#   - L’affichage suit le même format que !carte
 #   - Le résultat s’affiche directement dans l’embed
 # Catégorie : 🎮 Minijeux
 # Accès : Tous
@@ -17,14 +18,69 @@ from discord import app_commands
 from discord.ext import commands
 import aiohttp
 import random
+from pathlib import Path
+import json
 
 from utils.discord_utils import safe_send, safe_respond
-from utils.card_utils import fetch_random_card  # ✅ utilisation du module commun
+from utils.card_utils import fetch_random_card
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎨 Chargement des décorations de cartes (identique à carte.py)
+# ────────────────────────────────────────────────────────────────────────────────
+CARDINFO_PATH = Path("data/cardinfofr.json")
+try:
+    with CARDINFO_PATH.open("r", encoding="utf-8") as f:
+        CARDINFO = json.load(f)
+except FileNotFoundError:
+    print("[ERREUR] Fichier data/cardinfofr.json introuvable.")
+    CARDINFO = {"ATTRIBUT_EMOJI": {}, "TYPE_EMOJI": {}, "TYPE_TRANSLATION": {}}
+
+ATTRIBUT_EMOJI = CARDINFO.get("ATTRIBUT_EMOJI", {})
+TYPE_EMOJI = CARDINFO.get("TYPE_EMOJI", {})
+TYPE_TRANSLATION = CARDINFO.get("TYPE_TRANSLATION", {})
+SPELL_RACE_TRANSLATION = CARDINFO.get("SPELL_RACE_TRANSLATION", {})
+TRAP_RACE_TRANSLATION = CARDINFO.get("TRAP_RACE_TRANSLATION", {})
+TYPE_COLOR = {k: discord.Color.from_str(v) for k, v in CARDINFO.get("TYPE_COLOR", {}).items()} if "TYPE_COLOR" in CARDINFO else {}
+if "default" not in TYPE_COLOR:
+    TYPE_COLOR["default"] = discord.Color.dark_grey()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔗 URLs API
 # ────────────────────────────────────────────────────────────────────────────────
 STAPLES_API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🧩 Helpers visuels (repris de carte.py)
+# ────────────────────────────────────────────────────────────────────────────────
+def translate_card_type(type_str: str) -> str:
+    if not type_str:
+        return "Inconnu"
+    t = type_str.lower()
+    for eng, fr in TYPE_TRANSLATION.items():
+        if eng in t:
+            return fr
+    return type_str
+
+def pick_embed_color(type_str: str) -> discord.Color:
+    if not type_str:
+        return TYPE_COLOR.get("default", discord.Color.dark_grey())
+    t = type_str.lower()
+    for key in ["fusion","ritual","synchro","xyz","link","pendulum","spell","trap","token","monster"]:
+        if key in t and key in TYPE_COLOR:
+            return TYPE_COLOR[key]
+    return TYPE_COLOR.get("default", discord.Color.dark_grey())
+
+def format_attribute(attr: str) -> str:
+    return ATTRIBUT_EMOJI.get(attr.upper(), attr) if attr else "?"
+
+def format_race(race: str, type_raw: str) -> str:
+    if not race:
+        return "?"
+    t = type_raw.lower()
+    if "spell" in t:
+        return SPELL_RACE_TRANSLATION.get(race, race)
+    if "trap" in t:
+        return TRAP_RACE_TRANSLATION.get(race, race)
+    return TYPE_EMOJI.get(race, race)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎮 View — Boutons de réponse
@@ -42,27 +98,18 @@ class GuessView(discord.ui.View):
             return await interaction.response.send_message("❌ Ce n’est pas ton tour !", ephemeral=True)
         if self.answered:
             return await interaction.response.send_message("⏳ Tu as déjà répondu.", ephemeral=True)
-
         self.answered = True
+
         correct = (guess == self.is_staple)
-
-        if correct:
-            result_text = "✅ **Bonne réponse !**"
-            color = discord.Color.green()
-        else:
-            result_text = "❌ **Mauvaise réponse !**"
-            color = discord.Color.red()
-
+        color = discord.Color.green() if correct else discord.Color.red()
+        result_text = "✅ **Bonne réponse !**" if correct else "❌ **Mauvaise réponse !**"
         true_text = "💎 Cette carte **est une Staple !**" if self.is_staple else "🪨 Cette carte **n’est pas une Staple.**"
 
-        # Mise à jour de l’embed avec le résultat
         self.embed.color = color
         self.embed.add_field(name="Résultat", value=f"{result_text}\n{true_text}", inline=False)
         self.embed.set_footer(text="Fin de la manche")
-
         for child in self.children:
             child.disabled = True
-
         await interaction.response.edit_message(embed=self.embed, view=self)
 
     @discord.ui.button(label="Staple", style=discord.ButtonStyle.success, emoji="💎")
@@ -77,78 +124,86 @@ class GuessView(discord.ui.View):
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class StapleOuPas(commands.Cog):
-    """
-    Commande /staple_ou_pas et !staple_ou_pas — Devine si la carte est une staple ou pas
-    """
+    """Commande /staple_ou_pas et !staple_ou_pas — Devine si la carte est une staple ou pas"""
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     async def get_random_staple(self):
-        """Récupère une carte staple aléatoire"""
         async with aiohttp.ClientSession() as session:
             async with session.get(STAPLES_API) as resp:
                 if resp.status != 200:
                     return None
                 data = await resp.json()
                 cards = data.get("data", [])
-                if not cards:
-                    return None
-                return random.choice(cards)
+                return random.choice(cards) if cards else None
 
     async def get_random_card(self):
-        """Récupère une carte aléatoire (via utils/card_utils)"""
         card, lang = await fetch_random_card()
         return card
 
-    async def play_round(self, interaction_or_ctx, is_slash: bool):
-        """Logique commune entre slash et prefix"""
-        await (safe_respond(interaction_or_ctx, "🔮 Tirage en cours...") if is_slash else safe_send(interaction_or_ctx, "🔮 Tirage en cours..."))
-
-        # 50 % de chance d’être une staple
-        is_staple = random.choice([True, False])
-        card = await (self.get_random_staple() if is_staple else self.get_random_card())
-
-        if not card:
-            msg = "❌ Impossible de tirer une carte."
-            return await (safe_respond(interaction_or_ctx, msg) if is_slash else safe_send(interaction_or_ctx, msg))
-
+    async def build_card_embed(self, card: dict) -> discord.Embed:
+        """Construit un embed complet à la façon de !carte"""
         name = card.get("name", "Carte inconnue")
-        image_url = None
-        if "card_images" in card and len(card["card_images"]) > 0:
-            image_url = card["card_images"][0].get("image_url")
+        type_raw = card.get("type", "")
+        color = pick_embed_color(type_raw)
+        race = card.get("race", "")
+        attr = card.get("attribute", "")
+        atk, defe = card.get("atk"), card.get("def")
+        desc = card.get("desc", "Pas de description disponible.")
+        level, rank, linkval = card.get("level"), card.get("rank"), card.get("linkval") or card.get("link_rating")
+        archetype = card.get("archetype")
+
+        header = []
+        if archetype:
+            header.append(f"**Archétype** : 🧬 {archetype}")
+
+        lines = [f"**Type de carte** : {translate_card_type(type_raw)}"]
+        if race: lines.append(f"**Type** : {format_race(race, type_raw)}")
+        if attr: lines.append(f"**Attribut** : {format_attribute(attr)}")
+        if linkval: lines.append(f"**Lien** : 🔗 {linkval}")
+        elif rank: lines.append(f"**Niveau/Rang** : ⭐ {rank}")
+        elif level: lines.append(f"**Niveau/Rang** : ⭐ {level}")
+        if atk is not None or defe is not None:
+            atk_text = f"⚔️ {atk}" if atk is not None else "⚔️ ?"
+            def_text = f"🛡️ {defe}" if defe is not None else "🛡️ ?"
+            lines.append(f"**ATK/DEF** : {atk_text}/{def_text}")
+        lines.append(f"**Description**\n{desc}")
 
         embed = discord.Embed(
-            title=f"🃏 {name}",
-            description="💭 Devine si cette carte est une **Staple** ou non !",
-            color=discord.Color.blurple()
+            title=f"**{name}**",
+            description="\n".join(header) + "\n\n" + "\n".join(lines),
+            color=color
         )
-        if image_url:
-            embed.set_image(url=image_url)
-        embed.set_footer(text="Tu as 15 secondes pour répondre...")
 
-        view = GuessView(is_staple, embed, interaction_or_ctx.user if is_slash else interaction_or_ctx.author)
-        await (safe_respond(interaction_or_ctx, embed=embed, view=view) if is_slash else safe_send(interaction_or_ctx, embed=embed, view=view))
+        if "card_images" in card and card["card_images"]:
+            thumb = card["card_images"][0].get("image_url_cropped") or card["card_images"][0].get("image_url")
+            if thumb:
+                embed.set_thumbnail(url=thumb)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="staple_ou_pas",
-        description="Devine si la carte tirée est une staple ou pas ! (50 % de chance)"
-    )
+        embed.set_footer(text="💭 Devine si cette carte est une Staple ou non !")
+        return embed
+
+    async def play_round(self, ctx_or_inter, is_slash: bool):
+        await (safe_respond(ctx_or_inter, "🔮 Tirage en cours...") if is_slash else safe_send(ctx_or_inter, "🔮 Tirage en cours..."))
+        is_staple = random.choice([True, False])
+        card = await (self.get_random_staple() if is_staple else self.get_random_card())
+        if not card:
+            msg = "❌ Impossible de tirer une carte."
+            return await (safe_respond(ctx_or_inter, msg) if is_slash else safe_send(ctx_or_inter, msg))
+
+        embed = await self.build_card_embed(card)
+        view = GuessView(is_staple, embed, ctx_or_inter.user if is_slash else ctx_or_inter.author)
+        await (safe_respond(ctx_or_inter, embed=embed, view=view) if is_slash else safe_send(ctx_or_inter, embed=embed, view=view))
+
+    @app_commands.command(name="staple_ou_pas", description="Devine si la carte tirée est une staple ou pas !")
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_staple_ou_pas(self, interaction: discord.Interaction):
-        """Version slash de la commande"""
-        await self.play_round(interaction, is_slash=True)
+        await self.play_round(interaction, True)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="staple_ou_pas", aliases=["sop"])
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_staple_ou_pas(self, ctx: commands.Context):
-        """Version préfixe de la commande"""
-        await self.play_round(ctx, is_slash=False)
+        await self.play_round(ctx, False)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
@@ -157,5 +212,5 @@ async def setup(bot: commands.Bot):
     cog = StapleOuPas(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Minijeux"
+            command.category = "🎮 Minijeux"
     await bot.add_cog(cog)
