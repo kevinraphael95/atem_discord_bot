@@ -5,19 +5,12 @@
 # Accès : Tous
 # ────────────────────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔹 Gestion des profils
 # ────────────────────────────────────────────────────────────────────────────────
 async def get_or_create_profile(user_id: int | str, username: str = None) -> dict:
-    """
-    Récupère le profil d'un utilisateur ou le crée s'il n'existe pas.
-    Renvoie le dictionnaire du profil.
-    """
     user_id_str = str(user_id)
     try:
         resp = supabase.table("profil").select("*").eq("user_id", user_id_str).execute()
@@ -59,18 +52,17 @@ async def get_or_create_profile(user_id: int | str, username: str = None) -> dic
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔹 Gestion de l’EXP et des niveaux
 # ────────────────────────────────────────────────────────────────────────────────
-async def add_exp(user_id: int | str, exp_gain: int = 1) -> dict:
+async def add_exp(user_id: int | str, exp_gain: int) -> dict:
     """
-    Ajoute de l'EXP à un profil.
-    5 points d'EXP = 1 niveau.
+    Ajoute de l'EXP à un profil. 5 EXP = 1 niveau.
     """
     user_id_str = str(user_id)
     try:
         resp = supabase.table("profil").select("*").eq("user_id", user_id_str).execute()
         profile = resp.data[0] if resp.data else await get_or_create_profile(user_id_str)
 
-        profile["exp"] = profile.get("exp", 0) + exp_gain
-        profile["niveau"] = profile["exp"] // 5
+        profile["exp"] = (profile.get("exp") or 0) + exp_gain
+        profile["niveau"] = (profile["exp"] or 0) // 5
 
         supabase.table("profil").upsert(profile).execute()
         return profile
@@ -85,5 +77,8 @@ async def add_exp(user_id: int | str, exp_gain: int = 1) -> dict:
 async def add_exp_for_streak(user_id: int | str, new_best_streak: int) -> dict:
     """
     Ajoute de l'EXP uniquement si l'utilisateur bat son record de streak.
+    La récompense est proportionnelle à la nouvelle meilleure série.
     """
-    return await add_exp(user_id, exp_gain=1)
+    # Chaque point de streak = 1 EXP par exemple
+    exp_gain = new_best_streak
+    return await add_exp(user_id, exp_gain)
