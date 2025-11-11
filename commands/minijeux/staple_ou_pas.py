@@ -1,32 +1,38 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 staple_ou_pas.py — Minijeu interactif !staple_ou_pas
+# 📌 staple_ou_pas.py — Commande interactive /staple_ou_pas et !staple_ou_pas
 # Objectif :
-#   - Tire une carte aléatoire (staple ou non)
-#   - L’utilisateur doit deviner si elle est une staple
-#   - 50% de chances qu’elle le soit réellement
+#   - Tire une carte aléatoire (50 % de chance d’être une staple)
+#   - L’utilisateur doit deviner si c’est une staple ou non
+#   - Le résultat s’affiche directement dans l’embed
 # Catégorie : 🎮 Minijeux
-# Accès : Public
+# Accès : Tous
+# Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 📦 Imports nécessaires
+# ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
 import aiohttp
 import random
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_respond
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔧 URLs API
+# 🔗 URLs API
 # ────────────────────────────────────────────────────────────────────────────────
 ALL_CARDS_API = "https://db.ygoprodeck.com/api/v7/randomcard.php"
 STAPLES_API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎮 View — boutons de réponse
+# 🎮 View — Boutons de réponse
 # ────────────────────────────────────────────────────────────────────────────────
 class GuessView(discord.ui.View):
-    def __init__(self, is_staple: bool, user: discord.User):
+    def __init__(self, is_staple: bool, embed: discord.Embed, user: discord.User):
         super().__init__(timeout=15)
         self.is_staple = is_staple
+        self.embed = embed
         self.user = user
         self.answered = False
 
@@ -37,15 +43,26 @@ class GuessView(discord.ui.View):
             return await interaction.response.send_message("⏳ Tu as déjà répondu.", ephemeral=True)
 
         self.answered = True
-        result = (guess == self.is_staple)
-        msg = "✅ Bonne réponse ! C’était bien une **Staple** !" if result and self.is_staple else \
-              "✅ Bonne réponse ! Ce n’était **pas** une staple !" if result else \
-              "❌ Mauvaise réponse !"
+        correct = (guess == self.is_staple)
+
+        if correct:
+            result_text = "✅ **Bonne réponse !**"
+            color = discord.Color.green()
+        else:
+            result_text = "❌ **Mauvaise réponse !**"
+            color = discord.Color.red()
+
+        true_text = "💎 Cette carte **est une Staple !**" if self.is_staple else "🪨 Cette carte **n’est pas une Staple.**"
+
+        # Mise à jour de l’embed avec le résultat
+        self.embed.color = color
+        self.embed.add_field(name="Résultat", value=f"{result_text}\n{true_text}", inline=False)
+        self.embed.set_footer(text="Fin de la manche")
 
         for child in self.children:
             child.disabled = True
 
-        await interaction.response.edit_message(content=msg, view=self)
+        await interaction.response.edit_message(embed=self.embed, view=self)
 
     @discord.ui.button(label="Staple", style=discord.ButtonStyle.success, emoji="💎")
     async def guess_staple(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -59,13 +76,14 @@ class GuessView(discord.ui.View):
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class StapleOuPas(commands.Cog):
-    """Commande !staple_ou_pas — Devine si la carte est une staple ou pas"""
-
+    """
+    Commande /staple_ou_pas et !staple_ou_pas — Devine si la carte est une staple ou pas
+    """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     async def get_random_staple(self):
-        """Tire une carte aléatoire parmi les staples"""
+        """Récupère une carte staple aléatoire"""
         async with aiohttp.ClientSession() as session:
             async with session.get(STAPLES_API) as resp:
                 if resp.status != 200:
@@ -77,49 +95,61 @@ class StapleOuPas(commands.Cog):
                 return random.choice(cards)
 
     async def get_random_card(self):
-        """Tire une carte aléatoire quelconque"""
+        """Récupère une carte totalement aléatoire"""
         async with aiohttp.ClientSession() as session:
             async with session.get(ALL_CARDS_API) as resp:
                 if resp.status != 200:
                     return None
                 return await resp.json()
 
-    @commands.command(
-        name="staple_ou_pas", aliases=["sop"],
-        help="🎮 Devine si la carte tirée est une staple ou pas (50 % de chance !)"
-    )
-    @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def staple_ou_pas(self, ctx: commands.Context):
-        await safe_send(ctx, "🔮 Tirage en cours...")
+    async def play_round(self, interaction_or_ctx, is_slash: bool):
+        """Logique commune entre slash et prefix"""
+        await (safe_respond(interaction_or_ctx, "🔮 Tirage en cours...") if is_slash else safe_send(interaction_or_ctx, "🔮 Tirage en cours..."))
 
-        # 50% de chances de tirer une staple
+        # 50 % de chance d’être une staple
         is_staple = random.choice([True, False])
         card = await (self.get_random_staple() if is_staple else self.get_random_card())
-
         if not card:
-            return await safe_send(ctx, "❌ Impossible de tirer une carte.")
+            msg = "❌ Impossible de tirer une carte."
+            return await (safe_respond(interaction_or_ctx, msg) if is_slash else safe_send(interaction_or_ctx, msg))
 
         name = card.get("name", "Carte inconnue")
-        desc = card.get("desc", "Pas de description disponible.")
         image_url = None
-
         if "card_images" in card and card["card_images"]:
             image_url = card["card_images"][0].get("image_url")
 
         embed = discord.Embed(
             title=f"🃏 {name}",
-            description=f"Devine si cette carte est une **Staple** ou non !",
-            color=discord.Color.random()
+            description="💭 Devine si cette carte est une **Staple** ou non !",
+            color=discord.Color.blurple()
         )
         if image_url:
             embed.set_image(url=image_url)
         embed.set_footer(text="Tu as 15 secondes pour répondre...")
 
-        view = GuessView(is_staple, ctx.author)
-        await safe_send(ctx, embed=embed, view=view)
+        view = GuessView(is_staple, embed, interaction_or_ctx.user if is_slash else interaction_or_ctx.author)
+        await (safe_respond(interaction_or_ctx, embed=embed, view=view) if is_slash else safe_send(interaction_or_ctx, embed=embed, view=view))
 
-    def cog_load(self):
-        self.staple_ou_pas.category = "🎮 Minijeux"
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="staple_ou_pas",
+        description="Devine si la carte tirée est une staple ou pas ! (50 % de chance)"
+    )
+    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
+    async def slash_staple_ou_pas(self, interaction: discord.Interaction):
+        """Version slash de la commande"""
+        await self.play_round(interaction, is_slash=True)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="staple_ou_pas")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_staple_ou_pas(self, ctx: commands.Context):
+        """Version préfixe de la commande"""
+        await self.play_round(ctx, is_slash=False)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
