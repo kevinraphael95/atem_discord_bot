@@ -40,28 +40,22 @@ async def fetch_card_fuzzy(nom: str) -> list[dict]:
 
 
 async def fetch_random_card() -> tuple[dict | None, str]:
-    """Récupère une carte aléatoire avec description française si possible."""
+    """Récupère une carte aléatoire en français si possible."""
     async with aiohttp.ClientSession() as session:
-        # 1️⃣ Récupérer une carte aléatoire (toujours en EN)
-        async with session.get("https://db.ygoprodeck.com/api/v7/randomcard.php") as resp:
+        # 1️⃣ Récupérer toutes les cartes FR
+        async with session.get("https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr") as resp:
             if resp.status != 200:
                 return None, "?"
             data = await resp.json()
-            card = data["data"][0]
-            card_name = card["name"]
+            cards = data.get("data", [])
+            if not cards:
+                return None, "?"
 
-        # 2️⃣ Tenter de récupérer les infos FR avec cardinfo.php
-        async with session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={card_name}&language=fr") as resp:
-            if resp.status == 200:
-                fr_data = await resp.json()
-                if "data" in fr_data and len(fr_data["data"]) > 0:
-                    fr_card = fr_data["data"][0]
-                    # On garde toutes les infos mais la description sera FR
-                    card["desc"] = fr_card.get("desc", card["desc"])
-                    return card, "fr"
+        # 2️⃣ Tirer une carte aléatoire
+        import random
+        card = random.choice(cards)
+        return card, "fr"
 
-        # Fallback EN si pas de FR dispo
-        return card, "en"
 
 
 # ────────────────────────────────────────────────────────────────────────────────
