@@ -5,7 +5,7 @@
 #   - L’utilisateur doit deviner si c’est une staple ou non
 #   - L’affichage suit le même format que !carte
 #   - Le résultat s’affiche directement dans l’embed
-# Catégorie : 🎮 Minijeux
+# Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -212,5 +212,5 @@ async def setup(bot: commands.Bot):
     cog = StapleOuPas(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🎮 Minijeux"
+            command.category = "Minijeux"
     await bot.add_cog(cog)
