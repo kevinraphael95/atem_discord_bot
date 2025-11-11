@@ -1,5 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 testquestion.py — Commande interactive !testquestion
+# 📌 devineladescription.py — Commande interactive !devineladescription
 # Objectif : Deviner une carte Yu-Gi-Oh à partir de sa description
 # Catégorie : Minijeux
 # Accès : Public
@@ -20,6 +20,7 @@ from difflib import SequenceMatcher
 
 from utils.supabase_client import supabase
 from utils.discord_utils import safe_send, safe_reply, safe_edit  
+from utils.vaact_utils import add_exp_for_streak  # ✅ ajout pour EXP
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔒 Empêcher l'utilisation en MP
@@ -87,10 +88,9 @@ async def fetch_archetype_cards(archetype):
             return data.get("data", [])
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔄 Mise à jour des streaks
+# 🔄 Mise à jour des streaks et EXP
 # ────────────────────────────────────────────────────────────────────────────────
 async def update_streak(user_id: str, correct: bool, bot=None):
-    # Récupérer le username si possible
     username = f"ID {user_id}"
     if bot:
         try:
@@ -122,21 +122,22 @@ async def update_streak(user_id: str, correct: bool, bot=None):
 
     supabase.table("profil").upsert(payload).execute()
 
+    # 🔹 Ajouter EXP si record battu
+    if new_best > best:
+        await add_exp_for_streak(user_id, new_best)
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧐 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class TestQuestion(commands.Cog):
+class DevineLaDescription(commands.Cog):
     """
-    Commande /testquestion et !testquestion — Devinez une carte Yu-Gi-Oh! à partir de sa description.
+    Commande /devineladescription et !devineladescription — Devinez une carte Yu-Gi-Oh! à partir de sa description.
     """
 
     def __init__(self, bot):
         self.bot = bot
         self.active_sessions = {}  # guild_id → message en cours
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 View et Button pour le quiz
-    # ────────────────────────────────────────────────────────────────────────────
     class QuizView(View):
         def __init__(self, bot, choices, main_name):
             super().__init__(timeout=60)
@@ -145,7 +146,7 @@ class TestQuestion(commands.Cog):
             self.main_name = main_name
             self.answers = {}
             for idx, name in enumerate(choices):
-                self.add_item(TestQuestion.QuizButton(label=name, idx=idx, parent_view=self))
+                self.add_item(DevineLaDescription.QuizButton(label=name, idx=idx, parent_view=self))
 
         async def on_timeout(self):
             for child in self.children:
@@ -169,18 +170,15 @@ class TestQuestion(commands.Cog):
                 )
             await interaction.response.send_message(f"✅ Réponse enregistrée : **{self.label}**", ephemeral=True)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 💬 Commande principale
-    # ────────────────────────────────────────────────────────────────────────────
     @commands.group(
-        name="description",
-        aliases=["d", "devineladescription", "devinedescription", "dd"],
+        name="devineladescription",
+        aliases=["d", "devinedescription", "dd"],
         help="Devinez la carte avec sa description (multijoueur)",
         invoke_without_command=True
     )
     @no_dm()
     @commands.cooldown(rate=1, per=8, type=commands.BucketType.user)
-    async def testquestion(self, ctx: commands.Context):
+    async def devineladescription(self, ctx: commands.Context):
         guild_id = ctx.guild.id
         if self.active_sessions.get(guild_id):
             return await safe_reply(ctx, "⚠️ Un quiz est déjà en cours.", mention_author=False)
@@ -255,11 +253,8 @@ class TestQuestion(commands.Cog):
         finally:
             self.active_sessions[guild_id] = None
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 📊 Commande score
-    # ────────────────────────────────────────────────────────────────────────────
-    @testquestion.command(name="score", aliases=["streak", "s"])
-    async def testquestion_score(self, ctx: commands.Context):
+    @devineladescription.command(name="score", aliases=["streak", "s"])
+    async def devineladescription_score(self, ctx: commands.Context):
         user_id = str(ctx.author.id)
         try:
             resp = supabase.table("profil").select("current_streak,best_streak").eq("user_id", user_id).execute()
@@ -277,18 +272,15 @@ class TestQuestion(commands.Cog):
                 await safe_send(ctx,
                     embed=discord.Embed(
                         title="📉 Pas encore de série",
-                        description="Lance `!testquestion` pour démarrer ta série !",
+                        description="Lance `!devineladescription` pour démarrer ta série !",
                         color=discord.Color.red()
                     )
                 )
         except Exception:
             await safe_send(ctx, "🚨 Erreur lors de la récupération de ta série.")
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🏆 Commande top
-    # ────────────────────────────────────────────────────────────────────────────
-    @testquestion.command(name="top", aliases=["t"])
-    async def testquestion_top(self, ctx: commands.Context):
+    @devineladescription.command(name="top", aliases=["t"])
+    async def devineladescription_top(self, ctx: commands.Context):
         try:
             resp = (
                 supabase.table("profil")
@@ -322,7 +314,7 @@ class TestQuestion(commands.Cog):
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
-    cog = TestQuestion(bot)
+    cog = DevineLaDescription(bot)
     for command in cog.get_commands():
         command.category = "Minijeux"
     await bot.add_cog(cog)
