@@ -17,7 +17,8 @@ import random
 import traceback
 
 from utils.supabase_client import supabase
-from utils.discord_utils import safe_send, safe_edit, safe_respond  
+from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.vaact_utils import add_exp_for_streak  # ✅ EXP si record battu
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔒 Empêcher l'utilisation en MP
@@ -132,10 +133,9 @@ class IllustrationCommand(commands.Cog):
             await view.wait()
 
             # ────────────────
-            # ✅ Mise à jour intelligente des streaks (sans reset)
+            # ✅ Mise à jour intelligente des streaks + EXP
             # ────────────────
             for uid, choice in view.answers.items():
-                # Récupérer le nom Discord
                 user = await self.bot.fetch_user(int(uid))
                 username = user.name if user else f"ID {uid}"
 
@@ -143,7 +143,6 @@ class IllustrationCommand(commands.Cog):
                 if resp.data and len(resp.data) > 0:
                     data = resp.data[0]
                 else:
-                    # Si le profil n'existe pas encore
                     data = {
                         "user_id": uid,
                         "username": username,
@@ -161,15 +160,20 @@ class IllustrationCommand(commands.Cog):
 
                 if choice == correct_idx:
                     cur += 1
-                    best = max(best, cur)
+                    new_best = max(best, cur)
+                    data["illu_streak"] = cur
+                    data["best_illustreak"] = new_best
+                    data["username"] = username
+                    supabase.table("profil").upsert(data).execute()
+
+                    # 🔹 Ajouter EXP si record battu
+                    if new_best > best:
+                        await add_exp_for_streak(uid, new_best)
                 else:
                     cur = 0
-
-                data["illu_streak"] = cur
-                data["best_illustreak"] = best
-                data["username"] = username  # mise à jour pseudo
-
-                supabase.table("profil").upsert(data).execute()
+                    data["illu_streak"] = 0
+                    data["username"] = username
+                    supabase.table("profil").upsert(data).execute()
 
             # ────────────────
             # Résultats
