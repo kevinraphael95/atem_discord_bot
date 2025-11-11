@@ -24,7 +24,6 @@ async def get_or_create_profile(user_id: int | str, username: str = None) -> dic
         if resp.data and len(resp.data) > 0:
             return resp.data[0]
 
-        # Crée un profil par défaut si inexistant
         profile = {
             "user_id": user_id_str,
             "username": username or f"ID {user_id_str}",
@@ -43,7 +42,6 @@ async def get_or_create_profile(user_id: int | str, username: str = None) -> dic
 
     except Exception as e:
         print(f"[Supabase] Impossible de récupérer ou créer le profil : {e}")
-        # Retourne un profil par défaut “erreur” si problème
         return {
             "user_id": user_id_str,
             "username": username or f"ID {user_id_str}",
@@ -61,27 +59,31 @@ async def get_or_create_profile(user_id: int | str, username: str = None) -> dic
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔹 Gestion de l’EXP et des niveaux
 # ────────────────────────────────────────────────────────────────────────────────
-async def add_exp_for_streak(user_id: int | str, new_best_streak: int) -> dict:
+async def add_exp(user_id: int | str, exp_gain: int = 1) -> dict:
     """
-    Met à jour l'EXP et le niveau d'un profil selon la série max.
-    5 points de streak max = 1 niveau.
+    Ajoute de l'EXP à un profil.
+    5 points d'EXP = 1 niveau.
     """
     user_id_str = str(user_id)
     try:
-        # Récupérer le profil
         resp = supabase.table("profil").select("*").eq("user_id", user_id_str).execute()
         profile = resp.data[0] if resp.data else await get_or_create_profile(user_id_str)
 
-        # Calcul du niveau et de l'EXP
-        exp_from_streak = new_best_streak // 5  # 5 streak max = 1 niveau
-        if exp_from_streak > profile.get("niveau", 0):
-            profile["niveau"] = exp_from_streak
-            profile["exp"] = new_best_streak
+        profile["exp"] = profile.get("exp", 0) + exp_gain
+        profile["niveau"] = profile["exp"] // 5
 
-        # Sauvegarde
         supabase.table("profil").upsert(profile).execute()
         return profile
 
     except Exception as e:
-        print(f"[Supabase] Impossible de mettre à jour l'EXP pour {user_id_str} : {e}")
+        print(f"[Supabase] Impossible d'ajouter de l'EXP pour {user_id_str} : {e}")
         return profile if 'profile' in locals() else {}
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔹 EXP pour les streaks (record)
+# ────────────────────────────────────────────────────────────────────────────────
+async def add_exp_for_streak(user_id: int | str, new_best_streak: int) -> dict:
+    """
+    Ajoute de l'EXP uniquement si l'utilisateur bat son record de streak.
+    """
+    return await add_exp(user_id, exp_gain=1)
