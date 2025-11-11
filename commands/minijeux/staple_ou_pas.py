@@ -17,12 +17,13 @@ from discord import app_commands
 from discord.ext import commands
 import aiohttp
 import random
+
 from utils.discord_utils import safe_send, safe_respond
+from utils.card_utils import fetch_random_card  # ✅ utilisation du module commun
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔗 URLs API
 # ────────────────────────────────────────────────────────────────────────────────
-ALL_CARDS_API = "https://db.ygoprodeck.com/api/v7/randomcard.php"
 STAPLES_API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -95,14 +96,9 @@ class StapleOuPas(commands.Cog):
                 return random.choice(cards)
 
     async def get_random_card(self):
-        """Récupère une carte totalement aléatoire (format direct, sans data[])"""
-        async with aiohttp.ClientSession() as session:
-            async with session.get(ALL_CARDS_API) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                # ✅ randomcard.php renvoie déjà la carte directement, pas besoin de 'data'
-                return data
+        """Récupère une carte aléatoire (via utils/card_utils)"""
+        card, lang = await fetch_random_card()
+        return card
 
     async def play_round(self, interaction_or_ctx, is_slash: bool):
         """Logique commune entre slash et prefix"""
@@ -118,7 +114,7 @@ class StapleOuPas(commands.Cog):
 
         name = card.get("name", "Carte inconnue")
         image_url = None
-        if "card_images" in card and card["card_images"]:
+        if "card_images" in card and len(card["card_images"]) > 0:
             image_url = card["card_images"][0].get("image_url")
 
         embed = discord.Embed(
