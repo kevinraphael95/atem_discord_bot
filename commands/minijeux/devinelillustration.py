@@ -132,9 +132,9 @@ class IllustrationCommand(commands.Cog):
             view.message = await safe_send(channel, embed=embed, view=view)
             await view.wait()
 
-            # ────────────────
+            # ────────────────────────────────────────────────────────────────────────────────
             # ✅ Mise à jour intelligente des streaks + EXP
-            # ────────────────
+            # ────────────────────────────────────────────────────────────────────────────────
             for uid, choice in view.answers.items():
                 user = await self.bot.fetch_user(int(uid))
                 username = user.name if user else f"ID {uid}"
@@ -175,9 +175,9 @@ class IllustrationCommand(commands.Cog):
                     data["username"] = username
                     supabase.table("profil").upsert(data).execute()
 
-            # ────────────────
+            # ────────────────────────────────────────────────────────────────────────────────
             # Résultats
-            # ────────────────
+            # ────────────────────────────────────────────────────────────────────────────────
             winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if idx == correct_idx]
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
