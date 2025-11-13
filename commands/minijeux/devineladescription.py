@@ -166,7 +166,7 @@ class DevineLaDescription(commands.Cog):
 
     @commands.group(
         name="devineladescription",
-        aliases=["d", "devinedescription", "dd"],
+        aliases=["dld", "description", "d", "devinedescription", "dd"],
         help="Devinez la carte avec sa description (multijoueur)",
         invoke_without_command=True
     )
