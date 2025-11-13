@@ -199,7 +199,7 @@ class IllustrationCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 💬 Commande principale et sous-commandes
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.group(name="illustration", aliases=["i", "di"], invoke_without_command=True)
+    @commands.group(name="devinelillustration", aliases=["dli", "devineillustration", "di", "illustration", "i"], invoke_without_command=True)
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def illustration_group(self, ctx: commands.Context):
         await self.start_quiz(ctx.channel)
