@@ -41,7 +41,6 @@ class DeckFavoriteButton(Button):
             return
 
         duelliste = self.parent_view.duelliste
-        version = self.parent_view.chosen_version or "Débutant"
         if not duelliste:
             try: await interaction.response.send_message("❌ Aucun deck sélectionné.", ephemeral=True)
             except Exception: pass
@@ -51,11 +50,11 @@ class DeckFavoriteButton(Button):
             supabase.table("profil").upsert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
-                "fav_decks_vaact": f"{duelliste} ({version})"
+                "fav_decks_vaact": duelliste
             }, on_conflict="user_id").execute()
 
             try:
-                await interaction.response.send_message(f"✅ **{duelliste} ({version})** est maintenant ton deck favori !", ephemeral=True)
+                await interaction.response.send_message(f"✅ **{duelliste}** est maintenant ton deck favori !", ephemeral=True)
             except Exception: pass
         except Exception as e:
             print(f"[ERREUR Supabase] {e}")
@@ -76,12 +75,8 @@ class DeckSelectView(View):
         self.user = user
         self.chosen_version = None
 
-        # Sélecteurs
         self.saison_select = SaisonSelect(self)
         self.duelliste_select = DuellisteSelect(self)
-        self.version_select = None  # créé dynamiquement si plusieurs versions
-
-        # Ajout des items : saison -> duelliste -> version (dynamique) -> bouton
         self.add_item(self.saison_select)
         self.add_item(self.duelliste_select)
         self.add_item(DeckFavoriteButton(self))
@@ -101,13 +96,6 @@ class SaisonSelect(Select):
         duellistes = list(self.parent_view.deck_data.get(chosen, {}).keys())
         self.parent_view.duelliste_select.options = [discord.SelectOption(label=d, value=d) for d in duellistes]
         self.parent_view.duelliste = None
-
-        # Supprime l'ancien menu version
-        if self.parent_view.version_select:
-            self.parent_view.remove_item(self.parent_view.version_select)
-            self.parent_view.version_select = None
-            self.parent_view.chosen_version = None
-
         content = f"🎴 Saison choisie : **{chosen}**\nSélectionne un duelliste :"
         try: await interaction.response.edit_message(content=content, embed=None, view=self.parent_view)
         except Exception:
@@ -127,37 +115,39 @@ class DuellisteSelect(Select):
     async def callback(self, interaction: discord.Interaction):
         chosen = self.values[0]
         self.parent_view.duelliste = chosen
-        deck_info = self.parent_view.deck_data.get(self.parent_view.saison, {}).get(chosen, {}).get("deck", {})
 
-        # Gestion menu version si plusieurs
+        # Supprime ancien VersionSelect
+        for item in self.parent_view.children:
+            if isinstance(item, VersionSelect):
+                self.parent_view.remove_item(item)
+
+        deck_info = self.parent_view.deck_data.get(self.parent_view.saison, {}).get(chosen, {}).get("deck", {})
         if isinstance(deck_info, dict):
             versions = list(deck_info.keys())
-            default_version = "Version Débutant" if "Version Débutant" in versions else versions[0]
-            self.parent_view.chosen_version = default_version
-
-            # Supprime ancien menu version
-            if self.parent_view.version_select:
-                self.parent_view.remove_item(self.parent_view.version_select)
-
-            # Crée le menu version sous le duelliste
             if len(versions) > 1:
-                self.parent_view.version_select = VersionSelect(self.parent_view, versions)
-                self.parent_view.add_item(self.parent_view.version_select)
+                version_select = VersionSelect(self.parent_view, versions)
+                self.parent_view.add_item(version_select)
+                self.parent_view.chosen_version = versions[0]  # version par défaut
+            else:
+                self.parent_view.chosen_version = versions[0]
         else:
             self.parent_view.chosen_version = "Deck"
 
+        # Affiche le deck par défaut
         await self.display_deck(interaction)
 
     async def display_deck(self, interaction: discord.Interaction):
         duelliste = self.parent_view.duelliste
         saison = self.parent_view.saison
-        chosen_version = self.parent_view.chosen_version
         deck_info = self.parent_view.deck_data.get(saison, {}).get(duelliste, {}).get("deck", {})
+        chosen_version = self.parent_view.chosen_version
 
-        # Récupère le deck selon la version choisie
         if isinstance(deck_info, dict):
-            version_data = deck_info.get(chosen_version, [])
-            deck_text = "\n".join(f"• {d}" for d in version_data) if isinstance(version_data, list) else str(version_data)
+            version_data = deck_info.get(chosen_version)
+            if isinstance(version_data, dict):
+                deck_text = "\n".join(f"• {k}: {v}" for k, v in version_data.items())
+            else:
+                deck_text = "\n".join(f"• {d}" for d in version_data) if isinstance(version_data, list) else str(version_data)
         else:
             deck_text = "\n".join(f"• {d}" for d in deck_info) if isinstance(deck_info, list) else str(deck_info)
 
@@ -168,24 +158,28 @@ class DuellisteSelect(Select):
         embed.add_field(name="📘 Deck", value=deck_text, inline=False)
 
         content = f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :"
-        try: await interaction.response.edit_message(content=content, embed=embed, view=self.parent_view)
+        try:
+            await interaction.response.edit_message(content=content, embed=embed, view=self.parent_view)
         except Exception:
-            try: await interaction.response.send_message("❌ Impossible de mettre à jour l'affichage.", ephemeral=True)
+            try:
+                await interaction.response.send_message("❌ Impossible de mettre à jour l'affichage.", ephemeral=True)
             except Exception: pass
 
 class VersionSelect(Select):
     """Sélecteur de version de deck (Débutant / Expert / Ext. Duel)"""
     def __init__(self, parent_view: DeckSelectView, versions):
         self.parent_view = parent_view
+        self.versions = versions
         options = [
-            discord.SelectOption(label=v, value=v, default=(v == self.parent_view.chosen_version))
-            for v in versions
+            discord.SelectOption(label=v, value=v, default=(i==0))
+            for i, v in enumerate(versions)
         ]
         super().__init__(placeholder="🃏 Choisis une version du deck", options=options)
 
     async def callback(self, interaction: discord.Interaction):
         self.parent_view.chosen_version = self.values[0]
-        await self.parent_view.duelliste_select.display_deck(interaction)
+        duelliste_select = self.parent_view.duelliste_select
+        await duelliste_select.display_deck(interaction)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
