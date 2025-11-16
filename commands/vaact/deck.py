@@ -104,21 +104,17 @@ class DeckSelectView(View):
         if duelliste:
             deck_entry = self.deck_data[saison][duelliste]
             astuces_data = deck_entry.get("astuces", "❌ Aucune astuce disponible.")
-            deck_entry = deck_entry.get("deck", deck_entry)
 
+            # Choix du deck selon la version
             deck_text = ""
-            if isinstance(deck_entry, dict):
-                if version:
-                    selected = deck_entry.get(version)
-                    if isinstance(selected, dict):
-                        deck_text = "\n".join(f"• {k}: {v}" for k, v in selected.items())
-                    else:
-                        deck_text = selected if selected else "❌ Deck introuvable."
+            if version:
+                selected = deck_entry.get(version, deck_entry.get("deck"))
+                if isinstance(selected, dict):
+                    deck_text = "\n".join(f"• {k}: {v}" for k, v in selected.items())
                 else:
-                    # Si plusieurs versions, liste-les pour l'utilisateur
-                    deck_text = "Sélectionne une version pour voir le deck."
+                    deck_text = selected if selected else "❌ Deck introuvable."
             else:
-                deck_text = deck_entry  # lien direct si string
+                deck_text = "Sélectionne une version pour voir le deck." if any(isinstance(v, dict) or isinstance(v, str) for v in deck_entry.values()) else str(deck_entry)
 
             embed.title = f"🧙‍♂️ Deck de {duelliste}" + (f" ({version})" if version else "") + f" - Saison {saison}"
             embed.add_field(name="📘 Deck", value=deck_text, inline=False)
@@ -183,9 +179,16 @@ class DeckVersionSelect(Select):
         duelliste = self.parent_view.duelliste
         saison = self.parent_view.saison
         if duelliste and saison:
-            deck_entry = self.parent_view.deck_data[saison][duelliste].get("deck")
-            if isinstance(deck_entry, dict):
-                self.options = [discord.SelectOption(label=v, value=v) for v in deck_entry.keys()]
+            deck_entry = self.parent_view.deck_data[saison][duelliste]
+
+            # Détecte toutes les clés correspondant à une version ou un deck
+            possible_versions = []
+            for k, v in deck_entry.items():
+                if isinstance(v, (dict, str)):
+                    possible_versions.append(k)
+
+            if possible_versions:
+                self.options = [discord.SelectOption(label=v, value=v) for v in possible_versions]
             else:
                 self.options = [discord.SelectOption(label="Deck unique", value="unique")]
 
