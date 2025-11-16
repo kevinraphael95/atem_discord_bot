@@ -44,34 +44,29 @@ class DeckFavoriteButton(Button):
 
         duelliste = self.parent_view.duelliste
         deck_version = getattr(self.parent_view, "deck_version", None)
-        if not duelliste or not deck_version:
+        if not duelliste:
             try:
                 await interaction.response.send_message("❌ Aucun deck sélectionné.", ephemeral=True)
             except Exception:
                 pass
             return
 
+        fav_text = f"{duelliste}" + (f" ({deck_version})" if deck_version else "")
         try:
             supabase.table("profil").upsert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
-                "fav_decks_vaact": f"{duelliste} ({deck_version})"
+                "fav_decks_vaact": fav_text
             }, on_conflict="user_id").execute()
 
             try:
-                await interaction.response.send_message(
-                    f"✅ **{duelliste} ({deck_version})** est maintenant ton deck favori !",
-                    ephemeral=True
-                )
+                await interaction.response.send_message(f"✅ **{fav_text}** est maintenant ton deck favori !", ephemeral=True)
             except Exception:
                 pass
         except Exception as e:
             print(f"[ERREUR Supabase] {e}")
             try:
-                await interaction.response.send_message(
-                    "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
-                    ephemeral=True
-                )
+                await interaction.response.send_message("❌ Erreur lors de l’ajout du deck favori dans Supabase.", ephemeral=True)
             except Exception:
                 pass
 
@@ -89,7 +84,6 @@ class DeckSelectView(View):
         self.user = user
         self.message = None
 
-        # Ajout des selects et du bouton
         self.saison_select = SaisonSelect(self)
         self.duelliste_select = DuellisteSelect(self)
         self.deck_version_select = DeckVersionSelect(self)
@@ -105,16 +99,29 @@ class DeckSelectView(View):
         duelliste = self.duelliste
         version = self.deck_version
 
-        title = "🧙‍♂️ Sélection du deck"
-        embed = discord.Embed(title=title, color=discord.Color.blue())
+        embed = discord.Embed(title="🧙‍♂️ Sélection du deck", color=discord.Color.blue())
 
         if duelliste:
-            if version:
-                deck_data = self.deck_data[saison][duelliste]["deck"][version]
-                deck_text = "\n".join(f"• {c}" for c in deck_data) if isinstance(deck_data, list) else deck_data
-                embed.title = f"🧙‍♂️ Deck de {duelliste} ({version}) - Saison {saison}"
-                embed.add_field(name="📘 Deck", value=deck_text, inline=False)
+            deck_entry = self.deck_data[saison][duelliste].get("deck")
             astuces_data = self.deck_data[saison][duelliste].get("astuces", "❌ Aucune astuce disponible.")
+
+            # Gestion des decks
+            deck_text = ""
+            if isinstance(deck_entry, dict):
+                if version:
+                    selected = deck_entry.get(version)
+                    if isinstance(selected, dict):
+                        deck_text = "\n".join(f"• {k}: {v}" for k, v in selected.items())
+                    else:
+                        deck_text = selected if selected else "❌ Deck introuvable."
+                else:
+                    deck_text = "Sélectionne une version pour voir le deck."
+            else:
+                deck_text = deck_entry
+
+            embed.title = f"🧙‍♂️ Deck de {duelliste}" + (f" ({version})" if version else "") + f" - Saison {saison}"
+            embed.add_field(name="📘 Deck", value=deck_text, inline=False)
+
             astuces_text = "\n".join(f"• {a}" for a in astuces_data) if isinstance(astuces_data, list) else astuces_data
             embed.add_field(name="💡 Astuces", value=astuces_text, inline=False)
         else:
@@ -142,7 +149,6 @@ class SaisonSelect(Select):
 
     async def callback(self, interaction: discord.Interaction):
         self.parent_view.saison = self.values[0]
-        # Mise à jour des duellistes et versions
         duellistes = list(self.parent_view.deck_data[self.parent_view.saison].keys())
         self.parent_view.duelliste_select.options = [discord.SelectOption(label=d, value=d) for d in duellistes]
         self.parent_view.duelliste = None
@@ -160,7 +166,6 @@ class DuellisteSelect(Select):
 
     async def callback(self, interaction: discord.Interaction):
         self.parent_view.duelliste = self.values[0]
-        # Mise à jour DeckVersionSelect
         self.parent_view.deck_version_select.update_options()
         self.parent_view.deck_version = None
         await self.parent_view.update_embed()
@@ -177,11 +182,18 @@ class DeckVersionSelect(Select):
         duelliste = self.parent_view.duelliste
         saison = self.parent_view.saison
         if duelliste and saison:
-            deck_versions = list(self.parent_view.deck_data[saison][duelliste].get("deck", {}).keys())
-            self.options = [discord.SelectOption(label=v, value=v) for v in deck_versions]
+            deck_entry = self.parent_view.deck_data[saison][duelliste].get("deck")
+            if isinstance(deck_entry, dict):
+                self.options = [discord.SelectOption(label=v, value=v) for v in deck_entry.keys()]
+            else:
+                self.options = [discord.SelectOption(label="Deck unique", value="unique")]
 
     async def callback(self, interaction: discord.Interaction):
-        self.parent_view.deck_version = self.values[0]
+        val = self.values[0]
+        if val == "unique":
+            self.parent_view.deck_version = None
+        else:
+            self.parent_view.deck_version = val
         await self.parent_view.update_embed()
 
 # ────────────────────────────────────────────────────────────────────────────────
