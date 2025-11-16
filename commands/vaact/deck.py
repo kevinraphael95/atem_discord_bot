@@ -5,7 +5,6 @@
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
-
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
@@ -26,6 +25,13 @@ DECK_JSON_PATH = os.path.join("data", "deck_data.json")
 def load_data():
     with open(DECK_JSON_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔧 Fonction utilitaire pour remplacer un Select dans la View
+# ────────────────────────────────────────────────────────────────────────────────
+def refresh_select(view, old_select, new_select):
+    view.remove_item(old_select)
+    view.add_item(new_select)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🏆 Bouton Deck Favori
@@ -81,15 +87,15 @@ class SaisonSelect(Select):
         self.parent_view.duelliste = None
         self.parent_view.genre = None
 
-        # met à jour les duellistes
-        duels = list(self.parent_view.deck_data[chosen].keys())
-        self.parent_view.duelliste_select.options = [
-            discord.SelectOption(label=d, value=d) for d in duels
-        ]
+        # --- Nouveau DuellisteSelect ---
+        new_duelliste_select = DuellisteSelect(self.parent_view)
+        refresh_select(self.parent_view, self.parent_view.duelliste_select, new_duelliste_select)
+        self.parent_view.duelliste_select = new_duelliste_select
 
-        # désactive genres
-        self.parent_view.genre_select.options = []
-        self.parent_view.genre_select.disabled = True
+        # --- Nouveau GenreSelect désactivé ---
+        new_genre_select = GenreSelect(self.parent_view)
+        refresh_select(self.parent_view, self.parent_view.genre_select, new_genre_select)
+        self.parent_view.genre_select = new_genre_select
 
         await interaction.response.edit_message(
             content=f"🎴 Saison sélectionnée : **{chosen}**",
@@ -114,13 +120,15 @@ class DuellisteSelect(Select):
 
         saison = self.parent_view.saison
         deck_info = self.parent_view.deck_data[saison][chosen]["deck"]
-
-        # mise à jour genres
         genres = list(deck_info.keys())
-        self.parent_view.genre_select.options = [
-            discord.SelectOption(label=g, value=g) for g in genres
-        ]
-        self.parent_view.genre_select.disabled = False
+
+        # --- Nouveau GenreSelect avec les options correctes ---
+        new_genre_select = GenreSelect(self.parent_view)
+        new_genre_select.options = [discord.SelectOption(label=g, value=g) for g in genres]
+        new_genre_select.disabled = False
+
+        refresh_select(self.parent_view, self.parent_view.genre_select, new_genre_select)
+        self.parent_view.genre_select = new_genre_select
 
         await interaction.response.edit_message(
             content=f"👤 Duelliste sélectionné : **{chosen}**\nChoisis maintenant un genre.",
