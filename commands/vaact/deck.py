@@ -102,10 +102,10 @@ class DeckSelectView(View):
         embed = discord.Embed(title="🧙‍♂️ Sélection du deck", color=discord.Color.blue())
 
         if duelliste:
-            deck_entry = self.deck_data[saison][duelliste].get("deck")
-            astuces_data = self.deck_data[saison][duelliste].get("astuces", "❌ Aucune astuce disponible.")
+            deck_entry = self.deck_data[saison][duelliste]
+            astuces_data = deck_entry.get("astuces", "❌ Aucune astuce disponible.")
+            deck_entry = deck_entry.get("deck", deck_entry)
 
-            # Gestion des decks
             deck_text = ""
             if isinstance(deck_entry, dict):
                 if version:
@@ -115,9 +115,10 @@ class DeckSelectView(View):
                     else:
                         deck_text = selected if selected else "❌ Deck introuvable."
                 else:
+                    # Si plusieurs versions, liste-les pour l'utilisateur
                     deck_text = "Sélectionne une version pour voir le deck."
             else:
-                deck_text = deck_entry
+                deck_text = deck_entry  # lien direct si string
 
             embed.title = f"🧙‍♂️ Deck de {duelliste}" + (f" ({version})" if version else "") + f" - Saison {saison}"
             embed.add_field(name="📘 Deck", value=deck_text, inline=False)
