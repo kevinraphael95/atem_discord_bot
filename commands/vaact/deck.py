@@ -30,7 +30,8 @@ def load_data():
 # 🔧 Fonction utilitaire pour remplacer un Select dans la View
 # ────────────────────────────────────────────────────────────────────────────────
 def refresh_select(view, old_select, new_select):
-    view.remove_item(old_select)
+    if old_select in view.children:
+        view.remove_item(old_select)
     view.add_item(new_select)
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -89,12 +90,12 @@ class SaisonSelect(Select):
 
         # --- Nouveau DuellisteSelect ---
         new_duelliste_select = DuellisteSelect(self.parent_view)
-        refresh_select(self.parent_view, self.parent_view.duelliste_select, new_duelliste_select)
+        refresh_select(self.parent_view, getattr(self.parent_view, "duelliste_select", None), new_duelliste_select)
         self.parent_view.duelliste_select = new_duelliste_select
 
         # --- Nouveau GenreSelect désactivé ---
         new_genre_select = GenreSelect(self.parent_view)
-        refresh_select(self.parent_view, self.parent_view.genre_select, new_genre_select)
+        refresh_select(self.parent_view, getattr(self.parent_view, "genre_select", None), new_genre_select)
         self.parent_view.genre_select = new_genre_select
 
         await interaction.response.edit_message(
@@ -127,7 +128,7 @@ class DuellisteSelect(Select):
         new_genre_select.options = [discord.SelectOption(label=g, value=g) for g in genres]
         new_genre_select.disabled = False
 
-        refresh_select(self.parent_view, self.parent_view.genre_select, new_genre_select)
+        refresh_select(self.parent_view, getattr(self.parent_view, "genre_select", None), new_genre_select)
         self.parent_view.genre_select = new_genre_select
 
         await interaction.response.edit_message(
