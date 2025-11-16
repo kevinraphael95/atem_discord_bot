@@ -175,29 +175,23 @@ class DeckVersionSelect(Select):
         super().__init__(placeholder="📂 Choisis une version du deck", options=self.options)
 
     def update_options(self):
+        """Propose uniquement Débutant, Expert ou Normal"""
         self.options = []
         duelliste = self.parent_view.duelliste
         saison = self.parent_view.saison
         if duelliste and saison:
             deck_entry = self.parent_view.deck_data[saison][duelliste]
 
-            # Détecte toutes les clés correspondant à une version ou un deck
-            possible_versions = []
-            for k, v in deck_entry.items():
-                if isinstance(v, (dict, str)):
-                    possible_versions.append(k)
-
-            if possible_versions:
-                self.options = [discord.SelectOption(label=v, value=v) for v in possible_versions]
+            # Versions simplifiées
+            versions = [k for k in ["Débutant", "Expert", "Normal"] if k in deck_entry]
+            if versions:
+                self.options = [discord.SelectOption(label=v, value=v) for v in versions]
             else:
                 self.options = [discord.SelectOption(label="Deck unique", value="unique")]
 
     async def callback(self, interaction: discord.Interaction):
         val = self.values[0]
-        if val == "unique":
-            self.parent_view.deck_version = None
-        else:
-            self.parent_view.deck_version = val
+        self.parent_view.deck_version = None if val == "unique" else val
         await self.parent_view.update_embed()
 
 # ────────────────────────────────────────────────────────────────────────────────
