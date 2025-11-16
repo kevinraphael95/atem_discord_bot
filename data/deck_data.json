@@ -1,115 +1,95 @@
 {
   "Saison 1": {
     "Atem": {
-      "deck": {
-        "Débutant": "https://www.duelingbook.com/deck?id=16095319",
-        "Expert": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=15130114",
-          "Ext. Duel": "https://www.duelingbook.com/deck?id=15291959"
-        }
+      "Débutant": "https://www.duelingbook.com/deck?id=16095319",
+      "Expert": {
+        "Main/Side": "https://www.duelingbook.com/deck?id=15130114",
+        "Ext. Duel": "https://www.duelingbook.com/deck?id=15291959"
       }
     },
     "Seto Kaiba": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=9257420"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=9257420"
     },
     "Joey Wheeler": {
-      "deck": {
-        "Débutant": "https://www.duelingbook.com/deck?id=16095468",
-        "Expert": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=9257303",
-          "Ext. Duel": "https://www.duelingbook.com/deck?id=15292212"
-        }
+      "Débutant": "https://www.duelingbook.com/deck?id=16095468",
+      "Expert": {
+        "Main/Side": "https://www.duelingbook.com/deck?id=9257303",
+        "Ext. Duel": "https://www.duelingbook.com/deck?id=15292212"
       }
     },
     "Jaden Yuki": {
-      "deck": {
-        "Débutant": "https://www.duelingbook.com/deck?id=16095651",
-        "Expert": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=15196424",
-          "Extra": "https://www.duelingbook.com/deck?id=12174715",
-          "Ext. Duel": "https://www.duelingbook.com/deck?id=15292349"
-        }
+      "Débutant": "https://www.duelingbook.com/deck?id=16095651",
+      "Expert": {
+        "Main/Side": "https://www.duelingbook.com/deck?id=15196424",
+        "Extra": "https://www.duelingbook.com/deck?id=12174715",
+        "Ext. Duel": "https://www.duelingbook.com/deck?id=15292349"
       }
     },
     "Chad Princeton": {
-      "deck": {
-        "Débutant": "https://www.duelingbook.com/deck?id=16102604",
-        "Expert": "https://www.duelingbook.com/deck?id=15131811"
-      }
+      "Débutant": "https://www.duelingbook.com/deck?id=16102604",
+      "Expert": "https://www.duelingbook.com/deck?id=15131811"
     },
     "Zane Truesdale": {
-      "deck": {
+      "normal": {
         "Main/Extra/Side": "https://www.duelingbook.com/deck?id=17380207",
         "Ext. Duel": "https://www.duelingbook.com/deck?id=15295840"
       }
     },
     "Aster Phenix": {
-      "deck": {
-        "Débutant": "https://www.duelingbook.com/deck?id=15997465",
-        "Expert": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=15772122",
-          "Ext. Duel": "https://www.duelingbook.com/deck?id=15997460"
-        }
+      "Débutant": "https://www.duelingbook.com/deck?id=15997465",
+      "Expert": {
+        "Main/Side": "https://www.duelingbook.com/deck?id=15772122",
+        "Ext. Duel": "https://www.duelingbook.com/deck?id=15997460"
       }
     },
     "Yusei Fudo": {
-      "deck": {
-        "Débutant": "https://www.duelingbook.com/deck?id=9257315",
-        "Expert": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=16102810",
-          "Extra": "https://www.duelingbook.com/deck?id=12174764"
-        }
+      "Débutant": "https://www.duelingbook.com/deck?id=9257315",
+      "Expert": {
+        "Main/Side": "https://www.duelingbook.com/deck?id=16102810",
+        "Extra": "https://www.duelingbook.com/deck?id=12174764"
       }
     },
     "Jack Atlas": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16715345"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16715345"
     },
     "Yuma Tsukumo": {
-      "deck": {
-        "Débutant": "https://www.duelingbook.com/deck?id=16696766",
-        "Expert": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=15442289",
-          "Extra": "https://www.duelingbook.com/deck?id=15444951",
-          "Ext. Duel": "https://www.duelingbook.com/deck?id=15295904"
-        }
+      "Débutant": "https://www.duelingbook.com/deck?id=16696766",
+      "Expert": {
+        "Main/Side": "https://www.duelingbook.com/deck?id=15442289",
+        "Extra": "https://www.duelingbook.com/deck?id=15444951",
+        "Ext. Duel": "https://www.duelingbook.com/deck?id=15295904"
       }
     },
     "Kite Tenjo": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=12144019"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=12144019"
     },
     "Shark": {
-      "deck": {
+      "normal": {
         "Main/Side": "https://www.duelingbook.com/deck?id=12117266",
         "Extra": "https://www.duelingbook.com/deck?id=12217081",
         "Ext. Duel": "https://www.duelingbook.com/deck?id=15542596"
       }
     },
     "Yuya Sakaki": {
-      "deck": {
+      "normal": {
         "Main/Extra/Side": "https://www.duelingbook.com/deck?id=12152927",
         "Ext. Duel": "https://www.duelingbook.com/deck?id=15337778"
       }
     },
     "Reiji Akaba": {
-      "deck": {
+      "normal": {
         "Main/Side": "https://www.duelingbook.com/deck?id=12169181",
         "Extra": "https://www.duelingbook.com/deck?id=12174794"
       }
     },
     "Playmaker": {
-      "deck": {
+      "normal": {
         "Main/Side": "https://www.duelingbook.com/deck?id=15142824",
         "Extra": "https://www.duelingbook.com/deck?id=12174801"
       }
     },
     "Revolver": {
-      "deck": {
+      "normal": {
         "Main/Side": "https://www.duelingbook.com/deck?id=12179334",
         "Extra": "https://www.duelingbook.com/deck?id=12223917"
       }
@@ -117,162 +97,112 @@
   },
   "Saison 1.5": {
     "Yugi Muto": {
-      "deck": {
-        "Débutant": "https://www.duelingbook.com/deck?id=16095397",
-        "Expert": "https://www.duelingbook.com/deck?id=15134403"
-      }
+      "Débutant": "https://www.duelingbook.com/deck?id=16095397",
+      "Expert": "https://www.duelingbook.com/deck?id=15134403"
     },
     "Jaden Yuki Manga": {
-      "deck": {
+      "normal": {
         "Main/Side": "https://www.duelingbook.com/deck?id=14395009",
         "Extra": "https://www.duelingbook.com/deck?id=14478875",
         "Ext. Duel": "https://www.duelingbook.com/deck?id=16095795"
       }
     },
     "Chad Princeton Manga": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=15460026"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=15460026"
     },
     "Kite Tenjo Arc V": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=15430433"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=15430433"
     },
     "Yuya Sakaki Manga": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=14371320"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=14371320"
     }
   },
   "Saison 2": {
     "Mai Valentine": {
-      "deck": {
+      "normal": {
         "Main/Extra/Side": "https://www.duelingbook.com/deck?id=16404335",
         "Ext. Duel": "https://www.duelingbook.com/deck?id=17803773"
       }
     },
     "Syrus Truesdale": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16438567"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16438567"
     },
     "Bastien Misawa": {
-      "deck": {
+      "normal": {
         "Main/Side": "https://www.duelingbook.com/deck?id=12267920",
         "Ext. Duel": "https://www.duelingbook.com/deck?id=17541484"
       }
     },
     "Alexia Rhodes": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16461083"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16461083"
     },
     "Akiza Izinski": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16639852"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16639852"
     },
     "Crow Hogan": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=17185559"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=17185559"
     },
     "Anna Kaboom": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16637792"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16637792"
     },
     "Zuzu Boyle": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16937372"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16937372"
     },
     "Gong Strong": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16402963"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16402963"
     },
     "Sylvio Sawatari": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16937631"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16937631"
     },
     "Shay Obsidian": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16802070"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16802070"
     },
     "Sora Perse": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16784992"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16784992"
     },
     "Blue Angel": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16812530"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16812530"
     },
     "George Gore": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16852439"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16852439"
     },
     "Ghost Gal": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=17043611"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=17043611"
     },
     "Soulburner": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16386887"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16386887"
     }
   },
   "Saison 2.5": {
     "Bastien Misawa Manga": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16841503"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16841503"
     },
     "Alexia Rhodes Manga": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16958761"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16958761"
     },
     "Sylvio Sawatari 2": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=17087209"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=17087209"
     },
     "Spectre": {
-      "deck": {
+      "normal": {
         "Main/Side": "https://www.duelingbook.com/deck?id=17063181",
         "Extra": "https://www.duelingbook.com/deck?id=17086268"
       }
     },
     "Atticus Rhodes": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=17009554"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=17009554"
     },
     "Midori Hibiki": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=17021197"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=17021197"
     },
     "Tetsu Trudge": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=16999879"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=16999879"
     },
     "Blue Maiden": {
-      "deck": {
-        "Deck": "https://www.duelingbook.com/deck?id=17049558"
-      }
+      "normal": "https://www.duelingbook.com/deck?id=17049558"
     },
     "Princesse Cologne": {
-      "deck": {
+      "normal": {
         "Main/Extra/Side": "https://www.duelingbook.com/deck?id=17009011",
         "Ext. Duel": "https://www.duelingbook.com/deck?id=17867721"
       }
