@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎴 deck.py — Commande interactive !deck
-# Objectif : Choisir une saison, un duelliste et un genre de deck
+# Objectif : Choisir une saison, un duelliste et une version de deck
 # Catégorie : 🧠 VAACT
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -47,12 +47,12 @@ class DeckFavoriteButton(Button):
             return await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
 
         duelliste = self.parent_view.duelliste
-        genre = self.parent_view.genre
+        version = self.parent_view.version
 
-        if not duelliste or not genre:
+        if not duelliste or not version:
             return await interaction.response.send_message("❌ Sélectionne d’abord un deck.", ephemeral=True)
 
-        fav_name = f"{duelliste} — {genre}"
+        fav_name = f"{duelliste} — {version}"
 
         try:
             supabase.table("profil").upsert({
@@ -76,27 +76,22 @@ class DeckFavoriteButton(Button):
 class SaisonSelect(Select):
     def __init__(self, parent_view):
         self.parent_view = parent_view
-        options = [
-            discord.SelectOption(label=s, value=s, default=(s == parent_view.saison))
-            for s in parent_view.deck_data
-        ]
+        options = [discord.SelectOption(label=s, value=s) for s in parent_view.deck_data]
         super().__init__(placeholder="📅 Choisis une saison", options=options)
 
     async def callback(self, interaction: discord.Interaction):
         chosen = self.values[0]
         self.parent_view.saison = chosen
         self.parent_view.duelliste = None
-        self.parent_view.genre = None
+        self.parent_view.version = None
 
-        # --- Nouveau DuellisteSelect ---
         new_duelliste_select = DuellisteSelect(self.parent_view)
         refresh_select(self.parent_view, getattr(self.parent_view, "duelliste_select", None), new_duelliste_select)
         self.parent_view.duelliste_select = new_duelliste_select
 
-        # --- Nouveau GenreSelect désactivé ---
-        new_genre_select = GenreSelect(self.parent_view)
-        refresh_select(self.parent_view, getattr(self.parent_view, "genre_select", None), new_genre_select)
-        self.parent_view.genre_select = new_genre_select
+        new_version_select = VersionSelect(self.parent_view)
+        refresh_select(self.parent_view, getattr(self.parent_view, "version_select", None), new_version_select)
+        self.parent_view.version_select = new_version_select
 
         await interaction.response.edit_message(
             content=f"🎴 Saison sélectionnée : **{chosen}**",
@@ -110,52 +105,49 @@ class SaisonSelect(Select):
 class DuellisteSelect(Select):
     def __init__(self, parent_view):
         self.parent_view = parent_view
-        duels = list(parent_view.deck_data[parent_view.saison].keys())
-        options = [discord.SelectOption(label=d, value=d) for d in duels]
-        super().__init__(placeholder="👤 Choisis un duelliste", options=options)
+        duellistes = list(parent_view.deck_data[parent_view.saison].keys())
+        options = [discord.SelectOption(label=d, value=d) for d in duellistes]
+        super().__init__(placeholder="👤 Choisis un duelliste", options=options, disabled=True)
 
     async def callback(self, interaction: discord.Interaction):
         chosen = self.values[0]
         self.parent_view.duelliste = chosen
-        self.parent_view.genre = None
+        self.parent_view.version = None
 
-        saison = self.parent_view.saison
-        deck_info = self.parent_view.deck_data[saison][chosen]["deck"]
-        genres = list(deck_info.keys())
+        deck_info = self.parent_view.deck_data[self.parent_view.saison][chosen]["deck"]
+        versions = list(deck_info.keys())
 
-        # --- Nouveau GenreSelect avec les options correctes ---
-        new_genre_select = GenreSelect(self.parent_view)
-        new_genre_select.options = [discord.SelectOption(label=g, value=g) for g in genres]
-        new_genre_select.disabled = False
+        new_version_select = VersionSelect(self.parent_view)
+        new_version_select.options = [discord.SelectOption(label=v, value=v) for v in versions]
+        new_version_select.disabled = False
 
-        refresh_select(self.parent_view, getattr(self.parent_view, "genre_select", None), new_genre_select)
-        self.parent_view.genre_select = new_genre_select
+        refresh_select(self.parent_view, getattr(self.parent_view, "version_select", None), new_version_select)
+        self.parent_view.version_select = new_version_select
 
         await interaction.response.edit_message(
-            content=f"👤 Duelliste sélectionné : **{chosen}**\nChoisis maintenant un genre.",
+            content=f"👤 Duelliste sélectionné : **{chosen}**\nChoisis maintenant la version.",
             embed=None,
             view=self.parent_view
         )
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ Select Genre
+# 🎛️ Select Version
 # ────────────────────────────────────────────────────────────────────────────────
-class GenreSelect(Select):
+class VersionSelect(Select):
     def __init__(self, parent_view):
         self.parent_view = parent_view
-        super().__init__(placeholder="🎚️ Choisis un genre", options=[], disabled=True)
+        super().__init__(placeholder="🎚️ Choisis une version", options=[], disabled=True)
 
     async def callback(self, interaction: discord.Interaction):
         chosen = self.values[0]
-        self.parent_view.genre = chosen
+        self.parent_view.version = chosen
 
+        deck_data = self.parent_view.deck_data
         saison = self.parent_view.saison
         duelliste = self.parent_view.duelliste
-        deck_info = self.parent_view.deck_data[saison][duelliste]["deck"]
+        value = deck_data[saison][duelliste]["deck"][chosen]
 
-        value = deck_info[chosen]
-
-        # plusieurs sous-parties (Main/Side / Extra…)
+        # Si c'est un lien direct ou un dict de sous-decks
         if isinstance(value, dict):
             deck_text = "\n".join(f"• **{k}** : {v}" for k, v in value.items())
         else:
@@ -177,22 +169,22 @@ class GenreSelect(Select):
 # 🧠 View principale
 # ────────────────────────────────────────────────────────────────────────────────
 class DeckSelectView(View):
-    def __init__(self, bot, deck_data, saison=None, duelliste=None, user=None):
+    def __init__(self, bot, deck_data, user=None):
         super().__init__(timeout=300)
         self.bot = bot
         self.deck_data = deck_data
-        self.saison = saison or list(deck_data.keys())[0]
-        self.duelliste = duelliste
-        self.genre = None
+        self.saison = None
+        self.duelliste = None
+        self.version = None
         self.user = user
 
         self.saison_select = SaisonSelect(self)
         self.duelliste_select = DuellisteSelect(self)
-        self.genre_select = GenreSelect(self)
+        self.version_select = VersionSelect(self)
 
         self.add_item(self.saison_select)
         self.add_item(self.duelliste_select)
-        self.add_item(self.genre_select)
+        self.add_item(self.version_select)
         self.add_item(DeckFavoriteButton(self))
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -205,7 +197,7 @@ class Deck(commands.Cog):
     @commands.command(
         name="deck",
         help="Affiche les decks du tournoi VAACT.",
-        description="Interface interactive : saison, duelliste et genre."
+        description="Interface interactive : saison, duelliste et version."
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def deck(self, ctx):
