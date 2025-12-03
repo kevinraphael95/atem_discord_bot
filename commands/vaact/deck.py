@@ -1,55 +1,53 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎴 deck.py — Commande interactive !deck
-# Objectif : Choisir une saison et un duelliste pour afficher son deck et ses astuces
+# 📌 deck.py — Commande interactive !deck et /deck
+# Objectif : Choisir une saison + un duelliste et afficher ses decks (sans astuces)
 # Catégorie : 🧠 VAACT
-# Accès : Public
+# Accès : Tous
+# Cooldown : 1 utilisation / 3 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button
 import json
 import os
 
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_respond
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 📂 Chargement des données JSON — deck_data.json
+# 📂 Chargement du fichier JSON deck_data.json
 # ────────────────────────────────────────────────────────────────────────────────
 DECK_JSON_PATH = os.path.join("data", "deck_data.json")
 
 def load_data():
-    with open(DECK_JSON_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Charge et renvoie les données du fichier JSON."""
+    try:
+        with open(DECK_JSON_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERREUR JSON deck_data] {e}")
+        return {}
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View — bouton "Deck favori"
+# 🏆 Bouton — Sauvegarde du deck favori
 # ────────────────────────────────────────────────────────────────────────────────
 class DeckFavoriteButton(Button):
     def __init__(self, parent_view):
         super().__init__(label="Deck favori", style=discord.ButtonStyle.success, emoji="🏆")
-        self.parent_view = parent_view  # on conserve la View pour lire la sélection
+        self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        # Restreint au propriétaire
         if not self.parent_view.user or interaction.user.id != self.parent_view.user.id:
-            try:
-                await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
-            except Exception:
-                pass
-            return
+            return await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
 
         duelliste = self.parent_view.duelliste
         if not duelliste:
-            try:
-                await interaction.response.send_message("❌ Aucun deck sélectionné.", ephemeral=True)
-            except Exception:
-                pass
-            return
+            return await interaction.response.send_message("❌ Aucun deck sélectionné.", ephemeral=True)
 
         try:
             supabase.table("profil").upsert({
@@ -58,25 +56,14 @@ class DeckFavoriteButton(Button):
                 "fav_decks_vaact": duelliste
             }, on_conflict="user_id").execute()
 
-            try:
-                await interaction.response.send_message(
-                    f"✅ **{duelliste}** est maintenant ton deck favori !",
-                    ephemeral=True
-                )
-            except Exception:
-                pass
+            return await interaction.response.send_message(
+                f"✅ **{duelliste}** est maintenant ton deck favori !", ephemeral=True)
         except Exception as e:
             print(f"[ERREUR Supabase] {e}")
-            try:
-                await interaction.response.send_message(
-                    "❌ Erreur lors de l’ajout du deck favori dans Supabase.",
-                    ephemeral=True
-                )
-            except Exception:
-                pass
+            return await interaction.response.send_message("❌ Erreur Supabase.", ephemeral=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Sélection de saison et duelliste
+# 🎛️ View — Sélection Saison + Duelliste + Favori
 # ────────────────────────────────────────────────────────────────────────────────
 class DeckSelectView(View):
     def __init__(self, bot, deck_data, saison=None, duelliste=None, user=None):
@@ -87,135 +74,151 @@ class DeckSelectView(View):
         self.duelliste = duelliste
         self.user = user
 
-        # on ajoute les selects et le bouton une seule fois
         self.saison_select = SaisonSelect(self)
         self.duelliste_select = DuellisteSelect(self)
+
         self.add_item(self.saison_select)
         self.add_item(self.duelliste_select)
         self.add_item(DeckFavoriteButton(self))
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 📅 Select Saison
+# ────────────────────────────────────────────────────────────────────────────────
 class SaisonSelect(Select):
     def __init__(self, parent_view: DeckSelectView):
         self.parent_view = parent_view
+
         options = [
-            discord.SelectOption(label=s, value=s, default=(s == self.parent_view.saison))
-            for s in self.parent_view.deck_data
+            discord.SelectOption(label=s, value=s, default=(s == parent_view.saison))
+            for s in parent_view.deck_data
         ]
-        super().__init__(placeholder="📅 Choisis une saison du tournoi VAACT", options=options)
+
+        super().__init__(placeholder="📅 Choisis une saison", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        # Met à jour la saison choisie
         chosen = self.values[0]
         self.parent_view.saison = chosen
+        self.parent_view.duelliste = None
 
-        # Met à jour dynamiquement les options du DuellisteSelect selon la saison choisie
         duellistes = list(self.parent_view.deck_data.get(chosen, {}).keys())
-        new_duel_options = [
-            discord.SelectOption(label=d, value=d, default=False)
+
+        self.parent_view.duelliste_select.options = [
+            discord.SelectOption(label=d, value=d)
             for d in duellistes
         ]
-        try:
-            # met à jour les options du DuellisteSelect
-            self.parent_view.duelliste_select.options = new_duel_options
-            self.parent_view.duelliste = None
-        except Exception:
-            pass
 
-        # Met à jour aussi les options du SaisonSelect pour marquer l'option sélectionnée
-        try:
-            new_saison_options = [
-                discord.SelectOption(label=s, value=s, default=(s == chosen))
-                for s in self.parent_view.deck_data
-            ]
-            self.parent_view.saison_select.options = new_saison_options
-        except Exception:
-            pass
+        self.options = [
+            discord.SelectOption(label=s, value=s, default=(s == chosen))
+            for s in self.parent_view.deck_data
+        ]
 
-        # Édite le message pour refléter le changement de saison (sans embed)
-        content = f"🎴 Saison choisie : **{self.parent_view.saison}**\nSélectionne un duelliste :"
-        try:
-            await interaction.response.edit_message(content=content, embed=None, view=self.parent_view)
-        except Exception:
-            # Si edit_message échoue, essaie de répondre proprement (silencieux)
-            try:
-                await interaction.response.send_message(content, ephemeral=True)
-            except Exception:
-                pass
+        await interaction.response.edit_message(
+            content=f"🎴 Saison choisie : **{chosen}**\nSélectionne un duelliste :",
+            embed=None,
+            view=self.parent_view
+        )
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 👤 Select Duelliste
+# ────────────────────────────────────────────────────────────────────────────────
 class DuellisteSelect(Select):
     def __init__(self, parent_view: DeckSelectView):
         self.parent_view = parent_view
-        duellistes = list(self.parent_view.deck_data.get(self.parent_view.saison, {}).keys())
+
+        duellistes = list(parent_view.deck_data.get(parent_view.saison, {}).keys())
         options = [
-            discord.SelectOption(label=d, value=d, default=(d == self.parent_view.duelliste))
+            discord.SelectOption(label=d, value=d, default=(d == parent_view.duelliste))
             for d in duellistes
         ]
-        super().__init__(placeholder="👤 Choisis un deck", options=options)
+
+        super().__init__(placeholder="👤 Choisis un duelliste", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        # Met à jour le duelliste sélectionné
         chosen = self.values[0]
         self.parent_view.duelliste = chosen
-        duelliste = chosen
+
         saison = self.parent_view.saison
+        duellistes = list(self.parent_view.deck_data.get(saison, {}).keys())
 
-        # Met à jour les options du DuellisteSelect pour indiquer la sélection
-        try:
-            current_duels = list(self.parent_view.deck_data.get(saison, {}).keys())
-            updated_options = [
-                discord.SelectOption(label=d, value=d, default=(d == chosen))
-                for d in current_duels
-            ]
-            self.parent_view.duelliste_select.options = updated_options
-        except Exception:
-            pass
+        self.options = [
+            discord.SelectOption(label=d, value=d, default=(d == chosen))
+            for d in duellistes
+        ]
 
-        infos = self.parent_view.deck_data.get(saison, {}).get(duelliste, {})
-        deck_data = infos.get("deck", "❌ Aucun deck trouvé.")
-        astuces_data = infos.get("astuces", "❌ Aucune astuce disponible.")
+        infos = self.parent_view.deck_data.get(saison, {}).get(chosen, {})
+        deck_data = infos.get("deck", {})
 
-        deck_text = "\n".join(f"• {c}" for c in deck_data) if isinstance(deck_data, list) else deck_data
-        astuces_text = "\n".join(f"• {a}" for a in astuces_data) if isinstance(astuces_data, list) else astuces_data
+        deck_text = self.format_deck(deck_data)
 
         embed = discord.Embed(
-            title=f"🧙‍♂️ Deck de {duelliste} (Saison {saison})",
-            color=discord.Color.blue()
+            title=f"🎴 Deck de {chosen}",
+            description=f"Saison **{saison}**",
+            color=discord.Color.gold()
         )
-        embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
-        embed.add_field(name="💡 Astuces", value=astuces_text, inline=False)
 
-        # On édite le message pour afficher le deck et conserver la même View (avec le bouton qui utilisera self.parent_view.duelliste)
-        content = f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :"
-        try:
-            await interaction.response.edit_message(content=content, embed=embed, view=self.parent_view)
-        except Exception:
-            # fallback silencieux
-            try:
-                await interaction.response.send_message("❌ Impossible de mettre à jour l'affichage.", ephemeral=True)
-            except Exception:
-                pass
+        embed.set_thumbnail(url="https://i.imgur.com/u7CEp4p.png")
+        embed.set_image(url="https://i.imgur.com/1mM8Zaf.jpeg")
+        embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
+
+        await interaction.response.edit_message(
+            content=f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :",
+            embed=embed,
+            view=self.parent_view
+        )
+
+    @staticmethod
+    def format_deck(deck_data):
+        if isinstance(deck_data, str):
+            return deck_data
+
+        if isinstance(deck_data, dict):
+            result = []
+            for niveau, contenu in deck_data.items():
+                result.append(f"**{niveau}** :")
+                if isinstance(contenu, str):
+                    result.append(f"• {contenu}")
+                else:
+                    for sous, url in contenu.items():
+                        result.append(f"  └─ **{sous}** : {url}")
+            return "\n".join(result)
+
+        return "❌ Aucun deck disponible."
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Deck(commands.Cog):
+    """
+    Commande /deck et !deck — Interface de sélection des decks VAACT
+    """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(
-        name="deck",
-        help="Affiche les decks du tournoi VAACT, organisés par saison.",
-        description="Affiche une interface interactive pour choisir une saison et un duelliste."
-    )
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
-    async def deck(self, ctx: commands.Context):
-        try:
-            deck_data = load_data()
-            view = DeckSelectView(self.bot, deck_data, user=ctx.author)
-            await safe_send(ctx, "📦 Choisis une saison :", view=view)
-        except Exception as e:
-            print("[ERREUR DECK]", e)
-            await safe_send(ctx, "❌ Une erreur est survenue lors du chargement des decks.")
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(name="deck", description="Choisis une saison et un duelliste pour voir ses decks")
+    @app_commands.checks.cooldown(1, 3.0, key=lambda i: i.user.id)
+    async def slash_deck(self, interaction: discord.Interaction):
+        deck_data = load_data()
+        if not deck_data:
+            return await safe_respond(interaction, "❌ Impossible de charger les decks.")
+
+        view = DeckSelectView(self.bot, deck_data, user=interaction.user)
+        await interaction.response.send_message("📦 Choisis une saison :", view=view, ephemeral=True)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="deck")
+    @commands.cooldown(1, 3.0, commands.BucketType.user)
+    async def prefix_deck(self, ctx: commands.Context):
+        deck_data = load_data()
+        if not deck_data:
+            return await safe_send(ctx.channel, "❌ Impossible de charger les decks.")
+
+        view = DeckSelectView(self.bot, deck_data, user=ctx.author)
+        await safe_send(ctx.channel, "📦 Choisis une saison :", view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
@@ -224,5 +227,5 @@ async def setup(bot: commands.Bot):
     cog = Deck(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "VAACT"
+            command.category = "🧠 VAACT"
     await bot.add_cog(cog)
