@@ -134,7 +134,7 @@
       "deck": {
         "Normal": {
           "Main/Side": "https://www.duelingbook.com/deck?id=12169181",
-          "Extra": "https://www.duelingbook.com/deck?id=12174794",
+          "Extra": "https://www.duelingbook.com/deck?id=12174794"
         }
       }
     },
@@ -201,7 +201,7 @@
     "Mai Valentine": {
       "deck": {
         "Normal": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=16404335"
+          "Main/Side": "https://www.duelingbook.com/deck?id=16404335",
           "Ext. Duel": "https://www.duelingbook.com/deck?id=17803773"
         }
       }
@@ -216,7 +216,7 @@
     "Bastien Misawa": {
       "deck": {
         "Normal": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=12267920"
+          "Main/Side": "https://www.duelingbook.com/deck?id=12267920",
           "Ext. Duel": "https://www.duelingbook.com/deck?id=17541484"
         }
       }
