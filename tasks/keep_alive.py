@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 keep_alive.py — Serveur Flask + self-ping
-# Objectif : Maintenir le bot en ligne sur Render / Replit
+# 📌 keep_alive.py — Serveur Flask + self-ping amélioré
+# Objectif : Maintenir le bot en ligne sur Render / Replit + signaler les erreurs
 # Catégorie : Task
 # Accès : Interne
 # ────────────────────────────────────────────────────────────────────────────────
@@ -24,39 +24,59 @@ def home():
     return "Bot en ligne ! 🚀"
 
 def run_flask():
-    port = int(os.environ.get("PORT", 8080))  # Render fournit $PORT
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔄 Boucle de self-ping
+# 🔄 Boucle de self-ping améliorée
 # ────────────────────────────────────────────────────────────────────────────────
 async def ping_loop():
-    ping_url = os.environ.get("PING_URL")  # URL Render dans .env
+    from main import supabase_client  # ← IMPORTANT : utilise ton client déjà créé
+
+    ping_url = os.environ.get("PING_URL")
     if not ping_url:
-        print("[KEEP_ALIVE] ⚠️ Pas d'URL définie dans PING_URL → pas de self-ping.")
+        print("[KEEP_ALIVE] ⚠️ PING_URL manquant → self-ping désactivé.")
         return
 
     async with aiohttp.ClientSession() as session:
         while True:
+            error_detected = False
+
             try:
                 async with session.get(ping_url) as resp:
-                    print(f"[KEEP_ALIVE] Ping {ping_url} → {resp.status}")
+                    print(f"[KEEP_ALIVE] Ping → {resp.status}")
+                    if resp.status != 200:
+                        error_detected = True
+
             except Exception as e:
                 print(f"[KEEP_ALIVE] Erreur ping : {e}")
-            await asyncio.sleep(300)  # 5 minutes
+                error_detected = True
+
+            # ─────────────────────────────────────────────
+            # ⚠️ Si une erreur est détectée → flag Supabase
+            # ─────────────────────────────────────────────
+            if error_detected:
+                try:
+                    supabase_client.table("bot_settings") \
+                        .update({"value": "true"}) \
+                        .eq("key", "ping_failed").execute()
+
+                    print("[KEEP_ALIVE] Flag ping_failed = true écrit.")
+                except Exception as e:
+                    print(f"[KEEP_ALIVE] Impossible d'écrire ping_failed : {e}")
+
+            await asyncio.sleep(300)  # 5 min
 
 def run_ping_loop():
-    asyncio.run(ping_loop())  # lance une boucle asyncio dédiée
+    asyncio.run(ping_loop())
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔄 Keep Alive principal
 # ────────────────────────────────────────────────────────────────────────────────
 def keep_alive():
-    """Lance Flask + self-ping périodique dans 2 threads séparés."""
+    """Lance Flask + self-ping dans 2 threads."""
     Thread(target=run_flask, daemon=True).start()
     print("[KEEP_ALIVE] Serveur Flask démarré.")
 
     Thread(target=run_ping_loop, daemon=True).start()
     print("[KEEP_ALIVE] Self-ping activé.")
-
-
