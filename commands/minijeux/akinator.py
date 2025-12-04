@@ -49,11 +49,6 @@ class AkinatorView(View):
 
     # 🔹 Choix de la meilleure question
     def choose_best_question(self):
-        """
-        Sélectionne la question la plus discriminante parmi celles restantes.
-        La logique : on cherche la question qui divise le plus équitablement
-        les cartes restantes (proche de la moitié pour Oui/Non).
-        """
         best_q = None
         best_balance = float("inf")
 
@@ -63,26 +58,37 @@ class AkinatorView(View):
                 continue
 
             values = q.get("filter_value", [])
-            # On ne garde que les valeurs présentes dans les cartes restantes
             available_values = [
                 v for v in values if any(v in c.get(key, []) for c in self.remaining_cards)
             ]
             if not available_values:
                 continue
 
-            # On calcule pour chaque valeur l'équilibre Oui/Non
             for val in available_values:
                 count_yes = sum(1 for c in self.remaining_cards if val in c.get(key, []))
                 count_no = len(self.remaining_cards) - count_yes
                 balance = abs(count_yes - count_no)
 
-                # On priorise les questions qui divisent presque en deux
                 if balance < best_balance:
                     best_balance = balance
                     best_q = q
                     self.current_value = val
 
         return best_q
+
+    # 🔹 Préparer l'embed et les boutons (pour le premier envoi)
+    def get_initial_embed_and_buttons(self):
+        self.clear_items()
+        for label in ["Oui", "Non", "Ne sais pas", "Abandonner"]:
+            style = discord.ButtonStyle.danger if label == "Abandonner" else discord.ButtonStyle.primary
+            self.add_item(AkinatorButton(self, label, style))
+
+        embed = discord.Embed(
+            title="🎩 Akinator Yu-Gi-Oh!",
+            description="Pense à une carte Yu-Gi-Oh! et je vais essayer de la deviner. Clique sur un bouton pour commencer.",
+            color=discord.Color.green()
+        )
+        return embed
 
     # 🔹 Pose la question suivante
     async def ask_question(self, interaction=None):
@@ -170,9 +176,6 @@ class AkinatorButton(Button):
 # 🧩 Cog principal : Commande Akinator
 # ────────────────────────────────────────────────────────────────────────────────
 class Akinator(commands.Cog):
-    """
-    Commande /akinator et !akinator — Fait deviner une carte Yu-Gi-Oh! à l’Akinator
-    """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -224,13 +227,8 @@ class Akinator(commands.Cog):
             return
 
         view = AkinatorView(self.bot, questions, cards)
-        embed = discord.Embed(
-            title="🎩 Akinator Yu-Gi-Oh!",
-            description="Pense à une carte Yu-Gi-Oh! et je vais essayer de la deviner. Clique sur un bouton pour commencer.",
-            color=discord.Color.green()
-        )
+        embed = view.get_initial_embed_and_buttons()
         view.message = await safe_send(ctx_or_channel, embed=embed, view=view)
-        await view.ask_question()
 
     # ────────── Slash command
     @app_commands.command(name="akinator", description="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
@@ -242,7 +240,6 @@ class Akinator(commands.Cog):
     @commands.command(name="akinator", help="Laisse Akinator deviner ta carte Yu-Gi-Oh!")
     async def prefix_akinator(self, ctx):
         await self.start_akinator(ctx)
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
