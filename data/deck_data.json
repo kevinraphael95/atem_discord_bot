@@ -356,6 +356,22 @@
           "Main/Side": "https://www.duelingbook.com/deck?id=17021197"
         }
       }
+    },
+    "Solomon Muto": {
+      "deck": {
+        "Normal": {
+          "Main/Side": "https://www.duelingbook.com/deck?id=16831736"
+        }
+      }
+    },
+    "Solomon Muto": {
+      "deck": {
+        "Normal": {
+          "Main/Side" : "https://www.duelingbook.com/deck?id=16858979"
+          "Ext. Duel" : "https://www.duelingbook.com/deck?id=17813934"
+        }
+      }
     }
+    
   }
 }
