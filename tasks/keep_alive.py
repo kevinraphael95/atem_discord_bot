@@ -13,6 +13,7 @@ import asyncio
 from threading import Thread
 from flask import Flask
 import aiohttp
+from utils.supabase_client import supabase_client
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🌐 Serveur Flask
@@ -31,7 +32,6 @@ def run_flask():
 # 🔄 Boucle de self-ping améliorée
 # ────────────────────────────────────────────────────────────────────────────────
 async def ping_loop():
-    from main import supabase_client  # ← IMPORTANT : utilise ton client déjà créé
 
     ping_url = os.environ.get("PING_URL")
     if not ping_url:
