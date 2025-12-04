@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 deck.py — Commande interactive !deck et /deck
 # Objectif : Choisir une saison + un duelliste et afficher ses decks (sans astuces)
-# Catégorie : 🧠 VAACT
+# Catégorie : VAACT
 # Accès : Tous
 # Cooldown : 1 utilisation / 3 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -226,5 +226,5 @@ async def setup(bot: commands.Bot):
     cog = Deck(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🧠 VAACT"
+            command.category = "VAACT"
     await bot.add_cog(cog)
