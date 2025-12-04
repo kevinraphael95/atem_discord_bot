@@ -13,7 +13,7 @@ import asyncio
 from threading import Thread
 from flask import Flask
 import aiohttp
-from utils.supabase_client import supabase_client
+from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🌐 Serveur Flask
