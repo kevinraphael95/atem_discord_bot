@@ -2,9 +2,10 @@
 # 📌 pendu.py — Commande interactive !pendu
 # Objectif :
 #   - Jeu du pendu interactif avec noms de cartes Yu-Gi-Oh! françaises
+#   - Affiche type, attribut et archétype comme indice
 #   - Les espaces, tirets et apostrophes ne comptent pas comme lettres
 #   - Les accents sont ignorés (é/è/ê = e, ç = c, etc.)
-# Catégorie : Jeux
+# Catégorie : Minijeux
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ import aiohttp
 import asyncio
 import random
 import unicodedata
-from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.discord_utils import safe_send, safe_edit
 from utils.card_utils import fetch_random_card
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -50,8 +51,8 @@ def normaliser_texte(texte: str) -> str:
 # ────────────────────────────────────────────────────────────────────────────────
 class PenduGame:
     def __init__(self, mot: str, mot_affiche: str, indice: str = None, mode: str = "solo"):
-        self.mot = mot                # version normalisée sans accents
-        self.mot_affiche = mot_affiche  # version originale pour l’affichage final
+        self.mot = mot
+        self.mot_affiche = mot_affiche
         self.indice = indice
         self.trouve = set()
         self.rate = set()
@@ -60,11 +61,10 @@ class PenduGame:
         self.max_erreurs = MAX_ERREURS
 
     def get_display_word(self) -> str:
-        """Affiche le mot censuré avec ★ pour lettres non trouvées"""
         res = ""
         for c in self.mot_affiche:
             if c.lower() in (" ", "-", "'"):
-                res += c  # montrer espaces et tirets
+                res += c
             else:
                 c_norm = normaliser_texte(c)
                 res += c if c_norm in self.trouve else "★"
@@ -100,15 +100,12 @@ class PenduGame:
         else:
             self.rate.add(lettre)
 
-        lettres_uniques = {c for c in self.mot if c.isalpha()}
-        if lettres_uniques.issubset(self.trouve):
+        if {c for c in self.mot if c.isalpha()}.issubset(self.trouve):
             self.terminee = True
             return "gagne"
-
         if len(self.rate) >= self.max_erreurs:
             self.terminee = True
             return "perdu"
-
         return "continue"
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -148,7 +145,6 @@ class Pendu(commands.Cog):
     )
     async def pendu_cmd(self, ctx: commands.Context, mode: str = ""):
         mode = "multi" if mode.lower() in ("multi", "m") else "solo"
-
         if ctx.channel.id in self.sessions:
             await safe_send(ctx.channel, "❌ Une partie est déjà en cours dans ce salon.")
             return
@@ -162,26 +158,26 @@ class Pendu(commands.Cog):
         message = await safe_send(ctx.channel, embed=game.create_embed())
         self.sessions[ctx.channel.id] = PenduSession(game, message, mode=mode, author_id=ctx.author.id)
 
-    # ───────────────────────────────────────────────────────────────────────
     async def _fetch_random_word(self) -> tuple[str | None, str | None, str | None]:
-        """Tire le nom d'une carte Yu-Gi-Oh! (FR si possible)"""
+        """Tire le nom d'une carte Yu-Gi-Oh! (FR) avec indice type/attribut/archétype"""
         try:
             carte, langue = await fetch_random_card(lang="fr")
             if not carte:
                 raise ValueError("Carte introuvable")
-
             nom = carte.get("name", "").strip()
             type_raw = carte.get("type", "Inconnu")
             attr = carte.get("attribute", None)
-            indice = type_raw + (f" / {attr}" if attr else "")
+            archetype = carte.get("archetype", None)
+            indice = type_raw
+            if attr:
+                indice += f" / {attr}"
+            if archetype:
+                indice += f" / {archetype}"
 
-            # Filtrer les caractères non pertinents
             mot_normalise = normaliser_texte(nom)
             if len(mot_normalise) < 3:
                 raise ValueError("Nom trop court")
-
             return nom, mot_normalise, indice
-
         except Exception as e:
             print(f"[ERREUR] _fetch_random_word : {e}")
             fallback = [
@@ -193,7 +189,6 @@ class Pendu(commands.Cog):
             ]
             return random.choice(fallback)
 
-    # ───────────────────────────────────────────────────────────────────────
     @tasks.loop(seconds=30)
     async def verif_inactivite(self):
         now = asyncio.get_event_loop().time()
@@ -203,7 +198,6 @@ class Pendu(commands.Cog):
             if session:
                 await safe_send(session.message.channel, "⏰ Partie terminée pour inactivité (3 minutes).")
 
-    # ───────────────────────────────────────────────────────────────────────
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
