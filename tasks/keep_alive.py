@@ -40,30 +40,31 @@ async def ping_loop():
 
     async with aiohttp.ClientSession() as session:
         while True:
-            error_detected = False
+            ping_failed_value = "false"  # Valeur par défaut
 
             try:
                 async with session.get(ping_url) as resp:
                     print(f"[KEEP_ALIVE] Ping → {resp.status}")
                     if resp.status != 200:
-                        error_detected = True
-
+                        ping_failed_value = "true"
             except Exception as e:
                 print(f"[KEEP_ALIVE] Erreur ping : {e}")
-                error_detected = True
+                ping_failed_value = "true"
 
             # ─────────────────────────────────────────────
-            # ⚠️ Si une erreur est détectée → flag Supabase
+            # ⚠️ Met à jour Supabase
             # ─────────────────────────────────────────────
-            if error_detected:
-                try:
-                    supabase_client.table("bot_settings") \
-                        .update({"value": "true"}) \
-                        .eq("key", "ping_failed").execute()
+            try:
+                # Vérifie si la clé existe
+                res = supabase_client.table("bot_settings").select("value").eq("key", "ping_failed").execute()
+                if res.data:
+                    supabase_client.table("bot_settings").update({"value": ping_failed_value}).eq("key", "ping_failed").execute()
+                else:
+                    supabase_client.table("bot_settings").insert({"key": "ping_failed", "value": ping_failed_value}).execute()
 
-                    print("[KEEP_ALIVE] Flag ping_failed = true écrit.")
-                except Exception as e:
-                    print(f"[KEEP_ALIVE] Impossible d'écrire ping_failed : {e}")
+                print(f"[KEEP_ALIVE] ping_failed = {ping_failed_value} écrit.")
+            except Exception as e:
+                print(f"[KEEP_ALIVE] Impossible d'écrire ping_failed : {e}")
 
             await asyncio.sleep(300)  # 5 min
 
