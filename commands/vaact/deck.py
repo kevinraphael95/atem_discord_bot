@@ -152,12 +152,11 @@ class DuellisteSelect(Select):
 
         embed = discord.Embed(
             title=f"🎴 Deck de {chosen}",
-            description=f"Saison **{saison}**",
+            description=f"Saison :**{saison}**",
             color=discord.Color.gold()
         )
 
-        embed.set_thumbnail(url="https://i.imgur.com/u7CEp4p.png")
-        embed.set_image(url="https://i.imgur.com/1mM8Zaf.jpeg")
+        # embed.set_thumbnail(url="https://i.imgur.com/u7CEp4p.png")
         embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
 
         await interaction.response.edit_message(
