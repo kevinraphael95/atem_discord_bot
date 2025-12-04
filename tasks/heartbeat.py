@@ -10,7 +10,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands, tasks
-from datetime import datetime, timezone
 from utils.discord_utils import safe_send  # <-- Import safe_send
 
 # ────────────────────────────────────────────────────────────────────────────────
