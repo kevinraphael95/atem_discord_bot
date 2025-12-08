@@ -1,17 +1,15 @@
 # ⚡ Atem
 
 **Atem** est un bot Discord orienté Yu-Gi-Oh! et mini-jeux.  
-Il permet de gérer des tournois, jouer à des mini-jeux, consulter des cartes et interagir avec la communauté.
+Il permet de jouer à des mini-jeux, consulter des cartes.
 
 # Fonctionnalités principales
 
-- **Admin** : gestion du bot, redémarrage, synchronisation des commandes et gestion des tournois.  
-- **Général** : commandes utilitaires de base et affichage d’informations.  
-- **Mini-jeux** : quizzes, classements, tirages de cartes et jeux interactifs.  
-- **VAACT** : gestion des tournois, profils et decks des participants.  
-- **Yu-Gi-Oh!** : recherche de cartes, définitions de vocabulaire, ouverture de boosters et top cartes.
-
-# 📂 Commandes
+- **Admin** : gestion du bot.  
+- **Général** : commandes basiques.  
+- **Mini-jeux** : minijeux.  
+- **VAACT** : commandes pour le tournoi VAACT.  
+- **Yu-Gi-Oh!** : commandes générales sur yu gi oh.
 
 La liste complète des commandes est disponible dans :  
 [docs/Liste_des_Commandes.md](docs/Liste_des_Commandes.md)
