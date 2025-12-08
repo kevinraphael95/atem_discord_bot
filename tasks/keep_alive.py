@@ -1,5 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 keep_alive.py — Serveur Flask + self-ping
+# 📌 keep_alive.py — Serveur Flask + self-ping sécurisé
 # Objectif : Maintenir le bot en ligne sur Render / Replit
 # Catégorie : Task
 # Accès : Interne
@@ -28,25 +28,45 @@ def run_flask():
     app.run(host="0.0.0.0", port=port)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔄 Boucle de self-ping
+# 🔄 Boucle de self-ping sécurisée
 # ────────────────────────────────────────────────────────────────────────────────
 async def ping_loop():
-    ping_url = os.environ.get("PING_URL")  # URL Render dans .env
+    ping_url = os.environ.get("PING_URL")
     if not ping_url:
-        print("[KEEP_ALIVE] ⚠️ Pas d'URL définie dans PING_URL → pas de self-ping.")
+        print("[KEEP_ALIVE] ⚠️ Pas d'URL définie dans PING_URL → self-ping désactivé.")
         return
 
-    async with aiohttp.ClientSession() as session:
+    interval = int(os.environ.get("PING_INTERVAL", 600))  # intervalle ping par défaut : 10 min
+
+    session = aiohttp.ClientSession()
+    try:
         while True:
             try:
                 async with session.get(ping_url) as resp:
                     print(f"[KEEP_ALIVE] Ping {ping_url} → {resp.status}")
             except Exception as e:
                 print(f"[KEEP_ALIVE] Erreur ping : {e}")
-            await asyncio.sleep(300)  # 5 minutes
 
+            await asyncio.sleep(interval)
+    except asyncio.CancelledError:
+        print("[KEEP_ALIVE] Boucle ping annulée.")
+    except Exception as e:
+        print(f"[KEEP_ALIVE] Exception inattendue dans ping_loop : {e}")
+    finally:
+        await session.close()
+        print("[KEEP_ALIVE] Session aiohttp fermée correctement.")
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔄 Thread dédié au self-ping
+# ────────────────────────────────────────────────────────────────────────────────
 def run_ping_loop():
-    asyncio.run(ping_loop())  # lance une boucle asyncio dédiée
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(ping_loop())
+    finally:
+        loop.close()
+        print("[KEEP_ALIVE] Boucle asyncio fermée correctement.")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔄 Keep Alive principal
@@ -58,5 +78,3 @@ def keep_alive():
 
     Thread(target=run_ping_loop, daemon=True).start()
     print("[KEEP_ALIVE] Self-ping activé.")
-
-
