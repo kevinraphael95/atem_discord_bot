@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 heartbeat.py — Task automatique d'envoi du heartbeat si self-ping KO
-# Objectif : Garder le bot alive et détecter les erreurs de self-ping
+# 📌 heartbeat.py — Task automatique d'envoi du heartbeat toutes les 5 minutes
+# Objectif : Garder le bot alive en pingant régulièrement un salon configuré
 # Catégorie : Général
 # Accès : Interne (aucune commande ici)
 # ────────────────────────────────────────────────────────────────────────────────
@@ -10,6 +10,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands, tasks
+from datetime import datetime, timezone
 from utils.discord_utils import safe_send  # <-- Import safe_send
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ from utils.discord_utils import safe_send  # <-- Import safe_send
 # ────────────────────────────────────────────────────────────────────────────────
 class HeartbeatTask(commands.Cog):
     """
-    Task qui envoie un message seulement si le self-ping a échoué.
+    Task qui envoie un message toutes les 5 minutes dans un salon configuré.
     """
 
     def __init__(self, bot: commands.Bot):
@@ -38,40 +39,21 @@ class HeartbeatTask(commands.Cog):
                 print("[Heartbeat] Pausé — aucune action envoyée.")
                 return
         except Exception as e:
-            print(f"[Heartbeat] Erreur lecture heartbeat_paused : {e}")
+            print(f"[Heartbeat] Erreur lecture du flag heartbeat_paused : {e}")
 
-        # 🔍 Vérifie le salon configuré
         if not self.heartbeat_channel_id:
             await self.load_heartbeat_channel()
-            if not self.heartbeat_channel_id:
-                print("[Heartbeat] Aucun salon configuré — arrêt de la tâche.")
-                return
 
-        # ─────────────────────────────────────────────
-        # ⚠️ Vérifie si le self-ping a échoué
-        # ─────────────────────────────────────────────
-        try:
-            ping_error = self.supabase.table("bot_settings").select("value").eq("key", "ping_failed").execute()
-
-            # Crée la ligne ping_failed si elle n'existe pas
-            if not ping_error.data:
-                self.supabase.table("bot_settings").insert({"key": "ping_failed", "value": "false"}).execute()
-                ping_error = {"data": [{"value": "false"}]}
-
-            # Si ping KO → envoie alerte
-            if ping_error.data[0]["value"] == "true":
-                channel = self.bot.get_channel(self.heartbeat_channel_id)
-                if channel:
-                    await safe_send(channel, "⚠️ **Self-ping Render KO !** Le bot a peut-être été réveillé.")
-                    print("[Heartbeat] Alerte envoyée suite à ping_failed.")
-
-                    # Reset du flag
-                    self.supabase.table("bot_settings").update({"value": "false"}).eq("key", "ping_failed").execute()
+        if self.heartbeat_channel_id:
+            channel = self.bot.get_channel(self.heartbeat_channel_id)
+            if channel:
+                try:
+                    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                    await safe_send(channel, f"💓💓 Boom boom ! ({now})")  # <-- safe_send ici
+                except Exception as e:
+                    print(f"[Heartbeat] Erreur en envoyant le message : {e}")
             else:
-                print("[Heartbeat] Self-ping OK — rien à envoyer.")
-
-        except Exception as e:
-            print(f"[Heartbeat] Erreur lecture ping_failed : {e}")
+                print("[Heartbeat] Salon non trouvé, pensez à reconfigurer le salon heartbeat.")
 
     @heartbeat_task.before_loop
     async def before_heartbeat(self):
@@ -85,13 +67,13 @@ class HeartbeatTask(commands.Cog):
                 val = resp.data[0]["value"]
                 if val.isdigit():
                     self.heartbeat_channel_id = int(val)
-                    print(f"[Heartbeat] Salon heartbeat chargé : {self.heartbeat_channel_id}")
+                    print(f"[Heartbeat] Salon heartbeat chargé depuis Supabase : {self.heartbeat_channel_id}")
                 else:
-                    print("[Heartbeat] Valeur heartbeat_channel_id invalide.")
+                    print("[Heartbeat] Valeur heartbeat_channel_id invalide en base.")
             else:
-                print("[Heartbeat] Aucun salon heartbeat configuré.")
+                print("[Heartbeat] Pas de salon heartbeat configuré en base.")
         except Exception as e:
-            print(f"[Heartbeat] Erreur chargement Supabase : {e}")
+            print(f"[Heartbeat] Erreur lecture Supabase : {e}")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
