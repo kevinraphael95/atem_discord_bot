@@ -50,23 +50,24 @@ async def ping_loop():
             except Exception as e:
                 print(f"[KEEP_ALIVE] Erreur ping : {e}")
                 ping_failed_value = "true"
+                print("[KEEP_ALIVE] 🔴 Problème critique → arrêt du self-ping pour éviter spam")
+                break  # Arrête la boucle pour ne pas spammer
 
             # ─────────────────────────────────────────────
-            # ⚠️ Met à jour Supabase
+            # ⚠️ Met à jour Supabase (sécurisé, pas de spam)
             # ─────────────────────────────────────────────
             try:
-                # Vérifie si la clé existe
-                res = supabase_client.table("bot_settings").select("value").eq("key", "ping_failed").execute()
-                if res.data:
-                    supabase_client.table("bot_settings").update({"value": ping_failed_value}).eq("key", "ping_failed").execute()
-                else:
-                    supabase_client.table("bot_settings").insert({"key": "ping_failed", "value": ping_failed_value}).execute()
-
+                supabase.table("bot_settings").upsert({
+                    "key": "ping_failed",
+                    "value": ping_failed_value
+                }).execute()
                 print(f"[KEEP_ALIVE] ping_failed = {ping_failed_value} écrit.")
             except Exception as e:
                 print(f"[KEEP_ALIVE] Impossible d'écrire ping_failed : {e}")
+                print("[KEEP_ALIVE] 🔴 Problème critique → arrêt du self-ping pour éviter spam")
+                break  # Arrête la boucle si impossible d’écrire
 
-            await asyncio.sleep(300)  # 5 min
+            await asyncio.sleep(60)  # ⏱️ Limite : 1 ping par minute maximum
 
 def run_ping_loop():
     asyncio.run(ping_loop())
