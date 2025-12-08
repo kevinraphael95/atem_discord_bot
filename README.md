@@ -1,4 +1,4 @@
-![atem.jpg](data/images/atem.jpg)
+![atem.png](data/images/atem.jpg)
 
 # ⚡ Atem
 
