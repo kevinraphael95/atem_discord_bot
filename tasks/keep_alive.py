@@ -38,7 +38,8 @@ async def ping_loop():
         print("[KEEP_ALIVE] ⚠️ PING_URL manquant → self-ping désactivé.")
         return
 
-    async with aiohttp.ClientSession() as session:
+    session = aiohttp.ClientSession()
+    try:
         while True:
             ping_failed_value = "false"  # Valeur par défaut
 
@@ -69,8 +70,21 @@ async def ping_loop():
 
             await asyncio.sleep(60)  # ⏱️ Limite : 1 ping par minute maximum
 
+    finally:
+        await session.close()
+        print("[KEEP_ALIVE] Session aiohttp fermée correctement.")
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔄 Thread dédié au self-ping
+# ────────────────────────────────────────────────────────────────────────────────
 def run_ping_loop():
-    asyncio.run(ping_loop())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(ping_loop())
+    finally:
+        loop.close()
+        print("[KEEP_ALIVE] Boucle asyncio fermée correctement.")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔄 Keep Alive principal
