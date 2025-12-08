@@ -38,8 +38,7 @@ async def ping_loop():
         print("[KEEP_ALIVE] ⚠️ PING_URL manquant → self-ping désactivé.")
         return
 
-    session = aiohttp.ClientSession()
-    try:
+    async with aiohttp.ClientSession() as session:
         while True:
             ping_failed_value = "false"  # Valeur par défaut
 
@@ -51,40 +50,26 @@ async def ping_loop():
             except Exception as e:
                 print(f"[KEEP_ALIVE] Erreur ping : {e}")
                 ping_failed_value = "true"
-                print("[KEEP_ALIVE] 🔴 Problème critique → arrêt du self-ping pour éviter spam")
-                break  # Arrête la boucle pour ne pas spammer
 
             # ─────────────────────────────────────────────
-            # ⚠️ Met à jour Supabase (sécurisé, pas de spam)
+            # ⚠️ Met à jour Supabase
             # ─────────────────────────────────────────────
             try:
-                supabase.table("bot_settings").upsert({
-                    "key": "ping_failed",
-                    "value": ping_failed_value
-                }).execute()
+                # Vérifie si la clé existe
+                res = supabase_client.table("bot_settings").select("value").eq("key", "ping_failed").execute()
+                if res.data:
+                    supabase_client.table("bot_settings").update({"value": ping_failed_value}).eq("key", "ping_failed").execute()
+                else:
+                    supabase_client.table("bot_settings").insert({"key": "ping_failed", "value": ping_failed_value}).execute()
+
                 print(f"[KEEP_ALIVE] ping_failed = {ping_failed_value} écrit.")
             except Exception as e:
                 print(f"[KEEP_ALIVE] Impossible d'écrire ping_failed : {e}")
-                print("[KEEP_ALIVE] 🔴 Problème critique → arrêt du self-ping pour éviter spam")
-                break  # Arrête la boucle si impossible d’écrire
 
-            await asyncio.sleep(60)  # ⏱️ Limite : 1 ping par minute maximum
+            await asyncio.sleep(300)  # 5 min
 
-    finally:
-        await session.close()
-        print("[KEEP_ALIVE] Session aiohttp fermée correctement.")
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔄 Thread dédié au self-ping
-# ────────────────────────────────────────────────────────────────────────────────
 def run_ping_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(ping_loop())
-    finally:
-        loop.close()
-        print("[KEEP_ALIVE] Boucle asyncio fermée correctement.")
+    asyncio.run(ping_loop())
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔄 Keep Alive principal
