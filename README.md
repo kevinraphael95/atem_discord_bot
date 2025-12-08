@@ -1,3 +1,5 @@
+![Atem](data/images/atem.jpg)
+
 # ⚡ Atem
 
 **Atem** est un bot Discord orienté Yu-Gi-Oh! et mini-jeux.  
