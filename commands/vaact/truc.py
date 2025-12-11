@@ -36,12 +36,12 @@ class TestCarteCustom(commands.Cog):
         """Commande slash sécurisée"""
         embed = discord.Embed(
             title="Test cartes custom Yu-Gi-Oh! VAACT",
-            description="Voici le lien vers le dépôt GitHub avec toutes les cartes custom Yu-Gi-Oh!",
+            description="test cartes vaact",
             color=discord.Color.blue()
         )
         embed.add_field(
             name="Lien GitHub",
-            value="[VA-ACT Custom YGO](https://github.com/kevinraphael95/vaact_custom_ygo/blob/main/README.md)",
+            value="[VAACT Custom YGO](https://github.com/kevinraphael95/vaact_custom_ygo/blob/main/README.md)",
             inline=False
         )
         await safe_respond(interaction, embed=embed)
