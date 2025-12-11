@@ -55,7 +55,7 @@ class TestCarteCustom(commands.Cog):
         """Commande préfixe sécurisée"""
         embed = discord.Embed(
             title="Test cartes custom Yu-Gi-Oh! VAACT",
-            description="Voici le lien vers le dépôt GitHub avec toutes les cartes custom Yu-Gi-Oh!",
+            description="test",
             color=discord.Color.blue()
         )
         embed.add_field(
