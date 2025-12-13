@@ -54,17 +54,24 @@ class Randeck(commands.Cog):
                     if not isinstance(deck_data, dict):
                         continue
 
+                    # On prend uniquement le premier lien rencontré, quel que soit le niveau
+                    found = False
                     for niveau, contenus in deck_data.items():
                         if isinstance(contenus, dict):
-                            for type_deck, lien in contenus.items():
-                                decks.append((saison, duelliste, niveau, type_deck, lien))
+                            for lien in contenus.values():
+                                decks.append((saison, duelliste, niveau, lien))
+                                found = True
+                                break
                         elif isinstance(contenus, str):
-                            decks.append((saison, duelliste, niveau, "Deck", contenus))
+                            decks.append((saison, duelliste, niveau, contenus))
+                            found = True
+                        if found:
+                            break  # on s'arrête après le premier lien
 
             if not decks:
                 return await safe_send(ctx, "❌ Aucun deck n'est disponible.")
 
-            saison, duelliste, niveau, type_deck, lien = random.choice(decks)
+            saison, duelliste, niveau, lien = random.choice(decks)
 
             # ─ Embed stylé ─
             embed = discord.Embed(
@@ -76,8 +83,7 @@ class Randeck(commands.Cog):
                 value=f"**{duelliste}** *(Saison : {saison})*",
                 inline=False
             )
-            embed.add_field(name="🎚️ Niveau", value=niveau, inline=True)
-            embed.add_field(name="📘 Type", value=type_deck, inline=True)
+            embed.add_field(name="🎚️ Niveau", value=niveau, inline=False)
             embed.add_field(name="🔗 Deck", value=lien, inline=False)
 
             embed.set_footer(
