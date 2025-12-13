@@ -73,7 +73,7 @@ class Randeck(commands.Cog):
             )
             embed.add_field(
                 name="👤 Duelliste",
-                value=f"**{duelliste}** *(Saison {saison})*",
+                value=f"**{duelliste}** *(Saison : {saison})*",
                 inline=False
             )
             embed.add_field(name="🎚️ Niveau", value=niveau, inline=True)
