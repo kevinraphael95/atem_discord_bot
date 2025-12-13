@@ -49,22 +49,41 @@ class Randeck(commands.Cog):
 
             for saison, persos in data.items():
                 for duelliste, infos in persos.items():
-                    if "deck" in infos and infos["deck"]:
-                        decks.append((saison, duelliste, random.choice(infos["deck"])))
+                    deck_data = infos.get("deck", {})
+
+                    if not isinstance(deck_data, dict):
+                        continue
+
+                    for niveau, contenus in deck_data.items():
+                        if isinstance(contenus, dict):
+                            for type_deck, lien in contenus.items():
+                                decks.append((saison, duelliste, niveau, type_deck, lien))
+                        elif isinstance(contenus, str):
+                            decks.append((saison, duelliste, niveau, "Deck", contenus))
 
             if not decks:
                 return await safe_send(ctx, "❌ Aucun deck n'est disponible.")
 
-            saison, duelliste, lien = random.choice(decks)
+            saison, duelliste, niveau, type_deck, lien = random.choice(decks)
 
             # ─ Embed stylé ─
             embed = discord.Embed(
                 title="🎲 Deck Aléatoire Tiré !",
                 color=discord.Color.random()
             )
-            embed.add_field(name="👤 Duelliste", value=f"**{duelliste}** *(Saison {saison})*", inline=False)
-            embed.add_field(name="📘 Deck", value=lien, inline=False)
-            embed.set_footer(text=f"Tiré par {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+            embed.add_field(
+                name="👤 Duelliste",
+                value=f"**{duelliste}** *(Saison {saison})*",
+                inline=False
+            )
+            embed.add_field(name="🎚️ Niveau", value=niveau, inline=True)
+            embed.add_field(name="📘 Type", value=type_deck, inline=True)
+            embed.add_field(name="🔗 Deck", value=lien, inline=False)
+
+            embed.set_footer(
+                text=f"Tiré par {ctx.author.display_name}",
+                icon_url=ctx.author.display_avatar.url
+            )
 
             await safe_send(ctx.channel, embed=embed)
 
