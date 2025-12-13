@@ -357,6 +357,28 @@
         }
       }
     },
+    "Princesse Cologne": {
+      "deck": {
+        "Normal": {
+          "Main/Side/Extra" : "https://www.duelingbook.com/deck?id=16853606",
+          "Ext. Duel" : "https://www.duelingbook.com/deck?id=17867721"
+        }
+      }
+    },
+    "Tetsu Trudge": {
+      "deck": {
+        "Normal": {
+          "Main/Side" : "https://www.duelingbook.com/deck?id=16999879"
+        }
+      }
+    },
+    "Blue Maiden": {
+      "deck": {
+        "Normal": {
+          "Main/Side" : "https://www.duelingbook.com/deck?id=17049558"
+        }
+      }
+    },
     "Solomon Muto": {
       "deck": {
         "Normal": {
