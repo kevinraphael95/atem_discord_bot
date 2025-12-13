@@ -371,7 +371,16 @@
           "Ext. Duel" : "https://www.duelingbook.com/deck?id=17813934"
         }
       }
+    },
+    "George Gore Heel": {
+      "deck": {
+        "Normal": {
+          "Main/Side" : "https://www.duelingbook.com/deck?id=16853606"
+        }
+      }
     }
+
+
     
   }
 }
