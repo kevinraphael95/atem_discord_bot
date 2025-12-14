@@ -13,7 +13,7 @@ from datetime import datetime
 
 import discord
 from discord.ext import commands
-from discord.ui import View, Select
+from discord.ui import View, Select, Button
 from supabase import create_client, Client  # pip install supabase
 
 from utils.discord_utils import safe_send, safe_respond  # ✅ Utilisation sécurisée
@@ -39,6 +39,9 @@ class DateStepView(View):
         self.ctx = ctx
         self.selected = selected or {}
         self.step = step
+
+        # Ajouter bouton pour supprimer la date
+        self.add_item(DeleteDateButton(ctx))
 
         now = datetime.now()
         if step == "year":
@@ -176,6 +179,28 @@ class DateStepView(View):
 
 
 # ────────────────────────────────────────────────────────────────────────────────
+# 🎮 UI — Bouton pour supprimer la date
+# ────────────────────────────────────────────────────────────────────────────────
+class DeleteDateButton(Button):
+    def __init__(self, ctx):
+        super().__init__(label="Supprimer la date", style=discord.ButtonStyle.danger, emoji="🗑️")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            # Vérifie s'il y a une date
+            res = supabase.table("tournoi_info").select("*").eq("id", 1).execute()
+            if not res.data or not res.data[0].get("prochaine_date"):
+                return await interaction.response.send_message("❌ Aucune date enregistrée.", ephemeral=True)
+
+            # Supprime la date
+            supabase.table("tournoi_info").update({"prochaine_date": None}).eq("id", 1).execute()
+            await interaction.response.send_message("✅ La date du tournoi a été supprimée.", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Erreur Supabase : `{e}`", ephemeral=True)
+
+
+# ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class TournoiDate(commands.Cog):
@@ -195,10 +220,10 @@ class TournoiDate(commands.Cog):
     @commands.has_permissions(administrator=True)
     @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
     async def tournoidate(self, ctx: commands.Context):
-        """Démarre l’interface de sélection de date."""
+        """Démarre l’interface de sélection de date avec possibilité de suppression."""
         try:
             view = DateStepView(self.bot, ctx)
-            await safe_send(ctx, "🗓️ Choisis la date du tournoi :", view=view)
+            await safe_send(ctx, "🗓️ Choisis la date du tournoi ou supprime-la :", view=view)
         except Exception as e:
             print(f"[ERREUR TournoiDate] {e}")
             await safe_send(ctx, f"❌ Une erreur est survenue : `{e}`")
