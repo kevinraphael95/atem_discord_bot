@@ -11,7 +11,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import requests
+import aiohttp
 from utils.discord_utils import safe_send, safe_respond
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -24,7 +24,6 @@ class AkinatorYuGiOh(commands.Cog):
     API_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
     MAX_CARDS = 50
 
-    # Paramètres possibles
     TYPES = ["Normal Monster", "Effect Monster", "Fusion Monster", "Synchro Monster",
              "XYZ Monster", "Link Monster", "Spell Card", "Trap Card"]
     RACES = ["Aqua", "Beast", "Beast-Warrior", "Creator-God", "Cyberse", "Dinosaur",
@@ -32,32 +31,37 @@ class AkinatorYuGiOh(commands.Cog):
              "Plant", "Psychic", "Pyro", "Reptile", "Rock", "Sea Serpent", "Spellcaster",
              "Thunder", "Warrior", "Winged Beast", "Wyrm", "Zombie",
              "Normal", "Field", "Equip", "Continuous", "Quick-Play", "Ritual",
-             "Counter"]  # Inclut Spell/Trap types
+             "Counter"]
     ATTRIBUTES = ["DARK", "EARTH", "FIRE", "LIGHT", "WATER", "WIND", "DIVINE"]
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction utilitaire pour l'API
+    # 🔹 Fonction utilitaire pour l'API (async)
     # ────────────────────────────────────────────────────────────────────────────
-    def fetch_cards(self, filters):
+    async def fetch_cards(self, filters):
         params = filters.copy()
         params["num"] = self.MAX_CARDS
         try:
-            response = requests.get(self.API_URL, params=params)
-            data = response.json()
-            return data.get("data", [])
-        except Exception as e:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.API_URL, params=params) as resp:
+                    if resp.status != 200:
+                        return []
+                    data = await resp.json()
+                    return data.get("data", [])
+        except Exception:
             return []
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Pose une question oui/non au joueur
+    # ────────────────────────────────────────────────────────────────────────────
     async def ask_question(self, ctx_or_inter, question):
-        """Pose une question oui/non au joueur et retourne True/False"""
         def check(m):
             return m.author.id == getattr(ctx_or_inter, "user", ctx_or_inter.author).id and \
                    m.content.lower() in ["oui", "non", "o", "n"]
 
-        prompt = await safe_send(getattr(ctx_or_inter, "channel", ctx_or_inter.channel), f"{question} (oui/non)")
+        await safe_send(getattr(ctx_or_inter, "channel", ctx_or_inter.channel), f"{question} (oui/non)")
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=60)
             return msg.content.lower() in ["oui", "o"]
@@ -65,16 +69,17 @@ class AkinatorYuGiOh(commands.Cog):
             await safe_send(getattr(ctx_or_inter, "channel", ctx_or_inter.channel), "⏰ Temps écoulé, arrêt du jeu.")
             return None
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Boucle principale du jeu
+    # ────────────────────────────────────────────────────────────────────────────
     async def akinator_game(self, ctx_or_inter):
-        """Boucle principale du jeu"""
         filters = {}
-        cards = self.fetch_cards(filters)
+        cards = await self.fetch_cards(filters)
         if not cards:
             await safe_send(getattr(ctx_or_inter, "channel", ctx_or_inter.channel), "❌ Impossible de récupérer les cartes.")
             return
 
         while len(cards) > 1:
-            # Choix du prochain filtre
             if "type" not in filters:
                 options = self.TYPES
                 filter_name = "type"
@@ -85,22 +90,21 @@ class AkinatorYuGiOh(commands.Cog):
                 options = self.ATTRIBUTES
                 filter_name = "attribute"
             else:
-                break  # Plus de questions pertinentes
+                break
 
             answered = False
             for option in options:
                 yes = await self.ask_question(ctx_or_inter, f"Est-ce que la carte est '{option}' ?")
                 if yes is None:
-                    return  # Timeout
+                    return
                 if yes:
                     filters[filter_name] = option
                     answered = True
                     break
             if not answered:
-                break  # Aucun filtre choisi, on s'arrête
+                break
 
-            # Récupération des cartes filtrées
-            cards = self.fetch_cards(filters)
+            cards = await self.fetch_cards(filters)
 
         # Affichage résultat
         if not cards:
