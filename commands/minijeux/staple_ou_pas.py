@@ -193,7 +193,6 @@ class StapleOuPas(commands.Cog):
         return embed
 
     async def play_round(self, ctx_or_inter, is_slash: bool):
-        await (safe_respond(ctx_or_inter, "🔮 Tirage en cours...") if is_slash else safe_send(ctx_or_inter, "🔮 Tirage en cours..."))
         is_staple = random.choice([True, False])
         card = await (self.get_random_staple() if is_staple else self.get_random_card())
         if not card:
