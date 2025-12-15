@@ -7,7 +7,6 @@
         },
         "Expert": {
           "Main/Side": "https://www.duelingbook.com/deck?id=15130114",
-          "Extra": "https://www.duelingbook.com/deck?id=15130114",
           "Ext. Duel": "https://www.duelingbook.com/deck?id=15291959"
         }
       }
@@ -15,9 +14,7 @@
     "Seto Kaiba": {
       "deck": {
         "Normal": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=9257420",
-          "Extra": "https://www.duelingbook.com/deck?id=9257420",
-          "Ext. Duel": "https://www.duelingbook.com/deck?id=9257420"
+          "Main/Side": "https://www.duelingbook.com/deck?id=9257420"
         }
       }
     },
