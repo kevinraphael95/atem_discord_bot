@@ -16,7 +16,7 @@ from discord.ext import commands
 from discord.ui import View, Select, Button
 from supabase import create_client, Client  # pip install supabase
 
-from utils.discord_utils import safe_send, safe_respond  # ✅ Utilisation sécurisée
+from utils.discord_utils import safe_send  # ⚠️ safe_respond NON utilisé ici
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Configuration Supabase
@@ -40,6 +40,9 @@ class DateStepView(View):
         self.selected = selected or {}
         self.step = step
 
+        # Sécurité : seul l'auteur peut interagir
+        self.author_id = ctx.author.id
+
         # Ajouter bouton pour supprimer la date
         self.add_item(DeleteDateButton(ctx))
 
@@ -62,6 +65,18 @@ class DateStepView(View):
             hours = [str(h) for h in range(0, 24)]
             self.add_item(self._make_hour_select(hours))
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message(
+                "❌ Tu ne peux pas interagir avec ce menu.",
+                ephemeral=True
+            )
+            return False
+        return True
+
+    # ────────────────────────────────────────────────────────────────────────
+    # 📅 Sélecteurs
+    # ────────────────────────────────────────────────────────────────────────
     def _make_year_select(self, years):
         class YearSelect(Select):
             def __init__(inner):
@@ -72,8 +87,7 @@ class DateStepView(View):
 
             async def callback(inner, interaction: discord.Interaction):
                 self.selected["year"] = int(inner.values[0])
-                await safe_respond(
-                    interaction,
+                await interaction.response.edit_message(
                     content=f"🗓️ Année sélectionnée : **{inner.values[0]}**",
                     view=DateStepView(self.bot, self.ctx, self.selected, step="month")
                 )
@@ -90,8 +104,7 @@ class DateStepView(View):
 
             async def callback(inner, interaction: discord.Interaction):
                 self.selected["month"] = int(inner.values[0])
-                await safe_respond(
-                    interaction,
+                await interaction.response.edit_message(
                     content=f"🗓️ {self.selected['year']} – Mois sélectionné : **{inner.values[0]}**",
                     view=DateStepView(self.bot, self.ctx, self.selected, step="day_range")
                 )
@@ -111,8 +124,7 @@ class DateStepView(View):
 
             async def callback(inner, interaction: discord.Interaction):
                 self.selected["day_range"] = inner.values[0]
-                await safe_respond(
-                    interaction,
+                await interaction.response.edit_message(
                     content=f"🗓️ {self.selected['year']}-{self.selected['month']} — Plage : **{inner.values[0]}**",
                     view=DateStepView(self.bot, self.ctx, self.selected, step="day")
                 )
@@ -129,8 +141,7 @@ class DateStepView(View):
 
             async def callback(inner, interaction: discord.Interaction):
                 self.selected["day"] = int(inner.values[0])
-                await safe_respond(
-                    interaction,
+                await interaction.response.edit_message(
                     content=f"🗓️ {self.selected['year']}-{self.selected['month']}-{self.selected['day']}",
                     view=DateStepView(self.bot, self.ctx, self.selected, step="hour")
                 )
@@ -147,33 +158,23 @@ class DateStepView(View):
 
             async def callback(inner, interaction: discord.Interaction):
                 self.selected["hour"] = int(inner.values[0])
-                try:
-                    dt = datetime(
-                        self.selected["year"],
-                        self.selected["month"],
-                        self.selected["day"],
-                        self.selected["hour"]
-                    )
-                    resp = supabase.table("tournoi_info").upsert({
-                        "id": 1,
-                        "prochaine_date": dt.isoformat()
-                    }).execute()
 
-                    if resp.data:
-                        await safe_respond(
-                            interaction,
-                            content=f"✅ Date mise à jour : **{dt.strftime('%d/%m/%Y %Hh')}**",
-                            view=None
-                        )
-                    else:
-                        await safe_respond(
-                            interaction,
-                            content="❌ Erreur Supabase : mise à jour échouée.",
-                            view=None
-                        )
+                dt = datetime(
+                    self.selected["year"],
+                    self.selected["month"],
+                    self.selected["day"],
+                    self.selected["hour"]
+                )
 
-                except Exception as e:
-                    await safe_respond(interaction, content=f"❌ Erreur : `{e}`", view=None)
+                supabase.table("tournoi_info").upsert({
+                    "id": 1,
+                    "prochaine_date": dt.isoformat()
+                }).execute()
+
+                await interaction.response.edit_message(
+                    content=f"✅ Date mise à jour : **{dt.strftime('%d/%m/%Y %Hh')}**",
+                    view=None
+                )
 
         return HourSelect()
 
@@ -187,17 +188,20 @@ class DeleteDateButton(Button):
         self.ctx = ctx
 
     async def callback(self, interaction: discord.Interaction):
-        try:
-            # Vérifie s'il y a une date
-            res = supabase.table("tournoi_info").select("*").eq("id", 1).execute()
-            if not res.data or not res.data[0].get("prochaine_date"):
-                return await interaction.response.send_message("❌ Aucune date enregistrée.", ephemeral=True)
+        if interaction.user.id != self.ctx.author.id:
+            return await interaction.response.send_message(
+                "❌ Action non autorisée.",
+                ephemeral=True
+            )
 
-            # Supprime la date
-            supabase.table("tournoi_info").update({"prochaine_date": None}).eq("id", 1).execute()
-            await interaction.response.send_message("✅ La date du tournoi a été supprimée.", ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Erreur Supabase : `{e}`", ephemeral=True)
+        supabase.table("tournoi_info").update(
+            {"prochaine_date": None}
+        ).eq("id", 1).execute()
+
+        await interaction.response.edit_message(
+            content="🗑️ La date du tournoi a été supprimée.",
+            view=None
+        )
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -220,12 +224,10 @@ class TournoiDate(commands.Cog):
     @commands.has_permissions(administrator=True)
     @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
     async def tournoidate(self, ctx: commands.Context):
-        """Démarre l’interface de sélection de date avec possibilité de suppression."""
         try:
             view = DateStepView(self.bot, ctx)
             await safe_send(ctx, "🗓️ Choisis la date du tournoi ou supprime-la :", view=view)
         except Exception as e:
-            print(f"[ERREUR TournoiDate] {e}")
             await safe_send(ctx, f"❌ Une erreur est survenue : `{e}`")
 
 
