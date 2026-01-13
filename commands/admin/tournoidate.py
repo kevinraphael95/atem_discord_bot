@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 tournoi_date.py — Commande interactive !tournoidate
-# Objectif : Modifier la date du tournoi enregistrée sur Supabase via menus déroulants
+# Objectif : Afficher / modifier / supprimer la date et le lieu du tournoi (Supabase)
 # Catégorie : 🧠 VAACT
 # Accès : Modérateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -13,10 +13,10 @@ from datetime import datetime
 
 import discord
 from discord.ext import commands
-from discord.ui import View, Select, Button
-from supabase import create_client, Client  # pip install supabase
+from discord.ui import View, Button
+from supabase import create_client, Client
 
-from utils.discord_utils import safe_send  # ⚠️ safe_respond NON utilisé ici
+from utils.discord_utils import safe_send
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Configuration Supabase
@@ -27,180 +27,83 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Sélecteurs en étapes pour construire la date
+# 📝 UI — Modal Date + Lieu
 # ────────────────────────────────────────────────────────────────────────────────
-class DateStepView(View):
-    """
-    Vue interactive pour sélectionner année → mois → plage de jours → jour → heure.
-    """
-    def __init__(self, bot, ctx, selected=None, step="year"):
-        super().__init__(timeout=180)
-        self.bot = bot
-        self.ctx = ctx
-        self.selected = selected or {}
-        self.step = step
+class TournoiDateModal(discord.ui.Modal, title="📅 Modifier le tournoi"):
 
-        # Sécurité : seul l'auteur peut interagir
-        self.author_id = ctx.author.id
+    date = discord.ui.TextInput(
+        label="Date du tournoi",
+        placeholder="JJ/MM/AAAA HH:MM",
+        required=True
+    )
 
-        # Ajouter bouton pour supprimer la date
-        self.add_item(DeleteDateButton(ctx))
+    lieu = discord.ui.TextInput(
+        label="Lieu du tournoi",
+        placeholder="Ex: Paris / Discord / Salle XYZ",
+        required=True,
+        max_length=100
+    )
 
-        now = datetime.now()
-        if step == "year":
-            years = [str(y) for y in range(now.year, now.year + 3)]
-            self.add_item(self._make_year_select(years))
-        elif step == "month":
-            months = [str(m) for m in range(1, 13)]
-            self.add_item(self._make_month_select(months))
-        elif step == "day_range":
-            self.add_item(self._make_day_range_select())
-        elif step == "day":
-            if self.selected.get("day_range") == "1-15":
-                days = list(range(1, 16))
-            else:
-                days = list(range(16, 32))
-            self.add_item(self._make_day_select(days))
-        elif step == "hour":
-            hours = [str(h) for h in range(0, 24)]
-            self.add_item(self._make_hour_select(hours))
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.author_id:
-            await interaction.response.send_message(
-                "❌ Tu ne peux pas interagir avec ce menu.",
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            dt = datetime.strptime(self.date.value, "%d/%m/%Y %H:%M")
+        except ValueError:
+            return await interaction.response.send_message(
+                "❌ Format invalide.\nUtilise **JJ/MM/AAAA HH:MM**",
                 ephemeral=True
             )
-            return False
-        return True
 
-    # ────────────────────────────────────────────────────────────────────────
-    # 📅 Sélecteurs
-    # ────────────────────────────────────────────────────────────────────────
-    def _make_year_select(self, years):
-        class YearSelect(Select):
-            def __init__(inner):
-                super().__init__(
-                    placeholder="Choisis une année",
-                    options=[discord.SelectOption(label=y, value=y) for y in years]
-                )
+        supabase.table("tournoi_info").upsert({
+            "id": 1,
+            "prochaine_date": dt.isoformat(),
+            "lieu": self.lieu.value
+        }).execute()
 
-            async def callback(inner, interaction: discord.Interaction):
-                self.selected["year"] = int(inner.values[0])
-                await interaction.response.edit_message(
-                    content=f"🗓️ Année sélectionnée : **{inner.values[0]}**",
-                    view=DateStepView(self.bot, self.ctx, self.selected, step="month")
-                )
-
-        return YearSelect()
-
-    def _make_month_select(self, months):
-        class MonthSelect(Select):
-            def __init__(inner):
-                super().__init__(
-                    placeholder="Choisis un mois",
-                    options=[discord.SelectOption(label=m, value=m) for m in months]
-                )
-
-            async def callback(inner, interaction: discord.Interaction):
-                self.selected["month"] = int(inner.values[0])
-                await interaction.response.edit_message(
-                    content=f"🗓️ {self.selected['year']} – Mois sélectionné : **{inner.values[0]}**",
-                    view=DateStepView(self.bot, self.ctx, self.selected, step="day_range")
-                )
-
-        return MonthSelect()
-
-    def _make_day_range_select(self):
-        class DayRangeSelect(Select):
-            def __init__(inner):
-                super().__init__(
-                    placeholder="Plage de jours",
-                    options=[
-                        discord.SelectOption(label="Jours 1-15", value="1-15"),
-                        discord.SelectOption(label="Jours 16-31", value="16-31"),
-                    ]
-                )
-
-            async def callback(inner, interaction: discord.Interaction):
-                self.selected["day_range"] = inner.values[0]
-                await interaction.response.edit_message(
-                    content=f"🗓️ {self.selected['year']}-{self.selected['month']} — Plage : **{inner.values[0]}**",
-                    view=DateStepView(self.bot, self.ctx, self.selected, step="day")
-                )
-
-        return DayRangeSelect()
-
-    def _make_day_select(self, days):
-        class DaySelect(Select):
-            def __init__(inner):
-                super().__init__(
-                    placeholder="Choisis un jour",
-                    options=[discord.SelectOption(label=str(d), value=str(d)) for d in days]
-                )
-
-            async def callback(inner, interaction: discord.Interaction):
-                self.selected["day"] = int(inner.values[0])
-                await interaction.response.edit_message(
-                    content=f"🗓️ {self.selected['year']}-{self.selected['month']}-{self.selected['day']}",
-                    view=DateStepView(self.bot, self.ctx, self.selected, step="hour")
-                )
-
-        return DaySelect()
-
-    def _make_hour_select(self, hours):
-        class HourSelect(Select):
-            def __init__(inner):
-                super().__init__(
-                    placeholder="Choisis une heure (24h)",
-                    options=[discord.SelectOption(label=h, value=h) for h in hours]
-                )
-
-            async def callback(inner, interaction: discord.Interaction):
-                self.selected["hour"] = int(inner.values[0])
-
-                dt = datetime(
-                    self.selected["year"],
-                    self.selected["month"],
-                    self.selected["day"],
-                    self.selected["hour"]
-                )
-
-                supabase.table("tournoi_info").upsert({
-                    "id": 1,
-                    "prochaine_date": dt.isoformat()
-                }).execute()
-
-                await interaction.response.edit_message(
-                    content=f"✅ Date mise à jour : **{dt.strftime('%d/%m/%Y %Hh')}**",
-                    view=None
-                )
-
-        return HourSelect()
+        await interaction.response.send_message(
+            "✅ **Tournoi mis à jour avec succès**",
+            ephemeral=True
+        )
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎮 UI — Bouton pour supprimer la date
+# 🎛️ UI — Boutons Embed
 # ────────────────────────────────────────────────────────────────────────────────
-class DeleteDateButton(Button):
-    def __init__(self, ctx):
-        super().__init__(label="Supprimer la date", style=discord.ButtonStyle.danger, emoji="🗑️")
-        self.ctx = ctx
+class TournoiDateView(View):
+    def __init__(self, has_date: bool):
+        super().__init__(timeout=180)
+        self.add_item(EditDateButton())
+        if has_date:
+            self.add_item(DeleteDateButton())
+
+
+class EditDateButton(Button):
+    def __init__(self):
+        super().__init__(
+            label="Ajouter / Modifier",
+            style=discord.ButtonStyle.primary,
+            emoji="✏️"
+        )
 
     async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.ctx.author.id:
-            return await interaction.response.send_message(
-                "❌ Action non autorisée.",
-                ephemeral=True
-            )
+        await interaction.response.send_modal(TournoiDateModal())
 
+
+class DeleteDateButton(Button):
+    def __init__(self):
+        super().__init__(
+            label="Supprimer",
+            style=discord.ButtonStyle.danger,
+            emoji="🗑️"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
         supabase.table("tournoi_info").update(
-            {"prochaine_date": None}
+            {"prochaine_date": None, "lieu": None}
         ).eq("id", 1).execute()
 
-        await interaction.response.edit_message(
-            content="🗑️ La date du tournoi a été supprimée.",
-            view=None
+        await interaction.response.send_message(
+            "🗑️ **La date du tournoi a été supprimée.**",
+            ephemeral=True
         )
 
 
@@ -209,7 +112,7 @@ class DeleteDateButton(Button):
 # ────────────────────────────────────────────────────────────────────────────────
 class TournoiDate(commands.Cog):
     """
-    Commande !tournoidate — Permet à un modérateur de définir la date du tournoi.
+    Commande !tournoidate — Affiche et gère la date du tournoi.
     """
 
     def __init__(self, bot: commands.Bot):
@@ -218,17 +121,37 @@ class TournoiDate(commands.Cog):
     @commands.command(
         name="tournoidate",
         aliases=["settournoi"],
-        help="(Admin) 🛠️ Change la date du prochain tournoi VAACT.",
-        description="Permet de sélectionner année/mois/jour/heure via menus déroulants."
+        help="(Admin) 🛠️ Gérer la date du tournoi VAACT.",
+        description="Affiche la date actuelle et permet de l'ajouter, modifier ou supprimer."
     )
     @commands.has_permissions(administrator=True)
-    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
     async def tournoidate(self, ctx: commands.Context):
-        try:
-            view = DateStepView(self.bot, ctx)
-            await safe_send(ctx, "🗓️ Choisis la date du tournoi ou supprime-la :", view=view)
-        except Exception as e:
-            await safe_send(ctx, f"❌ Une erreur est survenue : `{e}`")
+        data = supabase.table("tournoi_info").select("*").eq("id", 1).execute().data
+        info = data[0] if data else None
+
+        embed = discord.Embed(
+            title="🏆 Tournoi VAACT",
+            color=discord.Color.blurple()
+        )
+
+        if info and info.get("prochaine_date"):
+            dt = datetime.fromisoformat(info["prochaine_date"])
+            embed.add_field(
+                name="📅 Date",
+                value=dt.strftime("%d/%m/%Y à %Hh%M"),
+                inline=False
+            )
+            embed.add_field(
+                name="📍 Lieu",
+                value=info.get("lieu") or "Non précisé",
+                inline=False
+            )
+            view = TournoiDateView(has_date=True)
+        else:
+            embed.description = "❌ **Aucun tournoi programmé pour le moment.**"
+            view = TournoiDateView(has_date=False)
+
+        await safe_send(ctx, embed=embed, view=view)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
