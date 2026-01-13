@@ -14,7 +14,7 @@ Il permet de jouer à des mini-jeux, consulter des cartes.
 La liste complète des commandes est disponible dans :  
 [docs/Liste_des_Commandes.md](docs/Liste_des_Commandes.md)
 
-## ⚙️ Installation
+# ⚙️ Installation
 
 Ben avoir un bot discord et genre installer les requirements et python bot.py un truc du genre
 
