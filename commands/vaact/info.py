@@ -61,8 +61,7 @@ class Vaact(commands.Cog):
             title="🎴 Le VAACT — Tournoi animé Yu-Gi-Oh!",
             description=(
                 "**Marre de la méta et des cartes hors de prix ?** 😭\n"
-                "Le **VAACT** est un tournoi Yu-Gi-Oh! basé sur l’animé,\n"
-                "avec des **Decks de personnages pré-construits** ✨"
+                "Pourquoi ne pas essayer le VAACT ? ✨"
             ),
             color=discord.Color.gold()
         )
@@ -70,9 +69,9 @@ class Vaact(commands.Cog):
         embed.add_field(
             name="🃏 Concept",
             value=(
-                "• Decks des **personnages de l’animé**\n"
-                "• **Decks prêtés**, aucun achat requis\n"
-                "• Fun, accessible et fidèle à l’animé 👌"
+                "• Le VAACT (tournoi animé Yu-Gi-Oh!) est un tournoi Yu-Gi-Oh avec des decks inspirés de ceux des **personnages de l’animé**\n"
+                "• Les **Decks sont déjà construits et prêtés** le temps du tournoi, pas de panique !\n"
+                "• C'est fun, accessible et fidèle à l’animé 👌"
             ),
             inline=False
         )
@@ -80,10 +79,20 @@ class Vaact(commands.Cog):
         embed.add_field(
             name="📍 Infos pratiques",
             value=(
-                "👥 **16 joueurs max**\n"
-                "🗓️ Tous les **3 vendredis à 19h**\n"
-                "📌 Ludotrotteur Nantes\n"
-                "💸 **Entrée à prix libre**"
+                "👥 **16 joueurs max** (premier arrivé premier servi)\n"
+                "🗓️ Tournoi tous les **3 vendredis à 19h**\n"
+                "📌 Au Ludotrotteur de Nantes (sauf imprévu)\n"
+                "💸 **Entrée à prix libre** (Mais au moins 5€ ce serait sympa)"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="📍 Comment s'inscrire",
+            value=(
+                "🗒️ Choisir un deck libre parmi la liste des decks (et vérifier si il reste des places disponibles)\n"
+                "✉️ Envoyer un DM sur le compte Instagram du tournoi et attendre la confirmtion de votre inscription.\n"
+                "⚠️ ATTENTION : il faut utiliser de façon **RESPECTUEUSE** les decks fournis. Une carte endommagée = une carte que vous devrez remplacer."
             ),
             inline=False
         )
