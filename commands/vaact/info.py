@@ -1,43 +1,73 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 vaact.py — Commande interactive !vaact
+# 📌 vaact.py — Commande simple /vaact et !vaact
 # Objectif : Présentation du tournoi animé Yu-Gi-Oh! VAACT
-# Catégorie : Yu-Gi-Oh
-# Accès : Public
+# Catégorie : VAACT
+# Accès : Tous
+# Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_respond  # ✅ Utilitaires sécurisés
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Vaact(commands.Cog):
     """
-    Commande !vaact — Informations sur le tournoi animé Yu-Gi-Oh!
+    Commande /vaact et !vaact — Informations sur le tournoi animé Yu-Gi-Oh!
     """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="vaact",
+        description="Affiche toutes les informations du tournoi VAACT."
+    )
+    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
+    async def slash_vaact(self, interaction: discord.Interaction):
+        """Commande slash d'information VAACT."""
+
+        embed = self._build_embed()
+        await safe_respond(interaction, embed=embed)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
         name="vaact",
+        aliases = ["info"],
         help="Présentation du tournoi animé Yu-Gi-Oh! (VAACT).",
         description="Affiche toutes les informations du tournoi VAACT."
     )
-    async def vaact(self, ctx: commands.Context):
-        """Commande principale d'information VAACT."""
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_vaact(self, ctx: commands.Context):
+        """Commande préfixe d'information VAACT."""
+
+        embed = self._build_embed()
+        await safe_send(ctx.channel, embed=embed)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Embed builder
+    # ────────────────────────────────────────────────────────────────────────────
+    def _build_embed(self) -> discord.Embed:
+        """Construit l'embed VAACT."""
 
         embed = discord.Embed(
             title="🎴 **Le VAACT (Tournoi animé Yu-Gi-Oh!)**",
             description=(
-                "**Marre de la méta ?**\n"
-                "De jouer les mêmes matchs miroirs ?\n"
+                "**Le VAACT c'est quoi ?**\n"
+                "Marre de la méta ? De jouer les mêmes matchs miroirs ?\n"
                 "De ne pas pouvoir jouer car les cartes coûtent trop cher ? 😭\n\n"
-                "✨ Je vous présente mon projet de **tournoi animé Yu-Gi-Oh!**"
+                "✨ Découvrez le **tournoi animé Yu-Gi-Oh! VAACT**"
             ),
             color=discord.Color.gold()
         )
@@ -48,7 +78,7 @@ class Vaact(commands.Cog):
                 "● Jouez avec les **Decks de vos personnages préférés**\n"
                 "issus des **6 séries Yu-Gi-Oh!**\n"
                 "● Pas de Deck animé ? Aucun souci :\n"
-                "les Decks sont **pré-construits** par mes soins,\n"
+                "les Decks sont **pré-construits**\n"
                 "fidèles à l’animé pour une expérience unique 👌"
             ),
             inline=False
@@ -57,11 +87,11 @@ class Vaact(commands.Cog):
         embed.add_field(
             name="✍️ Participation",
             value=(
-                "✅ Pré-inscription par **MP** avec le Deck choisi\n"
+                "✅ Pré-inscription sur Instagram avec le Deck choisi\n"
                 "📋 Liste des Decks disponibles :\n"
                 "https://docs.google.com/spreadsheets/d/1ifAWeG16Q-wULckgOVOBpsjgYJ25k-9gtQYtivYBCtI/edit#gid=0\n\n"
                 "❌ Pas besoin de cartes\n"
-                "💸 **Entrée à prix libre**"
+                "💸 **Entrée à prix libre** (mais 5€ au moins ce serait sympa)"
             ),
             inline=False
         )
@@ -101,7 +131,7 @@ class Vaact(commands.Cog):
             text="Duellistes de tous bords, c’est l’heure du Duel ! ⚡"
         )
 
-        await safe_send(ctx.channel, embed=embed)
+        return embed
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
@@ -110,5 +140,5 @@ async def setup(bot: commands.Bot):
     cog = Vaact(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Yu-Gi-Oh"
+            command.category = "VAACT"
     await bot.add_cog(cog)
