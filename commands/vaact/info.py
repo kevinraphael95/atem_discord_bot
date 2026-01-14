@@ -12,7 +12,8 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from utils.discord_utils import safe_send, safe_respond  # ✅ Utilitaires sécurisés
+from discord.ui import View, Button
+from utils.discord_utils import safe_send, safe_respond
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -30,44 +31,38 @@ class Vaact(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="vaact",
-        description="Affiche toutes les informations du tournoi VAACT."
+        description="Présentation rapide du tournoi animé Yu-Gi-Oh! VAACT."
     )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_vaact(self, interaction: discord.Interaction):
-        """Commande slash d'information VAACT."""
-
         embed = self._build_embed()
-        await safe_respond(interaction, embed=embed)
+        view = VaactLinksView()
+        await safe_respond(interaction, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
         name="vaact",
-        aliases = ["info"],
-        help="Présentation du tournoi animé Yu-Gi-Oh! (VAACT).",
-        description="Affiche toutes les informations du tournoi VAACT."
+        aliases=["info"],
+        help="Présentation rapide du tournoi animé Yu-Gi-Oh! VAACT."
     )
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_vaact(self, ctx: commands.Context):
-        """Commande préfixe d'information VAACT."""
-
         embed = self._build_embed()
-        await safe_send(ctx.channel, embed=embed)
+        view = VaactLinksView()
+        await safe_send(ctx.channel, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Embed builder
     # ────────────────────────────────────────────────────────────────────────────
     def _build_embed(self) -> discord.Embed:
-        """Construit l'embed VAACT."""
-
         embed = discord.Embed(
-            title="🎴 **Le VAACT (Tournoi animé Yu-Gi-Oh!)**",
+            title="🎴 Le VAACT — Tournoi animé Yu-Gi-Oh!",
             description=(
-                "**Le VAACT c'est quoi ?**\n"
-                "Marre de la méta ? De jouer les mêmes matchs miroirs ?\n"
-                "De ne pas pouvoir jouer car les cartes coûtent trop cher ? 😭\n"
-                "✨ Découvrez le **tournoi animé Yu-Gi-Oh! VAACT**"
+                "**Marre de la méta et des cartes hors de prix ?** 😭\n"
+                "Le **VAACT** est un tournoi Yu-Gi-Oh! basé sur l’animé,\n"
+                "avec des **Decks de personnages pré-construits** ✨"
             ),
             color=discord.Color.gold()
         )
@@ -75,62 +70,52 @@ class Vaact(commands.Cog):
         embed.add_field(
             name="🃏 Concept",
             value=(
-                "● Jouez avec les **Decks de vos personnages préférés**\n"
-                "issus des **6 séries Yu-Gi-Oh!**\n"
-                "● Les decks sont **pré-construits** et prétés le temps du tournoi donc pas de panique !\n"
-                "Les decks sont fidèles à l’animé pour une expérience unique 👌"
+                "• Decks des **personnages de l’animé**\n"
+                "• **Decks prêtés**, aucun achat requis\n"
+                "• Fun, accessible et fidèle à l’animé 👌"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="✍️ Participation",
+            name="📍 Infos pratiques",
             value=(
-                "✅ La Pré-inscription se fait sur Instagram en DM avec le Deck choisi\n"
-                "📋 Liste des Decks disponibles :\n"
-                "https://docs.google.com/spreadsheets/d/1ifAWeG16Q-wULckgOVOBpsjgYJ25k-9gtQYtivYBCtI/edit#gid=0\n\n"
-                "❌ Pas besoin de cartes\n"
-                "💸 **Entrée à prix libre** (mais 5€ au moins ce serait sympa)"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="👥 Places",
-            value="Jusqu’à **16 joueurs** — premier arrivé, premier servi 🚤",
-            inline=False
-        )
-
-        embed.add_field(
-            name="📍 Lieu & horaires",
-            value=(
-                "**Ludotrotteur Nantes**\n"
-                "11 rue du Printemps, Orvault\n\n"
-                "🚌 Tram L2, Bus C2, etc.\n"
-                "🗓️ **Tous les 3 vendredis à 19h**\n"
-                "⏰ Pré-inscriptions : **1 semaine avant**"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="🏆 Récompenses",
-            value=(
-                "📅 Saison de **6 mois** avec système de points\n\n"
-                "🥇 Vainqueur de la saison :\n"
-                "• Une **display** 🎴\n"
-                "• OU un **playmat / sleeves custom** 😌\n\n"
-                "🎁 **Boosters** à gagner à chaque tournoi\n"
-                "(selon les inscriptions 💰)"
+                "👥 **16 joueurs max**\n"
+                "🗓️ Tous les **3 vendredis à 19h**\n"
+                "📌 Ludotrotteur Nantes\n"
+                "💸 **Entrée à prix libre**"
             ),
             inline=False
         )
 
         embed.set_footer(
-            text="Duellistes de tous bords, c’est l’heure du Duel ! ⚡"
+            text="Pré-inscription en DM Instagram — premier arrivé, premier servi ⚡"
         )
 
         return embed
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔗 View — Boutons liens
+# ────────────────────────────────────────────────────────────────────────────────
+class VaactLinksView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+        self.add_item(
+            Button(
+                label="📋 Liste des Decks",
+                style=discord.ButtonStyle.link,
+                url="https://docs.google.com/spreadsheets/d/1ifAWeG16Q-wULckgOVOBpsjgYJ25k-9gtQYtivYBCtI/edit#gid=0"
+            )
+        )
+
+        self.add_item(
+            Button(
+                label="📸 Instagram VAACT",
+                style=discord.ButtonStyle.link,
+                url="https://www.instagram.com/vaactyugioh"
+            )
+        )
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
