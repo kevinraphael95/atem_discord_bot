@@ -66,7 +66,7 @@ class Vaact(commands.Cog):
             description=(
                 "**Le VAACT c'est quoi ?**\n"
                 "Marre de la méta ? De jouer les mêmes matchs miroirs ?\n"
-                "De ne pas pouvoir jouer car les cartes coûtent trop cher ? 😭\n\n"
+                "De ne pas pouvoir jouer car les cartes coûtent trop cher ? 😭\n"
                 "✨ Découvrez le **tournoi animé Yu-Gi-Oh! VAACT**"
             ),
             color=discord.Color.gold()
@@ -77,9 +77,8 @@ class Vaact(commands.Cog):
             value=(
                 "● Jouez avec les **Decks de vos personnages préférés**\n"
                 "issus des **6 séries Yu-Gi-Oh!**\n"
-                "● Pas de Deck animé ? Aucun souci :\n"
-                "les Decks sont **pré-construits**\n"
-                "fidèles à l’animé pour une expérience unique 👌"
+                "● Les decks sont **pré-construits** et prétés le temps du tournoi donc pas de panique !\n"
+                "Les decks sont fidèles à l’animé pour une expérience unique 👌"
             ),
             inline=False
         )
@@ -87,7 +86,7 @@ class Vaact(commands.Cog):
         embed.add_field(
             name="✍️ Participation",
             value=(
-                "✅ Pré-inscription sur Instagram avec le Deck choisi\n"
+                "✅ La Pré-inscription se fait sur Instagram en DM avec le Deck choisi\n"
                 "📋 Liste des Decks disponibles :\n"
                 "https://docs.google.com/spreadsheets/d/1ifAWeG16Q-wULckgOVOBpsjgYJ25k-9gtQYtivYBCtI/edit#gid=0\n\n"
                 "❌ Pas besoin de cartes\n"
