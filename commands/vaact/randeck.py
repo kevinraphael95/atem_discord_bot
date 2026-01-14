@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 randeck.py — Commande interactive !randeck
-# Objectif : Tirer un deck custom aléatoire à jouer
+# Objectif : Tirer un deck custom aléatoire à jouer avec boutons pour tous les liens
 # Catégorie : VAACT
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ def load_data():
 # ────────────────────────────────────────────────────────────────────────────────
 class Randeck(commands.Cog):
     """
-    Commande !randeck — Tire un deck aléatoire à jouer
+    Commande !randeck — Tire un deck aléatoire et affiche tous les liens avec des boutons
     """
 
     def __init__(self, bot: commands.Bot):
@@ -39,39 +39,28 @@ class Randeck(commands.Cog):
         name="randeck",
         aliases=["deckroulette"],
         help="Tire un deck custom aléatoire à jouer.",
-        description="Choisis un deck aléatoire parmi tous les decks custom enregistrés."
+        description="Choisit un deck aléatoire et affiche tous les liens disponibles avec des boutons."
     )
     async def randeck(self, ctx: commands.Context):
-        """Commande principale pour afficher un deck random."""
         try:
             data = load_data()
             decks = []
 
+            # Construire une liste de (saison, personnage, niveau, dict liens)
             for saison, persos in data.items():
                 for duelliste, infos in persos.items():
                     deck_data = infos.get("deck", {})
-
                     if not isinstance(deck_data, dict):
                         continue
-
-                    # On prend uniquement le premier lien rencontré, quel que soit le niveau
-                    found = False
-                    for niveau, contenus in deck_data.items():
-                        if isinstance(contenus, dict):
-                            for lien in contenus.values():
-                                decks.append((saison, duelliste, niveau, lien))
-                                found = True
-                                break
-                        elif isinstance(contenus, str):
-                            decks.append((saison, duelliste, niveau, contenus))
-                            found = True
-                        if found:
-                            break  # on s'arrête après le premier lien
+                    for niveau, liens in deck_data.items():
+                        if isinstance(liens, dict) and liens:
+                            decks.append((saison, duelliste, niveau, liens))
 
             if not decks:
                 return await safe_send(ctx, "❌ Aucun deck n'est disponible.")
 
-            saison, duelliste, niveau, lien = random.choice(decks)
+            # Tirage aléatoire
+            saison, duelliste, niveau, liens_dict = random.choice(decks)
 
             # ─ Embed stylé ─
             embed = discord.Embed(
@@ -83,15 +72,23 @@ class Randeck(commands.Cog):
                 value=f"**{duelliste}** *(Saison : {saison})*",
                 inline=False
             )
-            embed.add_field(name="🎚️ Niveau", value=niveau, inline=False)
-            embed.add_field(name="🔗 Deck", value=lien, inline=False)
+            embed.add_field(
+                name="🎚️ Niveau",
+                value=niveau,
+                inline=False
+            )
+
+            # ── Création des boutons pour tous les liens ──
+            view = discord.ui.View()
+            for nom, url in liens_dict.items():
+                view.add_item(discord.ui.Button(label=nom, url=url))
 
             embed.set_footer(
                 text=f"Tiré par {ctx.author.display_name}",
                 icon_url=ctx.author.display_avatar.url
             )
 
-            await safe_send(ctx.channel, embed=embed)
+            await safe_send(ctx.channel, embed=embed, view=view)
 
         except Exception as e:
             print(f"[ERREUR randeck] {e}")
