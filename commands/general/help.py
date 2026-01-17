@@ -63,6 +63,14 @@ class HelpView(View):
         embed.set_footer(text=f"{self.prefix}help <commande> pour plus de détails")
         return embed
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # ⏱️ À l’expiration de la View → griser tous les boutons
+    # ────────────────────────────────────────────────────────────────────────────
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # ⏮️ Bouton précédent
 # ────────────────────────────────────────────────────────────────────────────────
