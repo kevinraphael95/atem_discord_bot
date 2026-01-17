@@ -32,6 +32,8 @@ class HelpView(View):
         self.per_page = 8
         self.total_pages = max(1, math.ceil(len(self.commands) / self.per_page))
 
+        self.message = None  # ← référence au message
+
         # Boutons pagination
         self.add_item(PrevButton(self))
         self.add_item(NextButton(self))
@@ -69,6 +71,9 @@ class HelpView(View):
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True
+
+        if self.message:
+            await safe_edit(self.message, view=self)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -196,11 +201,12 @@ class HelpCommand(commands.Cog):
 
         # 📂 Vue par défaut : Général
         view = HelpView(self.bot, categories, prefix, category="Général")
-        await safe_send(
+        message = await safe_send(
             ctx.channel,
             embed=view.build_embed(),
             view=view
         )
+        view.message = message  # ← lien View ↔ Message
 
     def cog_load(self):
         self.help_func.category = "Général"
