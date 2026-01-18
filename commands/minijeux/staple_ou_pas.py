@@ -49,7 +49,7 @@ if "default" not in TYPE_COLOR:
 STAPLES_API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧩 Helpers visuels (repris de carte.py)
+# 🧩 Helpers visuels
 # ────────────────────────────────────────────────────────────────────────────────
 def translate_card_type(type_str: str) -> str:
     if not type_str:
@@ -126,10 +126,11 @@ class GuessView(discord.ui.View):
 class StapleOuPas(commands.Cog):
     """Commande /staple_ou_pas et !staple_ou_pas — Devine si la carte est une staple ou pas"""
     def __init__(self, bot: commands.Bot):
-        self.bot = bot  # On utilise la session globale du bot
+        self.bot = bot
+        self.session = bot.aiohttp_session  # ✅ session globale du bot
 
     async def get_random_staple(self):
-        async with self.bot.session.get(STAPLES_API) as resp:
+        async with self.session.get(STAPLES_API) as resp:
             if resp.status != 200:
                 return None
             data = await resp.json()
@@ -137,10 +138,9 @@ class StapleOuPas(commands.Cog):
             return random.choice(cards) if cards else None
 
     async def get_random_card(self):
-        """Récupère une carte aléatoire en FR (fallback anglais → traduit en FR si possible)."""
         card, lang = await fetch_random_card()
         if card and lang == "en":
-            async with self.bot.session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card['id']}&language=fr") as resp:
+            async with self.session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card['id']}&language=fr") as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if "data" in data and len(data["data"]) > 0:
