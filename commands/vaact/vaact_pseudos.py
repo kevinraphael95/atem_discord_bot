@@ -13,10 +13,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button, Modal, TextInput
-import csv
-import io
+import json
 import os
-import requests
 
 from utils.discord_utils import safe_send, safe_respond
 from utils.supabase_client import supabase
@@ -30,29 +28,19 @@ class VaactPseudo(commands.Cog):
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        # Charger le JSON des pseudos une fois au démarrage
+        json_path = os.path.join("data", "vaact_pseudos.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            self.all_pseudos = json.load(f)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔗 Récupération des pseudos depuis Google Sheets
+    # 🔗 Récupération des pseudos disponibles
     # ────────────────────────────────────────────────────────────────────────────
     def get_vaact_pseudos(self) -> list[str]:
-        """Récupère tous les pseudos VAACT depuis la colonne C (Joueur) uniquement"""
-        url = os.getenv("VAACT_CLASSEMENT_SHEET")
-        response = requests.get(url)
-        response.raise_for_status()
-
-        pseudos = set()
-        reader = csv.reader(io.StringIO(response.text), delimiter="\t")
-        for row in reader:
-            if len(row) >= 3:
-                joueur = row[2].strip()  # colonne C (index 2)
-                if joueur:
-                    pseudos.add(joueur)
-
-        # Supprimer les pseudos déjà pris dans Supabase
+        """Retourne la liste des pseudos disponibles (non pris)"""
         taken = supabase.table("profil").select("vaact_name").execute().data
         taken_set = set(item["vaact_name"] for item in taken if item["vaact_name"] != "Non défini")
-
-        available = sorted(pseudos - taken_set, key=str.lower)
+        available = sorted([p for p in self.all_pseudos if p not in taken_set], key=str.lower)
         return available
 
     # ────────────────────────────────────────────────────────────────────────────
