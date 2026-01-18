@@ -97,18 +97,21 @@ class VaactPseudo(commands.Cog):
         async def choose_button(self, interaction: discord.Interaction, button: Button):
             await interaction.response.send_modal(VaactPseudo.PseudoModal(self.cog))
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Embed des pseudos
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────────
+    # 🔹 Embed des pseudos ultra-compact
+    # ────────────────────────────────────────────────────────────────────────────────
     def create_pseudos_embed(self) -> discord.Embed:
-        """Crée un embed listant tous les pseudos du JSON"""
+        """Crée un embed listant tous les pseudos du JSON sur une seule ligne"""
+        description = ", ".join(self.all_pseudos)  # tous les pseudos séparés par des virgules
+    
         embed = discord.Embed(
             title="Liste des pseudos VAACT officiels",
-            description="\n".join(self.all_pseudos),
+            description=description,
             color=discord.Color.blurple()
         )
         embed.set_footer(text="Tape ton pseudo exactement comme dans la liste ci-dessus.")
         return embed
+
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
