@@ -89,8 +89,11 @@ async def fetch_archetype_cards(session, archetype):
 async def update_streak(user_id: str, correct: bool, bot=None):
     username = f"ID {user_id}"
     if bot:
-        try: user = await bot.fetch_user(int(user_id)); username = user.name if user else username
-        except: pass
+        try:
+            user = await bot.fetch_user(int(user_id))
+            username = user.name if user else username
+        except:
+            pass
 
     row = supabase.table("profil").select("*").eq("user_id", user_id).execute().data
     current = row[0]["current_streak"] if row else 0
@@ -118,7 +121,6 @@ class DevineLaDescription(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_sessions = {}  # guild_id → quiz en cours
-        self.session = bot.aiohttp_session
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 View & Buttons
@@ -134,8 +136,10 @@ class DevineLaDescription(commands.Cog):
                 self.add_item(DevineLaDescription.QuizButton(label=name, idx=idx, parent_view=self))
 
         async def on_timeout(self):
-            for child in self.children: child.disabled = True
-            if hasattr(self,"message"): await safe_edit(self.message, view=self)
+            for child in self.children:
+                child.disabled = True
+            if hasattr(self,"message"):
+                await safe_edit(self.message, view=self)
 
     class QuizButton(Button):
         def __init__(self, label, idx, parent_view):
@@ -151,7 +155,10 @@ class DevineLaDescription(commands.Cog):
                     self.parent_view.choices[self.idx] == self.parent_view.main_name,
                     bot=self.parent_view.bot
                 )
-            await interaction.response.send_message(f"✅ Réponse enregistrée : **{self.label}**", ephemeral=True)
+            await interaction.response.send_message(
+                f"✅ Réponse enregistrée : **{self.label}**",
+                ephemeral=True
+            )
 
     # ────────────────────────────────────────────────────────────────────────────
     # 💬 Commande principale
@@ -168,11 +175,13 @@ class DevineLaDescription(commands.Cog):
         if self.active_sessions.get(guild_id):
             return await safe_reply(ctx,"⚠️ Un quiz est déjà en cours.",mention_author=False)
         self.active_sessions[guild_id] = True
+
         try:
-            cards = await fetch_cards(self.session)
+            session = self.bot.aiohttp_session
+
+            cards = await fetch_cards(session)
             main_card = next((c for c in cards if "desc" in c and is_clean_card(c)), None)
             if not main_card:
-                self.active_sessions[guild_id] = None
                 return await safe_send(ctx,"❌ Aucune carte valide trouvée.")
 
             main_name = main_card["name"]
@@ -182,14 +191,23 @@ class DevineLaDescription(commands.Cog):
             type_group = get_type_group(main_type)
 
             if archetype:
-                group = await fetch_archetype_cards(self.session, archetype)
+                group = await fetch_archetype_cards(session, archetype)
                 group = [c for c in group if c.get("name") != main_name and "desc" in c]
             else:
-                group = [c for c in cards if c.get("name")!=main_name and "desc" in c and get_type_group(c.get("type",""))==type_group and is_clean_card(c)]
-                group.sort(key=lambda c: common_word_score(main_name,c["name"])+similarity_ratio(main_name,c["name"]), reverse=True)
+                group = [
+                    c for c in cards
+                    if c.get("name") != main_name
+                    and "desc" in c
+                    and get_type_group(c.get("type","")) == type_group
+                    and is_clean_card(c)
+                ]
+                group.sort(
+                    key=lambda c: common_word_score(main_name,c["name"])
+                    + similarity_ratio(main_name,c["name"]),
+                    reverse=True
+                )
 
             if len(group) < 3:
-                self.active_sessions[guild_id] = None
                 return await safe_send(ctx,"❌ Pas assez de fausses cartes valides.")
 
             wrongs = random.sample(group,3)
@@ -212,10 +230,21 @@ class DevineLaDescription(commands.Cog):
             view.message = await safe_send(ctx,embed=embed,view=view)
             await view.wait()
 
-            winners = [self.bot.get_user(uid) for uid,idx in view.answers.items() if choices[idx]==main_name]
+            winners = [
+                self.bot.get_user(uid)
+                for uid,idx in view.answers.items()
+                if choices[idx]==main_name
+            ]
+
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
-                description=f"✅ Réponse : **{main_name}**\n"+(f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}" if winners else "😢 Personne n'a trouvé..."),
+                description=(
+                    f"✅ Réponse : **{main_name}**\n"
+                    + (
+                        f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}"
+                        if winners else "😢 Personne n'a trouvé..."
+                    )
+                ),
                 color=discord.Color.green() if winners else discord.Color.red()
             )
             await safe_send(ctx,embed=result_embed)
@@ -236,22 +265,39 @@ class DevineLaDescription(commands.Cog):
             if resp.data:
                 cur = resp.data[0].get("current_streak",0)
                 best = resp.data[0].get("best_streak",0)
-                embed = discord.Embed(title=f"🔥 Série de {ctx.author.display_name}", color=discord.Color.blurple())
+                embed = discord.Embed(
+                    title=f"🔥 Série de {ctx.author.display_name}",
+                    color=discord.Color.blurple()
+                )
                 embed.add_field(name="Série actuelle", value=f"**{cur}**", inline=False)
                 embed.add_field(name="Record absolu", value=f"**{best}**", inline=False)
                 await safe_send(ctx,embed=embed)
             else:
-                await safe_send(ctx,embed=discord.Embed(title="📉 Pas encore de série",description="Lance `!devineladescription` pour démarrer ta série !",color=discord.Color.red()))
+                await safe_send(
+                    ctx,
+                    embed=discord.Embed(
+                        title="📉 Pas encore de série",
+                        description="Lance `!devineladescription` pour démarrer ta série !",
+                        color=discord.Color.red()
+                    )
+                )
         except Exception:
             await safe_send(ctx,"🚨 Erreur lors de la récupération de ta série.")
 
     @devineladescription.command(name="top",aliases=["t"])
     async def devineladescription_top(self,ctx:commands.Context):
         try:
-            resp = supabase.table("profil").select("user_id,best_streak").gt("best_streak",0).order("best_streak",desc=True).limit(10).execute()
+            resp = supabase.table("profil") \
+                .select("user_id,best_streak") \
+                .gt("best_streak",0) \
+                .order("best_streak",desc=True) \
+                .limit(10) \
+                .execute()
+
             data = resp.data
             if not data:
                 return await safe_send(ctx,"📉 Aucun streak enregistré.")
+
             lines=[]
             for i,row in enumerate(data,start=1):
                 uid=row.get("user_id")
@@ -260,7 +306,12 @@ class DevineLaDescription(commands.Cog):
                 name = user.name if user else f"ID {uid}"
                 medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i,f"`#{i}`")
                 lines.append(f"{medal} **{name}** – 🔥 {best}")
-            embed=discord.Embed(title="🏆 Top 10 Séries",description="\n".join(lines),color=discord.Color.gold())
+
+            embed=discord.Embed(
+                title="🏆 Top 10 Séries",
+                description="\n".join(lines),
+                color=discord.Color.gold()
+            )
             await safe_send(ctx,embed=embed)
         except Exception:
             await safe_send(ctx,"🚨 Erreur lors du classement.")
