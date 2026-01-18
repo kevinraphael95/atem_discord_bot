@@ -11,7 +11,6 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
-import aiohttp
 import random
 from utils.discord_utils import safe_send, safe_edit
 
@@ -27,7 +26,7 @@ def no_dm():
     return commands.check(predicate)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ Vue interactive pour choix sur une carte
+# 🎛️ Vue interactive pour le mini-jeu
 # ────────────────────────────────────────────────────────────────────────────────
 class ChoixCarteView(View):
     def __init__(self, bot, ctx, cartes, index=0, choix_faits=None, choix_restants=None):
@@ -98,9 +97,10 @@ class ChoixButton(Button):
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class BannisOuGarde(commands.Cog):
-    def __init__(self, bot):
+    """Commande !bannisougarde — Mini-jeu pour décider du statut de 3 cartes"""
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.session = bot.aiohttp_session
+        self.session = bot.aiohttp_session  # ✅ Utilise la session globale
 
     async def get_random_cards(self):
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
@@ -109,27 +109,40 @@ class BannisOuGarde(commands.Cog):
             data = await resp.json()
             all_cards = data.get("data", [])
             if len(all_cards) < 3: return None
-            sample = random.sample(all_cards,3)
-            return [{"name":c["name"],"desc":c["desc"],"image":c.get("card_images",[{}])[0].get("image_url")} for c in sample]
+            sample = random.sample(all_cards, 3)
+            return [
+                {"name": c["name"], "desc": c["desc"], "image": c.get("card_images", [{}])[0].get("image_url")}
+                for c in sample
+            ]
 
-    @commands.command(name="bannisougarde",aliases=["bog"],help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.")
+    @commands.command(
+        name="bannisougarde",
+        aliases=["bog"],
+        help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter."
+    )
     @no_dm()
-    async def bannisougarde(self, ctx):
+    async def bannisougarde(self, ctx: commands.Context):
         cartes = await self.get_random_cards()
         if not cartes:
-            return await safe_send(ctx.channel,"❌ Impossible de récupérer les cartes, réessaie plus tard.")
+            return await safe_send(ctx.channel, "❌ Impossible de récupérer les cartes, réessaie plus tard.")
         view = ChoixCarteView(self.bot, ctx, cartes)
         premiere_carte = cartes[0]
-        embed = discord.Embed(title=f"Carte 1 / 3 : {premiere_carte['name']}", description=premiere_carte['desc'][:1000], color=discord.Color.blue())
-        if premiere_carte.get("image"): embed.set_image(url=premiere_carte["image"])
+        embed = discord.Embed(
+            title=f"Carte 1 / 3 : {premiere_carte['name']}",
+            description=premiere_carte['desc'][:1000],
+            color=discord.Color.blue()
+        )
+        if premiere_carte.get("image"):
+            embed.set_image(url=premiere_carte["image"])
         embed.set_footer(text="Choisis le statut de cette carte : 🗑️ Bannir, 🔥 Garder, 👎 Limiter")
         await safe_send(ctx.channel, embed=embed, view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
-async def setup(bot):
+async def setup(bot: commands.Bot):
     cog = BannisOuGarde(bot)
     for command in cog.get_commands():
-        if not hasattr(command,"category"): command.category="Minijeux"
+        if not hasattr(command, "category"):
+            command.category = "Minijeux"
     await bot.add_cog(cog)
