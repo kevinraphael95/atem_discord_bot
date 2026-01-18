@@ -100,7 +100,7 @@ class SaisonSelect(Select):
         self.parent_view.saison = chosen
         self.parent_view.duelliste = None
 
-        duellistes = list(self.parent_view.deck_data.get(chosen, {}).keys())
+        duellistes = sorted(self.parent_view.deck_data.get(chosen, {}).keys())
 
         self.parent_view.duelliste_select.options = [
             discord.SelectOption(label=d, value=d)
@@ -125,7 +125,7 @@ class DuellisteSelect(Select):
     def __init__(self, parent_view: DeckSelectView):
         self.parent_view = parent_view
 
-        duellistes = list(parent_view.deck_data.get(parent_view.saison, {}).keys())
+        duellistes = sorted(parent_view.deck_data.get(parent_view.saison, {}).keys())
         options = [
             discord.SelectOption(label=d, value=d, default=(d == parent_view.duelliste))
             for d in duellistes
@@ -138,7 +138,7 @@ class DuellisteSelect(Select):
         self.parent_view.duelliste = chosen
 
         saison = self.parent_view.saison
-        duellistes = list(self.parent_view.deck_data.get(saison, {}).keys())
+        duellistes = sorted(self.parent_view.deck_data.get(saison, {}).keys())
 
         self.options = [
             discord.SelectOption(label=d, value=d, default=(d == chosen))
