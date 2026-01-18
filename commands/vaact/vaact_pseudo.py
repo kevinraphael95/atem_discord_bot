@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 vaact_pseudo.py — Commande /vaact_pseudo et !vaact_pseudo
-# Objectif : Permet à un utilisateur de choisir son pseudo VAACT officiel
+# Objectif : Permet à un utilisateur de choisir son pseudo VAACT officiel via bouton
 # Catégorie : VAACT
 # Accès : Tous
 # Cooldown : 1 utilisation / 10 secondes / utilisateur
@@ -28,7 +28,7 @@ class VaactPseudo(commands.Cog):
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Charger le JSON des pseudos une fois au démarrage
+        # Charger le JSON des pseudos
         json_path = os.path.join("data", "vaact_pseudos.json")
         with open(json_path, "r", encoding="utf-8") as f:
             self.all_pseudos = json.load(f)
@@ -52,7 +52,7 @@ class VaactPseudo(commands.Cog):
             self.cog = cog
             self.pseudo_input = TextInput(
                 label="Pseudo VAACT",
-                placeholder="Tape ton pseudo exactement comme dans le classement",
+                placeholder="Tape ton pseudo exactement comme dans la liste",
                 max_length=50
             )
             self.add_item(self.pseudo_input)
@@ -61,11 +61,15 @@ class VaactPseudo(commands.Cog):
             pseudo = self.pseudo_input.value.strip()
             available = self.cog.get_vaact_pseudos()
 
+            # Vérification
+            if pseudo not in self.cog.all_pseudos:
+                await safe_respond(interaction, f"❌ Le pseudo `{pseudo}` n'existe pas dans la liste officielle.")
+                return
             if pseudo not in available:
-                await safe_respond(interaction, f"❌ Le pseudo `{pseudo}` n'est pas disponible ou déjà pris.")
+                await safe_respond(interaction, f"❌ Le pseudo `{pseudo}` est déjà pris.")
                 return
 
-            # Enregistrer le pseudo dans Supabase
+            # Enregistrer dans Supabase
             supabase.table("profil").upsert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
@@ -81,7 +85,6 @@ class VaactPseudo(commands.Cog):
         def __init__(self, cog: "VaactPseudo"):
             super().__init__(timeout=None)
             self.cog = cog
-            self.add_item(Button(label="Choisir ton pseudo", style=discord.ButtonStyle.primary, custom_id="vaact_choose"))
 
         @discord.ui.button(label="Choisir ton pseudo", style=discord.ButtonStyle.primary, custom_id="vaact_choose")
         async def choose_button(self, interaction: discord.Interaction, button: Button):
@@ -92,7 +95,7 @@ class VaactPseudo(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="vaact_pseudo",
-        description="Choisis ton pseudo VAACT officiel."
+        description="Choisis ton pseudo VAACT officiel via bouton."
     )
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def slash_vaact_pseudo(self, interaction: discord.Interaction):
