@@ -14,7 +14,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands, tasks
-import aiohttp
 import asyncio
 import random
 import unicodedata
@@ -132,12 +131,11 @@ class Pendu(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.sessions = {}
-        self.http_session = aiohttp.ClientSession()
         self.verif_inactivite.start()
 
-    def cog_unload(self):
-        self.verif_inactivite.cancel()
-
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande principale
+    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
         name="pendu",
         help="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.",
@@ -158,16 +156,18 @@ class Pendu(commands.Cog):
         message = await safe_send(ctx.channel, embed=game.create_embed())
         self.sessions[ctx.channel.id] = PenduSession(game, message, mode=mode, author_id=ctx.author.id)
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Tirage aléatoire d’un mot
+    # ────────────────────────────────────────────────────────────────────────────
     async def _fetch_random_word(self) -> tuple[str | None, str | None, str | None]:
-        """Tire le nom d'une carte Yu-Gi-Oh! (FR) avec indice type/attribut/archétype"""
         try:
-            carte, langue = await fetch_random_card(lang="fr")
+            carte, _ = await fetch_random_card(lang="fr")
             if not carte:
                 raise ValueError("Carte introuvable")
             nom = carte.get("name", "").strip()
             type_raw = carte.get("type", "Inconnu")
-            attr = carte.get("attribute", None)
-            archetype = carte.get("archetype", None)
+            attr = carte.get("attribute")
+            archetype = carte.get("archetype")
             indice = type_raw
             if attr:
                 indice += f" / {attr}"
@@ -189,15 +189,21 @@ class Pendu(commands.Cog):
             ]
             return random.choice(fallback)
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Vérification inactivité
+    # ────────────────────────────────────────────────────────────────────────────
     @tasks.loop(seconds=30)
     async def verif_inactivite(self):
         now = asyncio.get_event_loop().time()
-        a_supprimer = [cid for cid, s in self.sessions.items() if now - s.last_activity > INACTIVITE_MAX]
-        for cid in a_supprimer:
+        to_remove = [cid for cid, s in self.sessions.items() if now - s.last_activity > INACTIVITE_MAX]
+        for cid in to_remove:
             session = self.sessions.pop(cid, None)
             if session:
                 await safe_send(session.message.channel, "⏰ Partie terminée pour inactivité (3 minutes).")
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Gestion des lettres proposées
+    # ────────────────────────────────────────────────────────────────────────────
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
