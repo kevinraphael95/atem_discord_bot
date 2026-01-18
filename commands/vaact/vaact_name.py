@@ -36,15 +36,16 @@ class VaactPseudo(commands.Cog):
     # 🔗 Récupération des pseudos depuis Google Sheets
     # ────────────────────────────────────────────────────────────────────────────
     def get_vaact_pseudos(self) -> list[str]:
-        """Récupère la liste des pseudos VAACT depuis Google Sheet CSV"""
+        """Récupère la liste des pseudos VAACT depuis la colonne 'Joueur' du CSV"""
         url = os.getenv("VAACT_CLASSEMENT_SHEET")
         response = requests.get(url)
         response.raise_for_status()
         pseudos = []
         reader = csv.reader(io.StringIO(response.text))
+        next(reader, None)  # ignore l'en-tête
         for row in reader:
-            if row:
-                pseudos.append(row[0].strip())
+            if len(row) >= 3 and row[2].strip():
+                pseudos.append(row[2].strip())  # 3ᵉ colonne = "Joueur"
         return pseudos
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ class VaactPseudo(commands.Cog):
                 await safe_respond(interaction, f"❌ Le pseudo **{self.values[0]}** est déjà pris.", ephemeral=True)
                 return
 
-            supabase.table("profil").update({"vaact_name": self.values[0]}).eq("id", self.user_id).execute()
+            supabase.table("profil").update({"vaact_name": self.values[0]}).eq("user_id", str(self.user_id)).execute()
             await safe_respond(interaction, f"✅ Votre pseudo VAACT est maintenant **{self.values[0]}** !", ephemeral=True)
             self.view.stop()
 
@@ -89,7 +90,11 @@ class VaactPseudo(commands.Cog):
     async def slash_vaact_pseudo(self, interaction: discord.Interaction):
         """Commande slash pour choisir un pseudo VAACT"""
         pseudos = self.get_vaact_pseudos()
-        taken = [p["vaact_name"] for p in supabase.table("profil").select("vaact_name").execute().data if p["vaact_name"]]
+        taken = [
+            p["vaact_name"]
+            for p in supabase.table("profil").select("vaact_name").execute().data
+            if p["vaact_name"] and p["vaact_name"] != "Non défini"
+        ]
         available = [p for p in pseudos if p not in taken]
         if not available:
             await safe_respond(interaction, "❌ Tous les pseudos sont déjà pris !", ephemeral=True)
@@ -105,7 +110,11 @@ class VaactPseudo(commands.Cog):
     async def prefix_vaact_pseudo(self, ctx: commands.Context):
         """Commande préfixe pour choisir un pseudo VAACT"""
         pseudos = self.get_vaact_pseudos()
-        taken = [p["vaact_name"] for p in supabase.table("profil").select("vaact_name").execute().data if p["vaact_name"]]
+        taken = [
+            p["vaact_name"]
+            for p in supabase.table("profil").select("vaact_name").execute().data
+            if p["vaact_name"] and p["vaact_name"] != "Non défini"
+        ]
         available = [p for p in pseudos if p not in taken]
         if not available:
             await safe_send(ctx.channel, "❌ Tous les pseudos sont déjà pris !")
