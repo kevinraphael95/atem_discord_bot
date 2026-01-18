@@ -14,6 +14,7 @@ from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
 import random
+import asyncio
 import traceback
 
 from utils.supabase_client import supabase
@@ -40,18 +41,25 @@ class IllustrationCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_sessions = {}  # guild_id → message en cours
+        self.session = aiohttp.ClientSession()  # session aiohttp globale pour le cog
+
+    async def cog_unload(self):
+        await self.session.close()  # ferme la session au shutdown
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonctions utilitaires
     # ────────────────────────────────────────────────────────────────────────────
     async def fetch_all_cards(self):
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
+        try:
+            async with self.session.get(url) as resp:
                 if resp.status != 200:
                     return []
                 data = await resp.json()
-        return data.get("data", [])
+            return data.get("data", [])
+        except Exception as e:
+            print(f"[fetch_all_cards ERROR] {e}")
+            return []
 
     async def get_similar_cards(self, all_cards, true_card):
         archetype = true_card.get("archetype")
@@ -132,12 +140,16 @@ class IllustrationCommand(commands.Cog):
             view.message = await safe_send(channel, embed=embed, view=view)
             await view.wait()
 
-            # ────────────────────────────────────────────────────────────────────────────────
+            # ────────────────────────────────────────────────────────────────────────────
             # ✅ Mise à jour intelligente des streaks + EXP
-            # ────────────────────────────────────────────────────────────────────────────────
-            for uid, choice in view.answers.items():
-                user = await self.bot.fetch_user(int(uid))
-                username = user.name if user else f"ID {uid}"
+            # ────────────────────────────────────────────────────────────────────────────
+            uids = list(view.answers.keys())
+            users = await asyncio.gather(*[self.bot.fetch_user(int(uid)) for uid in uids], return_exceptions=True)
+
+            for idx, uid in enumerate(uids):
+                user_obj = users[idx]
+                username = user_obj.name if isinstance(user_obj, discord.User) else f"ID {uid}"
+                choice = view.answers[uid]
 
                 resp = supabase.table("profil").select("*").eq("user_id", uid).execute()
                 if resp.data and len(resp.data) > 0:
@@ -166,18 +178,16 @@ class IllustrationCommand(commands.Cog):
                     data["username"] = username
                     supabase.table("profil").upsert(data).execute()
 
-                    # 🔹 Ajouter EXP si record battu
                     if new_best > best:
                         await add_exp_for_streak(uid, new_best)
                 else:
-                    cur = 0
                     data["illu_streak"] = 0
                     data["username"] = username
                     supabase.table("profil").upsert(data).execute()
 
-            # ────────────────────────────────────────────────────────────────────────────────
+            # ────────────────────────────────────────────────────────────────────────────
             # Résultats
-            # ────────────────────────────────────────────────────────────────────────────────
+            # ────────────────────────────────────────────────────────────────────────────
             winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if idx == correct_idx]
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
@@ -221,11 +231,14 @@ class IllustrationCommand(commands.Cog):
                 return await safe_send(ctx, "📉 Aucun streak enregistré.")
 
             lines = []
+            uids = [row.get("user_id") for row in data]
+            users = await asyncio.gather(*[self.bot.fetch_user(int(uid)) for uid in uids], return_exceptions=True)
+
             for i, row in enumerate(data, start=1):
                 uid = row.get("user_id")
+                user_obj = users[i - 1]
+                name = user_obj.name if isinstance(user_obj, discord.User) else f"ID {uid}"
                 best = row.get("best_illustreak", 0)
-                user = await self.bot.fetch_user(int(uid)) if uid else None
-                name = user.name if user else f"ID {uid}"
                 medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"`#{i}`")
                 lines.append(f"{medal} **{name}** – 🔥 {best}")
 
