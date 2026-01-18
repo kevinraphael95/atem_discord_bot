@@ -65,19 +65,16 @@ intents.dm_reactions = True
 bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=None)
 bot.INSTANCE_ID = INSTANCE_ID
 bot.supabase = supabase
+bot.aiohttp_session = None  # sera initialisée plus tard
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🌊 Session aiohttp globale pour tout le bot
+# 🔒 Nettoyage aiohttp
 # ────────────────────────────────────────────────────────────────────────────────
-bot.aiohttp_session = aiohttp.ClientSession()
+async def cleanup_aiohttp():
+    if bot.aiohttp_session and not bot.aiohttp_session.closed:
+        await bot.aiohttp_session.close()
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔒 Nettoyage de la session aiohttp à la fermeture du bot
-# ────────────────────────────────────────────────────────────────────────────────
-def cleanup_aiohttp():
-    asyncio.run(bot.aiohttp_session.close())
-
-atexit.register(cleanup_aiohttp)
+atexit.register(lambda: asyncio.run(cleanup_aiohttp()))
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Chargement dynamique des commandes depuis /commands/*
@@ -109,10 +106,12 @@ async def load_tasks():
                 print(f"❌ Failed to load task {path}: {e}")
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔔 On Ready : présence
+# 🔔 On Ready : présence et création de session aiohttp
 # ────────────────────────────────────────────────────────────────────────────────
 @bot.event
 async def on_ready():
+    if bot.aiohttp_session is None:
+        bot.aiohttp_session = aiohttp.ClientSession()  # ✅ Créée dans le loop
     print(f"✅ Connecté en tant que {bot.user.name}")
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="Duel Monsters"))
 
