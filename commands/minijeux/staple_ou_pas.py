@@ -129,25 +129,25 @@ class StapleOuPas(commands.Cog):
         self.bot = bot
 
     async def get_random_staple(self):
-        # ✅ Utilisation de la session globale du bot
-        session = self.bot.aiohttp_session
-        async with session.get(STAPLES_API) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json()
-            cards = data.get("data", [])
-            return random.choice(cards) if cards else None
+        async with aiohttp.ClientSession() as session:
+            async with session.get(STAPLES_API) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                cards = data.get("data", [])
+                return random.choice(cards) if cards else None
 
     async def get_random_card(self):
         """Récupère une carte aléatoire en FR (fallback anglais → traduit en FR si possible)."""
         card, lang = await fetch_random_card()
         if card and lang == "en":
-            session = self.bot.aiohttp_session  # ✅ Session globale du bot
-            async with session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card['id']}&language=fr") as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if "data" in data and len(data["data"]) > 0:
-                        return data["data"][0]
+            # On retente d’obtenir la version française de cette même carte
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card['id']}&language=fr") as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if "data" in data and len(data["data"]) > 0:
+                            return data["data"][0]
         return card
 
     async def build_card_embed(self, card: dict) -> discord.Embed:
