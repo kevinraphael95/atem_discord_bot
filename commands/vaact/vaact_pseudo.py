@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 vaact_pseudo.py — Commande /vaact_pseudo et !vaact_pseudo
-# Objectif : Permet à un utilisateur de choisir son pseudo VAACT officiel via bouton
+# Objectif : Permet à un utilisateur de choisir son pseudo VAACT officiel via bouton et embed
 # Catégorie : VAACT
 # Accès : Tous
 # Cooldown : 1 utilisation / 10 secondes / utilisateur
@@ -24,22 +24,23 @@ from utils.supabase_client import supabase
 # ────────────────────────────────────────────────────────────────────────────────
 class VaactPseudo(commands.Cog):
     """
-    Commande /vaact_pseudo et !vaact_pseudo — Choix interactif de pseudo VAACT
+    Commande /vaact_pseudo et !vaact_pseudo — Choix interactif de pseudo VAACT avec embed
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         # Charger le JSON des pseudos
         json_path = os.path.join("data", "vaact_pseudos.json")
         with open(json_path, "r", encoding="utf-8") as f:
-            self.all_pseudos = json.load(f)
+            self.all_pseudos = sorted(json.load(f), key=str.lower)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔗 Récupération des pseudos disponibles
     # ────────────────────────────────────────────────────────────────────────────
     def get_vaact_pseudos(self) -> list[str]:
         """Retourne la liste des pseudos disponibles (non pris)"""
-        taken = supabase.table("profil").select("vaact_name").execute().data
-        taken_set = set(item["vaact_name"] for item in taken if item["vaact_name"] != "Non défini")
+        taken = supabase.table("profil").select("user_id", "vaact_name").execute().data
+        self.taken_dict = {item["user_id"]: item["vaact_name"] for item in taken if item["vaact_name"] != "Non défini"}
+        taken_set = set(self.taken_dict.values())
         available = sorted([p for p in self.all_pseudos if p not in taken_set], key=str.lower)
         return available
 
@@ -60,18 +61,24 @@ class VaactPseudo(commands.Cog):
         async def on_submit(self, interaction: discord.Interaction):
             pseudo = self.pseudo_input.value.strip()
             available = self.cog.get_vaact_pseudos()
+            user_id_str = str(interaction.user.id)
 
-            # Vérification
+            # Vérification du pseudo
             if pseudo not in self.cog.all_pseudos:
                 await safe_respond(interaction, f"❌ Le pseudo `{pseudo}` n'existe pas dans la liste officielle.")
                 return
-            if pseudo not in available:
-                await safe_respond(interaction, f"❌ Le pseudo `{pseudo}` est déjà pris.")
+
+            # Si le pseudo est déjà pris
+            if pseudo in self.cog.taken_dict.values():
+                if self.cog.taken_dict.get(user_id_str) == pseudo:
+                    await safe_respond(interaction, f"✅ Tu utilises déjà le pseudo `{pseudo}` !")
+                else:
+                    await safe_respond(interaction, f"❌ Le pseudo `{pseudo}` est déjà pris par un autre joueur.")
                 return
 
             # Enregistrer dans Supabase
             supabase.table("profil").upsert({
-                "user_id": str(interaction.user.id),
+                "user_id": user_id_str,
                 "username": interaction.user.name,
                 "vaact_name": pseudo
             }).execute()
@@ -91,17 +98,32 @@ class VaactPseudo(commands.Cog):
             await interaction.response.send_modal(VaactPseudo.PseudoModal(self.cog))
 
     # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Embed des pseudos
+    # ────────────────────────────────────────────────────────────────────────────
+    def create_pseudos_embed(self) -> discord.Embed:
+        """Crée un embed listant tous les pseudos du JSON"""
+        embed = discord.Embed(
+            title="Liste des pseudos VAACT officiels",
+            description="\n".join(self.all_pseudos),
+            color=discord.Color.blurple()
+        )
+        embed.set_footer(text="Tape ton pseudo exactement comme dans la liste ci-dessus.")
+        return embed
+
+    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="vaact_pseudo",
-        description="Choisis ton pseudo VAACT officiel via bouton."
+        description="Choisis ton pseudo VAACT officiel via bouton et embed."
     )
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def slash_vaact_pseudo(self, interaction: discord.Interaction):
         """Commande slash interactive pour choisir son pseudo VAACT"""
+        self.get_vaact_pseudos()
+        embed = self.create_pseudos_embed()
         view = VaactPseudo.PseudoView(self)
-        await safe_respond(interaction, "Clique sur le bouton pour choisir ton pseudo VAACT :", view=view)
+        await safe_respond(interaction, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
@@ -110,8 +132,10 @@ class VaactPseudo(commands.Cog):
     @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def prefix_vaact_pseudo(self, ctx: commands.Context):
         """Commande préfixe interactive pour choisir son pseudo VAACT"""
+        self.get_vaact_pseudos()
+        embed = self.create_pseudos_embed()
         view = VaactPseudo.PseudoView(self)
-        await safe_send(ctx.channel, "Clique sur le bouton pour choisir ton pseudo VAACT :", view=view)
+        await safe_send(ctx.channel, embed=embed, view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
