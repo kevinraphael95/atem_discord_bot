@@ -36,18 +36,16 @@ class VaactPseudo(commands.Cog):
     # 🔗 Récupération des pseudos depuis Google Sheets
     # ────────────────────────────────────────────────────────────────────────────
     def get_vaact_pseudos(self) -> list[str]:
-        """Récupère tous les pseudos VAACT depuis le CSV et renvoie une liste unique triée"""
+        """Récupère tous les pseudos VAACT depuis la colonne 'Joueur' du CSV"""
         url = os.getenv("VAACT_CLASSEMENT_SHEET")
         response = requests.get(url)
         response.raise_for_status()
         pseudos = set()
-        reader = csv.reader(io.StringIO(response.text))
-        next(reader, None)  # ignore l'en-tête
+        reader = csv.DictReader(io.StringIO(response.text), delimiter="\t")
         for row in reader:
-            for cell in row:
-                cell = cell.strip()
-                if cell and cell != "Joueur":
-                    pseudos.add(cell)
+            joueur = row.get("Joueur", "").strip()
+            if joueur:
+                pseudos.add(joueur)
         return sorted(pseudos, key=str.lower)
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -82,7 +80,7 @@ class VaactPseudo(commands.Cog):
             await safe_respond(interaction, f"✅ Votre pseudo VAACT est maintenant **{pseudo}** !", ephemeral=True)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Vue avec bouton pour entrer le pseudo
+    # 🔹 Vue avec un seul bouton pour entrer le pseudo
     # ────────────────────────────────────────────────────────────────────────────
     class VaactView(View):
         def __init__(self, user_id: int, available_pseudos: list[str]):
@@ -116,7 +114,7 @@ class VaactPseudo(commands.Cog):
             return
         pseudo_list = ", ".join(available[:50]) + ("..." if len(available) > 50 else "")
         view = self.VaactView(interaction.user.id, available)
-        await safe_respond(interaction, f"**Pseudos disponibles :**\n{pseudo_list}", view=view, ephemeral=True)
+        await safe_respond(interaction, f"**Pseudos disponibles (alphabetique) :**\n{pseudo_list}", view=view, ephemeral=True)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
@@ -133,7 +131,7 @@ class VaactPseudo(commands.Cog):
             return
         pseudo_list = ", ".join(available[:50]) + ("..." if len(available) > 50 else "")
         view = self.VaactView(ctx.author.id, available)
-        await safe_send(ctx.channel, f"**Pseudos disponibles :**\n{pseudo_list}", view=view)
+        await safe_send(ctx.channel, f"**Pseudos disponibles (alphabetique) :**\n{pseudo_list}", view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
