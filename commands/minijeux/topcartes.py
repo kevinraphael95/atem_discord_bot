@@ -123,28 +123,28 @@ class TopCarte(commands.Cog):
     """
 
     def __init__(self, bot: commands.Bot):
-        self.bot = bot
+        self.bot = bot  # On utilise self.bot.session pour les requêtes HTTP
 
     async def get_random_cards(self):
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                all_cards = data.get("data", [])
-                sample = random.sample(all_cards, 5)
-                return [
-                    {
-                        "name": c["name"],
-                        "desc": c["desc"],
-                        "image": c.get("card_images", [{}])[0].get("image_url")
-                    }
-                    for c in sample
-                ]
+        # ⚡ Utilisation de la session globale du bot
+        async with self.bot.session.get(url) as resp:
+            if resp.status != 200:
+                return None
+            data = await resp.json()
+            all_cards = data.get("data", [])
+            sample = random.sample(all_cards, 5)
+            return [
+                {
+                    "name": c["name"],
+                    "desc": c["desc"],
+                    "image": c.get("card_images", [{}])[0].get("image_url")
+                }
+                for c in sample
+            ]
 
     @commands.command(
-        name="topcarte", aliases = ["topcartes", "topc"], 
+        name="topcarte", aliases=["topcartes", "topc"],
         help="Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l’aveugle.",
         description="Le bot te montre 5 cartes une à une, tu les places dans ton top."
     )
