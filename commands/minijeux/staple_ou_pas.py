@@ -16,13 +16,13 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import aiohttp
 import random
 from pathlib import Path
 import json
 
 from utils.discord_utils import safe_send, safe_respond
 from utils.card_utils import fetch_random_card
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎨 Chargement des décorations de cartes (identique à carte.py)
 # ────────────────────────────────────────────────────────────────────────────────
@@ -126,32 +126,28 @@ class GuessView(discord.ui.View):
 class StapleOuPas(commands.Cog):
     """Commande /staple_ou_pas et !staple_ou_pas — Devine si la carte est une staple ou pas"""
     def __init__(self, bot: commands.Bot):
-        self.bot = bot
+        self.bot = bot  # On utilise la session globale du bot
 
     async def get_random_staple(self):
-        async with aiohttp.ClientSession() as session:
-            async with session.get(STAPLES_API) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                cards = data.get("data", [])
-                return random.choice(cards) if cards else None
+        async with self.bot.session.get(STAPLES_API) as resp:
+            if resp.status != 200:
+                return None
+            data = await resp.json()
+            cards = data.get("data", [])
+            return random.choice(cards) if cards else None
 
     async def get_random_card(self):
         """Récupère une carte aléatoire en FR (fallback anglais → traduit en FR si possible)."""
         card, lang = await fetch_random_card()
         if card and lang == "en":
-            # On retente d’obtenir la version française de cette même carte
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card['id']}&language=fr") as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if "data" in data and len(data["data"]) > 0:
-                            return data["data"][0]
+            async with self.bot.session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card['id']}&language=fr") as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if "data" in data and len(data["data"]) > 0:
+                        return data["data"][0]
         return card
 
     async def build_card_embed(self, card: dict) -> discord.Embed:
-        """Construit un embed complet à la façon de !carte"""
         name = card.get("name", "Carte inconnue")
         type_raw = card.get("type", "")
         color = pick_embed_color(type_raw)
@@ -162,9 +158,7 @@ class StapleOuPas(commands.Cog):
         level, rank, linkval = card.get("level"), card.get("rank"), card.get("linkval") or card.get("link_rating")
         archetype = card.get("archetype")
 
-        header = []
-        if archetype:
-            header.append(f"**Archétype** : 🧬 {archetype}")
+        header = [f"**Archétype** : 🧬 {archetype}"] if archetype else []
 
         lines = [f"**Type de carte** : {translate_card_type(type_raw)}"]
         if race: lines.append(f"**Type** : {format_race(race, type_raw)}")
@@ -183,12 +177,10 @@ class StapleOuPas(commands.Cog):
             description="\n".join(header) + "\n\n" + "\n".join(lines),
             color=color
         )
-
         if "card_images" in card and card["card_images"]:
             thumb = card["card_images"][0].get("image_url_cropped") or card["card_images"][0].get("image_url")
             if thumb:
                 embed.set_thumbnail(url=thumb)
-
         embed.set_footer(text="💭 Devine si cette carte est une Staple ou non !")
         return embed
 
