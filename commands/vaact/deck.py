@@ -1,8 +1,9 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 deck.py — Commande interactive !deck et /deck (VERSION BOUTONS)
-# Objectif : Choisir saison → duelliste → version du deck + favori précis
+# 📌 deck.py — Commande interactive !deck et /deck
+# Objectif : Choisir une saison + un duelliste et afficher ses decks (sans astuces)
 # Catégorie : VAACT
 # Accès : Tous
+# Cooldown : 1 utilisation / 3 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -11,7 +12,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Button
+from discord.ui import View, Select, Button
 import json
 import os
 
@@ -19,192 +20,204 @@ from utils.discord_utils import safe_send, safe_respond
 from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 📂 Chargement JSON
+# 📂 Chargement du fichier JSON deck_data.json
 # ────────────────────────────────────────────────────────────────────────────────
 DECK_JSON_PATH = os.path.join("data", "deck_data.json")
 
 def load_data():
+    """Charge et renvoie les données du fichier JSON."""
     try:
         with open(DECK_JSON_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        print("[ERREUR JSON]", e)
+        print(f"[ERREUR JSON deck_data] {e}")
         return {}
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View principale
+# 🏆 Bouton — Sauvegarde du deck favori
 # ────────────────────────────────────────────────────────────────────────────────
-class DeckView(View):
-    def __init__(self, deck_data, user):
-        super().__init__(timeout=300)
-        self.deck_data = deck_data
-        self.user = user
-
-        self.saison = None
-        self.duelliste = None
-        self.version = None
-
-        self.show_saisons()
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 📅 Étape 1 — Saisons
-    # ────────────────────────────────────────────────────────────────────────────
-    def show_saisons(self):
-        self.clear_items()
-        for saison in self.deck_data.keys():
-            self.add_item(SaisonButton(saison, self))
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 👤 Étape 2 — Duellistes
-    # ────────────────────────────────────────────────────────────────────────────
-    def show_duellistes(self):
-        self.clear_items()
-        for duel in self.deck_data[self.saison].keys():
-            self.add_item(DuellisteButton(duel, self))
-        self.add_item(BackButton("⬅️ Saisons", self.show_saisons))
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🎴 Étape 3 — Versions
-    # ────────────────────────────────────────────────────────────────────────────
-    def show_versions(self):
-        self.clear_items()
-        decks = self.deck_data[self.saison][self.duelliste]["deck"]
-        for key, data in decks.items():
-            self.add_item(VersionButton(key, data, self))
-        self.add_item(BackButton("⬅️ Duellistes", self.show_duellistes))
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔘 Boutons
-# ────────────────────────────────────────────────────────────────────────────────
-class SaisonButton(Button):
-    def __init__(self, saison, view):
-        super().__init__(label=saison, style=discord.ButtonStyle.primary)
-        self.saison = saison
-        self.view_ref = view
+class DeckFavoriteButton(Button):
+    def __init__(self, parent_view):
+        super().__init__(label="Deck favori", style=discord.ButtonStyle.success, emoji="🏆")
+        self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        if interaction.user != self.view_ref.user:
-            return await interaction.response.send_message("❌ Pas pour toi.", ephemeral=True)
+        if not self.parent_view.user or interaction.user.id != self.parent_view.user.id:
+            return await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
 
-        self.view_ref.saison = self.saison
-        self.view_ref.show_duellistes()
+        duelliste = self.parent_view.duelliste
+        if not duelliste:
+            return await interaction.response.send_message("❌ Aucun deck sélectionné.", ephemeral=True)
 
-        await interaction.response.edit_message(
-            content=f"📅 **{self.saison}** — Choisis un duelliste",
-            view=self.view_ref
-        )
-
-class DuellisteButton(Button):
-    def __init__(self, duelliste, view):
-        super().__init__(label=duelliste, style=discord.ButtonStyle.secondary)
-        self.duelliste = duelliste
-        self.view_ref = view
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user != self.view_ref.user:
-            return await interaction.response.send_message("❌ Pas pour toi.", ephemeral=True)
-
-        self.view_ref.duelliste = self.duelliste
-        self.view_ref.show_versions()
-
-        await interaction.response.edit_message(
-            content=f"👤 **{self.duelliste}** — Choisis une version",
-            view=self.view_ref
-        )
-
-class VersionButton(Button):
-    def __init__(self, key, data, view):
-        super().__init__(
-            label=data.get("label", key),
-            style=discord.ButtonStyle.success
-        )
-        self.key = key
-        self.data = data
-        self.view_ref = view
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user != self.view_ref.user:
-            return await interaction.response.send_message("❌ Pas pour toi.", ephemeral=True)
-
-        self.view_ref.version = self.key
-
-        embed = discord.Embed(
-            title=f"🎴 Deck {self.view_ref.duelliste}",
-            description=(
-                f"**Saison :** {self.view_ref.saison}\n"
-                f"**Version :** {self.data.get('label')}\n"
-                f"**Difficulté :** {self.data.get('difficulty')}\n\n"
-                f"{self.data.get('description')}\n\n"
-                f"🔗 {self.data.get('url')}"
-            ),
-            color=discord.Color.gold()
-        )
-
-        fav_button = FavoriteButton(self.view_ref)
-        self.view_ref.add_item(fav_button)
-
-        await interaction.response.edit_message(
-            content="",
-            embed=embed,
-            view=self.view_ref
-        )
-
-class FavoriteButton(Button):
-    def __init__(self, view):
-        super().__init__(label="Favori", emoji="⭐", style=discord.ButtonStyle.success)
-        self.view_ref = view
-
-    async def callback(self, interaction: discord.Interaction):
         try:
             supabase.table("profil").upsert({
                 "user_id": str(interaction.user.id),
                 "username": interaction.user.name,
-                "fav_decks_vaact": {
-                    "saison": self.view_ref.saison,
-                    "duelliste": self.view_ref.duelliste,
-                    "version": self.view_ref.version
-                }
+                "fav_decks_vaact": duelliste
             }, on_conflict="user_id").execute()
 
-            await interaction.response.send_message(
-                "⭐ Deck favori enregistré !",
-                ephemeral=True
-            )
+            return await interaction.response.send_message(
+                f"✅ **{duelliste}** est maintenant ton deck favori !", ephemeral=True)
         except Exception as e:
-            print("[ERREUR SUPABASE]", e)
-            await interaction.response.send_message("❌ Erreur.", ephemeral=True)
+            print(f"[ERREUR Supabase] {e}")
+            return await interaction.response.send_message("❌ Erreur Supabase.", ephemeral=True)
 
-class BackButton(Button):
-    def __init__(self, label, action):
-        super().__init__(label=label, style=discord.ButtonStyle.danger)
-        self.action = action
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ View — Sélection Saison + Duelliste + Favori
+# ────────────────────────────────────────────────────────────────────────────────
+class DeckSelectView(View):
+    def __init__(self, bot, deck_data, saison=None, duelliste=None, user=None):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.deck_data = deck_data
+        self.saison = saison or list(deck_data.keys())[0]
+        self.duelliste = duelliste
+        self.user = user
+
+        self.saison_select = SaisonSelect(self)
+        self.duelliste_select = DuellisteSelect(self)
+
+        self.add_item(self.saison_select)
+        self.add_item(self.duelliste_select)
+        self.add_item(DeckFavoriteButton(self))
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 📅 Select Saison
+# ────────────────────────────────────────────────────────────────────────────────
+class SaisonSelect(Select):
+    def __init__(self, parent_view: DeckSelectView):
+        self.parent_view = parent_view
+
+        options = [
+            discord.SelectOption(label=s, value=s, default=(s == parent_view.saison))
+            for s in parent_view.deck_data
+        ]
+
+        super().__init__(placeholder="📅 Choisis une saison", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        self.action()
-        await interaction.response.edit_message(view=self.view)
+        chosen = self.values[0]
+        self.parent_view.saison = chosen
+        self.parent_view.duelliste = None
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog
-# ────────────────────────────────────────────────────────────────────────────────
-class Deck(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+        duellistes = list(self.parent_view.deck_data.get(chosen, {}).keys())
 
-    @app_commands.command(name="deck", description="Afficher les decks VAACT")
-    async def slash_deck(self, interaction: discord.Interaction):
-        data = load_data()
-        view = DeckView(data, interaction.user)
-        await interaction.response.send_message(
-            "📅 Choisis une saison",
-            view=view,
-            ephemeral=True
+        self.parent_view.duelliste_select.options = [
+            discord.SelectOption(label=d, value=d)
+            for d in duellistes
+        ]
+
+        self.options = [
+            discord.SelectOption(label=s, value=s, default=(s == chosen))
+            for s in self.parent_view.deck_data
+        ]
+
+        await interaction.response.edit_message(
+            content=f"🎴 Saison choisie : **{chosen}**\nSélectionne un duelliste :",
+            embed=None,
+            view=self.parent_view
         )
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 👤 Select Duelliste
+# ────────────────────────────────────────────────────────────────────────────────
+class DuellisteSelect(Select):
+    def __init__(self, parent_view: DeckSelectView):
+        self.parent_view = parent_view
+
+        duellistes = list(parent_view.deck_data.get(parent_view.saison, {}).keys())
+        options = [
+            discord.SelectOption(label=d, value=d, default=(d == parent_view.duelliste))
+            for d in duellistes
+        ]
+
+        super().__init__(placeholder="👤 Choisis un duelliste", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        chosen = self.values[0]
+        self.parent_view.duelliste = chosen
+
+        saison = self.parent_view.saison
+        duellistes = list(self.parent_view.deck_data.get(saison, {}).keys())
+
+        self.options = [
+            discord.SelectOption(label=d, value=d, default=(d == chosen))
+            for d in duellistes
+        ]
+
+        infos = self.parent_view.deck_data.get(saison, {}).get(chosen, {})
+        deck_data = infos.get("deck", {})
+
+        deck_text = self.format_deck(deck_data)
+
+        embed = discord.Embed(
+            title=f"🎴 Deck de {chosen}",
+            description=f"Saison :**{saison}**",
+            color=discord.Color.gold()
+        )
+
+        # embed.set_thumbnail(url="https://i.imgur.com/u7CEp4p.png")
+        embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
+
+        await interaction.response.edit_message(
+            content=f"🎴 Saison choisie : **{saison}**\nSélectionne un duelliste :",
+            embed=embed,
+            view=self.parent_view
+        )
+
+    @staticmethod
+    def format_deck(deck_data):
+        if isinstance(deck_data, str):
+            return deck_data
+
+        if isinstance(deck_data, dict):
+            result = []
+            for niveau, contenu in deck_data.items():
+                result.append(f"**{niveau}** :")
+                if isinstance(contenu, str):
+                    result.append(f"• {contenu}")
+                else:
+                    for sous, url in contenu.items():
+                        result.append(f"  └─ **{sous}** : {url}")
+            return "\n".join(result)
+
+        return "❌ Aucun deck disponible."
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🧠 Cog principal
+# ────────────────────────────────────────────────────────────────────────────────
+class Deck(commands.Cog):
+    """
+    Commande /deck et !deck — Interface de sélection des decks VAACT
+    """
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(name="deck", description="Choisis une saison et un duelliste pour voir ses decks")
+    @app_commands.checks.cooldown(1, 3.0, key=lambda i: i.user.id)
+    async def slash_deck(self, interaction: discord.Interaction):
+        deck_data = load_data()
+        if not deck_data:
+            return await safe_respond(interaction, "❌ Impossible de charger les decks.")
+
+        view = DeckSelectView(self.bot, deck_data, user=interaction.user)
+        await interaction.response.send_message("📦 Choisis une saison :", view=view, ephemeral=True)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="deck")
-    async def prefix_deck(self, ctx):
-        data = load_data()
-        view = DeckView(data, ctx.author)
-        await safe_send(ctx.channel, "📅 Choisis une saison", view=view)
+    @commands.cooldown(1, 3.0, commands.BucketType.user)
+    async def prefix_deck(self, ctx: commands.Context):
+        deck_data = load_data()
+        if not deck_data:
+            return await safe_send(ctx.channel, "❌ Impossible de charger les decks.")
+
+        view = DeckSelectView(self.bot, deck_data, user=ctx.author)
+        await safe_send(ctx.channel, "📦 Choisis une saison :", view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
