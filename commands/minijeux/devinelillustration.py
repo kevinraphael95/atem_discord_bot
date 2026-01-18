@@ -40,15 +40,19 @@ class IllustrationCommand(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.active_sessions = {}  # guild_id → quiz en cours
-        self.session = bot.aiohttp_session  # ✅ Utilise la session globale du bot
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonctions utilitaires
     # ────────────────────────────────────────────────────────────────────────────
     async def fetch_all_cards(self):
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
+        session = self.bot.aiohttp_session
+
+        if session is None or session.closed:
+            return []
+
         try:
-            async with self.session.get(url) as resp:
+            async with session.get(url) as resp:
                 if resp.status != 200:
                     return []
                 data = await resp.json()
@@ -61,9 +65,18 @@ class IllustrationCommand(commands.Cog):
         archetype = true_card.get("archetype")
         card_type = true_card.get("type", "")
         if archetype:
-            group = [c for c in all_cards if c.get("archetype") == archetype and c["name"] != true_card["name"]]
+            group = [
+                c for c in all_cards
+                if c.get("archetype") == archetype
+                and c["name"] != true_card["name"]
+            ]
         else:
-            group = [c for c in all_cards if c.get("type") == card_type and not c.get("archetype") and c["name"] != true_card["name"]]
+            group = [
+                c for c in all_cards
+                if c.get("type") == card_type
+                and not c.get("archetype")
+                and c["name"] != true_card["name"]
+            ]
         return random.sample(group, k=min(3, len(group))) if group else []
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -81,7 +94,10 @@ class IllustrationCommand(commands.Cog):
             if not all_cards:
                 return await safe_send(channel, "🚨 Impossible de récupérer les cartes depuis l’API.")
 
-            candidates = [c for c in all_cards if "image_url_cropped" in c.get("card_images", [{}])[0]]
+            candidates = [
+                c for c in all_cards
+                if "image_url_cropped" in c.get("card_images", [{}])[0]
+            ]
             if not candidates:
                 return await safe_send(channel, "🚫 Pas de cartes avec images croppées.")
 
@@ -98,56 +114,33 @@ class IllustrationCommand(commands.Cog):
             random.shuffle(choices)
             correct_idx = choices.index(true_card["name"])
 
-            embed = discord.Embed(title="🖼️ Devine la carte !", color=discord.Color.purple())
+            embed = discord.Embed(
+                title="🖼️ Devine la carte !",
+                color=discord.Color.purple()
+            )
             embed.set_image(url=image_url)
-            embed.set_footer(text=f"🔹 Archétype : ||{true_card.get('archetype','Aucun')}||")
+            embed.set_footer(
+                text=f"🔹 Archétype : ||{true_card.get('archetype','Aucun')}||"
+            )
 
-            # View / Buttons
             view = self.QuizView(self.bot, choices, correct_idx)
             view.message = await safe_send(channel, embed=embed, view=view)
             await view.wait()
 
-            # ────────────────────────────────────────────────────────────────────────────
-            # ✅ Mise à jour des streaks + EXP
-            # ────────────────────────────────────────────────────────────────────────────
-            uids = list(view.answers.keys())
-            users = await asyncio.gather(*[self.bot.fetch_user(int(uid)) for uid in uids], return_exceptions=True)
+            winners = [
+                self.bot.get_user(uid)
+                for uid, idx in view.answers.items()
+                if idx == correct_idx
+            ]
 
-            for idx, uid in enumerate(uids):
-                user_obj = users[idx]
-                username = user_obj.name if isinstance(user_obj, discord.User) else f"ID {uid}"
-                choice = view.answers[uid]
-
-                resp = supabase.table("profil").select("*").eq("user_id", uid).execute()
-                if resp.data and len(resp.data) > 0:
-                    data = resp.data[0]
-                else:
-                    data = {"user_id": uid, "username": username, "illu_streak": 0, "best_illustreak": 0}
-
-                cur = data.get("illu_streak", 0)
-                best = data.get("best_illustreak", 0)
-
-                if choice == correct_idx:
-                    cur += 1
-                    new_best = max(best, cur)
-                    data["illu_streak"] = cur
-                    data["best_illustreak"] = new_best
-                    data["username"] = username
-                    supabase.table("profil").upsert(data).execute()
-                    if new_best > best:
-                        await add_exp_for_streak(uid, new_best)
-                else:
-                    data["illu_streak"] = 0
-                    data["username"] = username
-                    supabase.table("profil").upsert(data).execute()
-
-            # Résultats
-            winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if idx == correct_idx]
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
                 description=(
                     f"✅ Réponse : **{true_card['name']}**\n"
-                    + (f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}" if winners else "😢 Personne n'a trouvé...")
+                    + (
+                        f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}"
+                        if winners else "😢 Personne n'a trouvé..."
+                    )
                 ),
                 color=discord.Color.green() if winners else discord.Color.red()
             )
@@ -171,7 +164,13 @@ class IllustrationCommand(commands.Cog):
             self.correct_idx = correct_idx
             self.answers = {}
             for i, choice in enumerate(choices):
-                self.add_item(IllustrationCommand.QuizButton(label=choice, idx=i, parent_view=self))
+                self.add_item(
+                    IllustrationCommand.QuizButton(
+                        label=choice,
+                        idx=i,
+                        parent_view=self
+                    )
+                )
 
         async def on_timeout(self):
             for child in self.children:
@@ -188,10 +187,13 @@ class IllustrationCommand(commands.Cog):
         async def callback(self, interaction: discord.Interaction):
             if interaction.user.id not in self.parent_view.answers:
                 self.parent_view.answers[interaction.user.id] = self.idx
-            await interaction.response.send_message(f"✅ Réponse enregistrée : **{self.label}**", ephemeral=True)
+            await interaction.response.send_message(
+                f"✅ Réponse enregistrée : **{self.label}**",
+                ephemeral=True
+            )
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 💬 Commande principale et sous-commandes
+    # 💬 Commande principale
     # ────────────────────────────────────────────────────────────────────────────
     @commands.group(
         name="devinelillustration",
