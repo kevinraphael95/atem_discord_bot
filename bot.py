@@ -4,6 +4,7 @@
 # Catégorie : Général
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
+
 # ────────────────────────────────────────────────────────────────────────────────
 # 🟢 Serveur Keep-Alive (Render)
 # ────────────────────────────────────────────────────────────────────────────────
@@ -18,6 +19,7 @@ import uuid
 import random
 from datetime import datetime, timezone
 import asyncio
+import atexit
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Modules tiers
@@ -26,6 +28,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from dateutil import parser
+import aiohttp
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Modules internes
@@ -60,9 +63,21 @@ intents.guild_reactions = True
 intents.dm_reactions = True
 
 bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=None)
-bot.is_main_instance = False
 bot.INSTANCE_ID = INSTANCE_ID
 bot.supabase = supabase
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🌊 Session aiohttp globale pour tout le bot
+# ────────────────────────────────────────────────────────────────────────────────
+bot.aiohttp_session = aiohttp.ClientSession()
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔒 Nettoyage de la session aiohttp à la fermeture du bot
+# ────────────────────────────────────────────────────────────────────────────────
+def cleanup_aiohttp():
+    asyncio.run(bot.aiohttp_session.close())
+
+atexit.register(cleanup_aiohttp)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Chargement dynamique des commandes depuis /commands/*
@@ -94,43 +109,12 @@ async def load_tasks():
                 print(f"❌ Failed to load task {path}: {e}")
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔁 Tâche de vérification continue du verrou
-# ────────────────────────────────────────────────────────────────────────────────
-async def verify_lock_loop():
-    while True:
-        await asyncio.sleep(10)
-        try:
-            lock = supabase.table("bot_lock").select("instance_id").eq("id", "bot_lock").execute()
-            if lock.data and lock.data[0]["instance_id"] != INSTANCE_ID:
-                print("🔴 Cette instance n'est plus maître. Déconnexion...")
-                await bot.close()
-                os._exit(0)
-        except Exception as e:
-            print(f"⚠️ Erreur dans la vérification du verrou (ignorée) : {e}")
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔔 On Ready : présence + verrouillage + surveillance
+# 🔔 On Ready : présence
 # ────────────────────────────────────────────────────────────────────────────────
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user.name}")
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="Duel Monsters"))
-
-    try:
-        now = datetime.now(timezone.utc).isoformat()
-        supabase.table("bot_lock").upsert({
-            "id": "bot_lock",
-            "instance_id": INSTANCE_ID,
-            "updated_at": now
-        }).execute()
-
-        print(f"🔐 Verrou mis à jour pour cette instance : {INSTANCE_ID}")
-        bot.is_main_instance = True
-        bot.loop.create_task(verify_lock_loop())
-    except Exception as e:
-        print(f"⚠️ Impossible de se connecter à Supabase : {e}")
-        print("🔓 Aucune gestion de verrou — le bot démarre quand même.")
-        bot.is_main_instance = True
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📩 Message reçu : réagir aux mots-clés et lancer les commandes
@@ -139,14 +123,6 @@ async def on_ready():
 async def on_message(message):
     if message.author.bot:
         return
-
-    try:
-        lock = supabase.table("bot_lock").select("instance_id").eq("id", "bot_lock").execute()
-        if lock.data and isinstance(lock.data, list):
-            if lock.data and lock.data[0].get("instance_id") != INSTANCE_ID:
-                return
-    except Exception as e:
-        print(f"⚠️ Erreur lors de la vérification du lock (ignorée) : {e}")
 
     if message.content.strip() in [f"<@!{bot.user.id}>", f"<@{bot.user.id}>"]:
         prefix = get_prefix(bot, message)
@@ -162,7 +138,6 @@ async def on_message(message):
         )
         embed.set_footer(text="Tu dois croire en l'âme des cartes 🎴")
         
-
         if bot.user.avatar:
             embed.set_thumbnail(url=bot.user.avatar.url)
         else:
@@ -202,5 +177,3 @@ if __name__ == "__main__":
         await bot.start(TOKEN)
 
     asyncio.run(start())
-
-
