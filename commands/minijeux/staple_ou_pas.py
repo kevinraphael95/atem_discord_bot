@@ -1,326 +1,224 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 devineladescription.py — Commande interactive !devineladescription
-# Objectif : Deviner une carte Yu-Gi-Oh à partir de sa description
+# 📌 staple_ou_pas.py — Commande interactive /staple_ou_pas et !staple_ou_pas
+# Objectif :
+#   - Tire une carte aléatoire (50 % de chance d’être une staple)
+#   - L’utilisateur doit deviner si c’est une staple ou non
+#   - L’affichage suit le même format que !carte
+#   - Le résultat s’affiche directement dans l’embed
 # Catégorie : Minijeux
-# Accès : Public
-# Cooldown : 1 utilisation / 8 secondes / utilisateur
+# Accès : Tous
+# Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Button
+import aiohttp
 import random
-import re
-from difflib import SequenceMatcher
+from pathlib import Path
+import json
 
-from utils.supabase_client import supabase
-from utils.discord_utils import safe_send, safe_reply, safe_edit  
-from utils.vaact_utils import add_exp_for_streak
+from utils.discord_utils import safe_send, safe_respond
+from utils.card_utils import fetch_random_card
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎨 Chargement des décorations de cartes (identique à carte.py)
+# ────────────────────────────────────────────────────────────────────────────────
+CARDINFO_PATH = Path("data/cardinfofr.json")
+try:
+    with CARDINFO_PATH.open("r", encoding="utf-8") as f:
+        CARDINFO = json.load(f)
+except FileNotFoundError:
+    print("[ERREUR] Fichier data/cardinfofr.json introuvable.")
+    CARDINFO = {"ATTRIBUT_EMOJI": {}, "TYPE_EMOJI": {}, "TYPE_TRANSLATION": {}}
+
+ATTRIBUT_EMOJI = CARDINFO.get("ATTRIBUT_EMOJI", {})
+TYPE_EMOJI = CARDINFO.get("TYPE_EMOJI", {})
+TYPE_TRANSLATION = CARDINFO.get("TYPE_TRANSLATION", {})
+SPELL_RACE_TRANSLATION = CARDINFO.get("SPELL_RACE_TRANSLATION", {})
+TRAP_RACE_TRANSLATION = CARDINFO.get("TRAP_RACE_TRANSLATION", {})
+TYPE_COLOR = {k: discord.Color.from_str(v) for k, v in CARDINFO.get("TYPE_COLOR", {}).items()} if "TYPE_COLOR" in CARDINFO else {}
+if "default" not in TYPE_COLOR:
+    TYPE_COLOR["default"] = discord.Color.dark_grey()
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔒 Empêcher l'utilisation en MP
+# 🔗 URLs API
 # ────────────────────────────────────────────────────────────────────────────────
-def no_dm():
-    async def predicate(ctx):
-        if ctx.guild is None:
-            await safe_send(ctx, "❌ Cette commande ne peut pas être utilisée en MP.")
-            return False
-        return True
-    return commands.check(predicate)
+STAPLES_API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔍 Fonctions utilitaires
+# 🧩 Helpers visuels (repris de carte.py)
 # ────────────────────────────────────────────────────────────────────────────────
-def similarity_ratio(a, b):
-    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+def translate_card_type(type_str: str) -> str:
+    if not type_str:
+        return "Inconnu"
+    t = type_str.lower()
+    for eng, fr in TYPE_TRANSLATION.items():
+        if eng in t:
+            return fr
+    return type_str
 
-def common_word_score(a, b):
-    return len(set(a.lower().split()) & set(b.lower().split()))
+def pick_embed_color(type_str: str) -> discord.Color:
+    if not type_str:
+        return TYPE_COLOR.get("default", discord.Color.dark_grey())
+    t = type_str.lower()
+    for key in ["fusion","ritual","synchro","xyz","link","pendulum","spell","trap","token","monster"]:
+        if key in t and key in TYPE_COLOR:
+            return TYPE_COLOR[key]
+    return TYPE_COLOR.get("default", discord.Color.dark_grey())
 
-def is_clean_card(card):
-    banned_keywords = [
-        "@Ignister","abc","abyss","ancient gear","altergeist","beetrouper","branded",
-        "cloudian","crusadia","cyber","D.D.","dark magician","dark world","dinowrestler",
-        "dragonmaid","dragon ruler","dragunity","exosister","eyes of blue","f.a","floowandereeze",
-        "fur hire","harpie","hero","hurricail","infinitrack","kaiser","kozaky","labrynth",
-        "live☆twin","lunar light","madolche","marincess","Mekk-Knight","metalfoes","naturia",
-        "noble knight","number","numero","numéro","oni","Performapal","phantasm spiral","pot",
-        "prophecy","psychic","punk","rescue","rose dragon","salamangreat","sky striker",
-        "tierra","tri-brigade","unchained"
-    ]
-    name = card.get("name","").lower()
-    return all(kw not in name for kw in banned_keywords)
+def format_attribute(attr: str) -> str:
+    return ATTRIBUT_EMOJI.get(attr.upper(), attr) if attr else "?"
 
-def get_type_group(card_type):
-    t = card_type.lower()
-    if "monstre" in t: return "monstre"
-    if "magie" in t: return "magie"
-    if "piège" in t: return "piège"
-    return "autre"
-
-def censor_card_name(desc, name):
-    return re.sub(re.escape(name), "[cette carte]", desc, flags=re.IGNORECASE)
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔗 Requêtes API YGO
-# ────────────────────────────────────────────────────────────────────────────────
-async def fetch_cards(session, limit=100):
-    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
-    async with session.get(url) as resp:
-        if resp.status != 200:
-            return []
-        data = await resp.json()
-        return random.sample(data.get("data", []), min(limit, len(data.get("data", []))))
-
-async def fetch_archetype_cards(session, archetype):
-    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
-    async with session.get(url) as resp:
-        if resp.status != 200:
-            return []
-        data = await resp.json()
-        return data.get("data", [])
+def format_race(race: str, type_raw: str) -> str:
+    if not race:
+        return "?"
+    t = type_raw.lower()
+    if "spell" in t:
+        return SPELL_RACE_TRANSLATION.get(race, race)
+    if "trap" in t:
+        return TRAP_RACE_TRANSLATION.get(race, race)
+    return TYPE_EMOJI.get(race, race)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔄 Mise à jour des streaks et EXP
+# 🎮 View — Boutons de réponse
 # ────────────────────────────────────────────────────────────────────────────────
-async def update_streak(user_id: str, correct: bool, bot=None):
-    username = f"ID {user_id}"
-    if bot:
-        try:
-            user = await bot.fetch_user(int(user_id))
-            username = user.name if user else username
-        except:
-            pass
+class GuessView(discord.ui.View):
+    def __init__(self, is_staple: bool, embed: discord.Embed, user: discord.User):
+        super().__init__(timeout=15)
+        self.is_staple = is_staple
+        self.embed = embed
+        self.user = user
+        self.answered = False
 
-    row = supabase.table("profil").select("*").eq("user_id", user_id).execute().data
-    current = row[0]["current_streak"] if row else 0
-    best    = row[0].get("best_streak",0) if row else 0
-    new_streak = current + 1 if correct else 0
-    new_best   = max(best, new_streak)
+    async def handle_guess(self, interaction: discord.Interaction, guess: bool):
+        if interaction.user.id != self.user.id:
+            return await interaction.response.send_message("❌ Ce n’est pas ton tour !", ephemeral=True)
+        if self.answered:
+            return await interaction.response.send_message("⏳ Tu as déjà répondu.", ephemeral=True)
+        self.answered = True
 
-    payload = {
-        "user_id": user_id,
-        "username": username,
-        "cartefav": row[0].get("cartefav","Non défini") if row else "Non défini",
-        "vaact_name": row[0].get("vaact_name","Non défini") if row else "Non défini",
-        "fav_decks_vaact": row[0].get("fav_decks_vaact","Non défini") if row else "Non défini",
-        "current_streak": new_streak,
-        "best_streak": new_best
-    }
-    supabase.table("profil").upsert(payload).execute()
-    if new_best > best:
-        await add_exp_for_streak(user_id, new_best)
+        correct = (guess == self.is_staple)
+        color = discord.Color.green() if correct else discord.Color.red()
+        result_text = "✅ **Bonne réponse !**" if correct else "❌ **Mauvaise réponse !**"
+        true_text = "💎 Cette carte **est une Staple !**" if self.is_staple else "🪨 Cette carte **n’est pas une Staple.**"
+
+        self.embed.color = color
+        self.embed.add_field(name="Résultat", value=f"{result_text}\n{true_text}", inline=False)
+        self.embed.set_footer(text="Fin de la manche")
+        for child in self.children:
+            child.disabled = True
+        await interaction.response.edit_message(embed=self.embed, view=self)
+
+    @discord.ui.button(label="Staple", style=discord.ButtonStyle.success, emoji="💎")
+    async def guess_staple(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_guess(interaction, True)
+
+    @discord.ui.button(label="Pas Staple", style=discord.ButtonStyle.danger, emoji="🪨")
+    async def guess_not_staple(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_guess(interaction, False)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class DevineLaDescription(commands.Cog):
-    def __init__(self, bot):
+class StapleOuPas(commands.Cog):
+    """Commande /staple_ou_pas et !staple_ou_pas — Devine si la carte est une staple ou pas"""
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.active_sessions = {}  # guild_id → quiz en cours
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 View & Buttons
-    # ────────────────────────────────────────────────────────────────────────────
-    class QuizView(View):
-        def __init__(self, bot, choices, main_name):
-            super().__init__(timeout=60)
-            self.bot = bot
-            self.choices = choices
-            self.main_name = main_name
-            self.answers = {}
-            for idx, name in enumerate(choices):
-                self.add_item(DevineLaDescription.QuizButton(label=name, idx=idx, parent_view=self))
+    async def get_random_staple(self):
+        # ✅ Utilisation de la session globale du bot
+        session = self.bot.aiohttp_session
+        async with session.get(STAPLES_API) as resp:
+            if resp.status != 200:
+                return None
+            data = await resp.json()
+            cards = data.get("data", [])
+            return random.choice(cards) if cards else None
 
-        async def on_timeout(self):
-            for child in self.children:
-                child.disabled = True
-            if hasattr(self,"message"):
-                await safe_edit(self.message, view=self)
+    async def get_random_card(self):
+        """Récupère une carte aléatoire en FR (fallback anglais → traduit en FR si possible)."""
+        card, lang = await fetch_random_card()
+        if card and lang == "en":
+            session = self.bot.aiohttp_session  # ✅ Session globale du bot
+            async with session.get(f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card['id']}&language=fr") as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if "data" in data and len(data["data"]) > 0:
+                        return data["data"][0]
+        return card
 
-    class QuizButton(Button):
-        def __init__(self, label, idx, parent_view):
-            super().__init__(label=label, style=discord.ButtonStyle.primary)
-            self.parent_view = parent_view
-            self.idx = idx
+    async def build_card_embed(self, card: dict) -> discord.Embed:
+        """Construit un embed complet à la façon de !carte"""
+        name = card.get("name", "Carte inconnue")
+        type_raw = card.get("type", "")
+        color = pick_embed_color(type_raw)
+        race = card.get("race", "")
+        attr = card.get("attribute", "")
+        atk, defe = card.get("atk"), card.get("def")
+        desc = card.get("desc", "Pas de description disponible.")
+        level, rank, linkval = card.get("level"), card.get("rank"), card.get("linkval") or card.get("link_rating")
+        archetype = card.get("archetype")
 
-        async def callback(self, interaction: discord.Interaction):
-            if interaction.user.id not in self.parent_view.answers:
-                self.parent_view.answers[interaction.user.id] = self.idx
-                await update_streak(
-                    str(interaction.user.id),
-                    self.parent_view.choices[self.idx] == self.parent_view.main_name,
-                    bot=self.parent_view.bot
-                )
-            await interaction.response.send_message(
-                f"✅ Réponse enregistrée : **{self.label}**",
-                ephemeral=True
-            )
+        header = []
+        if archetype:
+            header.append(f"**Archétype** : 🧬 {archetype}")
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 💬 Commande principale
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.group(
-        name="devineladescription",
-        aliases=["dld","description","d","devinedescription","dd"],
-        invoke_without_command=True
-    )
-    @no_dm()
-    @commands.cooldown(1, 8, commands.BucketType.user)
-    async def devineladescription(self, ctx: commands.Context):
-        guild_id = ctx.guild.id
-        if self.active_sessions.get(guild_id):
-            return await safe_reply(ctx,"⚠️ Un quiz est déjà en cours.",mention_author=False)
-        self.active_sessions[guild_id] = True
+        lines = [f"**Type de carte** : {translate_card_type(type_raw)}"]
+        if race: lines.append(f"**Type** : {format_race(race, type_raw)}")
+        if attr: lines.append(f"**Attribut** : {format_attribute(attr)}")
+        if linkval: lines.append(f"**Lien** : 🔗 {linkval}")
+        elif rank: lines.append(f"**Niveau/Rang** : ⭐ {rank}")
+        elif level: lines.append(f"**Niveau/Rang** : ⭐ {level}")
+        if atk is not None or defe is not None:
+            atk_text = f"⚔️ {atk}" if atk is not None else "⚔️ ?"
+            def_text = f"🛡️ {defe}" if defe is not None else "🛡️ ?"
+            lines.append(f"**ATK/DEF** : {atk_text}/{def_text}")
+        lines.append(f"**Description**\n{desc}")
 
-        try:
-            session = self.bot.aiohttp_session  # ✅ UTILISATION DU CLIENT GLOBAL DU BOT
+        embed = discord.Embed(
+            title=f"**{name}**",
+            description="\n".join(header) + "\n\n" + "\n".join(lines),
+            color=color
+        )
 
-            cards = await fetch_cards(session)
-            main_card = next((c for c in cards if "desc" in c and is_clean_card(c)), None)
-            if not main_card:
-                return await safe_send(ctx,"❌ Aucune carte valide trouvée.")
+        if "card_images" in card and card["card_images"]:
+            thumb = card["card_images"][0].get("image_url_cropped") or card["card_images"][0].get("image_url")
+            if thumb:
+                embed.set_thumbnail(url=thumb)
 
-            main_name = main_card["name"]
-            main_desc = censor_card_name(main_card["desc"], main_name)
-            main_type = main_card.get("type","")
-            archetype = main_card.get("archetype")
-            type_group = get_type_group(main_type)
+        embed.set_footer(text="💭 Devine si cette carte est une Staple ou non !")
+        return embed
 
-            if archetype:
-                group = await fetch_archetype_cards(session, archetype)
-                group = [c for c in group if c.get("name") != main_name and "desc" in c]
-            else:
-                group = [
-                    c for c in cards
-                    if c.get("name") != main_name
-                    and "desc" in c
-                    and get_type_group(c.get("type","")) == type_group
-                    and is_clean_card(c)
-                ]
-                group.sort(
-                    key=lambda c: common_word_score(main_name,c["name"])
-                    + similarity_ratio(main_name,c["name"]),
-                    reverse=True
-                )
+    async def play_round(self, ctx_or_inter, is_slash: bool):
+        is_staple = random.choice([True, False])
+        card = await (self.get_random_staple() if is_staple else self.get_random_card())
+        if not card:
+            msg = "❌ Impossible de tirer une carte."
+            return await (safe_respond(ctx_or_inter, msg) if is_slash else safe_send(ctx_or_inter, msg))
 
-            if len(group) < 3:
-                return await safe_send(ctx,"❌ Pas assez de fausses cartes valides.")
+        embed = await self.build_card_embed(card)
+        view = GuessView(is_staple, embed, ctx_or_inter.user if is_slash else ctx_or_inter.author)
+        await (safe_respond(ctx_or_inter, embed=embed, view=view) if is_slash else safe_send(ctx_or_inter, embed=embed, view=view))
 
-            wrongs = random.sample(group,3)
-            choices = [main_name]+[c["name"] for c in wrongs]
-            random.shuffle(choices)
+    @app_commands.command(name="staple_ou_pas", description="Devine si la carte tirée est une staple ou pas !")
+    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
+    async def slash_staple_ou_pas(self, interaction: discord.Interaction):
+        await self.play_round(interaction, True)
 
-            embed = discord.Embed(
-                title="🧠 Quelle est cette carte ?",
-                description=f"📘 **Type :** {main_type}\n📝 *{main_desc[:1500]}{'...' if len(main_desc)>1500 else ''}*",
-                color=discord.Color.purple()
-            )
-            embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
-
-            if main_type.lower().startswith("monstre"):
-                embed.add_field(name="💥 ATK", value=str(main_card.get("atk","—")), inline=True)
-                embed.add_field(name="🛡️ DEF", value=str(main_card.get("def","—")), inline=True)
-                embed.add_field(name="⚙️ Niveau", value=str(main_card.get("level","—")), inline=True)
-
-            view = self.QuizView(self.bot,choices,main_name)
-            view.message = await safe_send(ctx,embed=embed,view=view)
-            await view.wait()
-
-            winners = [
-                self.bot.get_user(uid)
-                for uid,idx in view.answers.items()
-                if choices[idx]==main_name
-            ]
-
-            result_embed = discord.Embed(
-                title="⏰ Temps écoulé !",
-                description=(
-                    f"✅ Réponse : **{main_name}**\n"
-                    + (
-                        f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}"
-                        if winners else "😢 Personne n'a trouvé..."
-                    )
-                ),
-                color=discord.Color.green() if winners else discord.Color.red()
-            )
-            await safe_send(ctx,embed=result_embed)
-
-        except Exception as e:
-            await safe_send(ctx,f"❌ Erreur : `{e}`")
-        finally:
-            self.active_sessions[guild_id] = None
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Score et top
-    # ────────────────────────────────────────────────────────────────────────────
-    @devineladescription.command(name="score",aliases=["streak","s"])
-    async def devineladescription_score(self,ctx:commands.Context):
-        user_id = str(ctx.author.id)
-        try:
-            resp = supabase.table("profil").select("current_streak,best_streak").eq("user_id",user_id).execute()
-            if resp.data:
-                cur = resp.data[0].get("current_streak",0)
-                best = resp.data[0].get("best_streak",0)
-                embed = discord.Embed(
-                    title=f"🔥 Série de {ctx.author.display_name}",
-                    color=discord.Color.blurple()
-                )
-                embed.add_field(name="Série actuelle", value=f"**{cur}**", inline=False)
-                embed.add_field(name="Record absolu", value=f"**{best}**", inline=False)
-                await safe_send(ctx,embed=embed)
-            else:
-                await safe_send(
-                    ctx,
-                    embed=discord.Embed(
-                        title="📉 Pas encore de série",
-                        description="Lance `!devineladescription` pour démarrer ta série !",
-                        color=discord.Color.red()
-                    )
-                )
-        except Exception:
-            await safe_send(ctx,"🚨 Erreur lors de la récupération de ta série.")
-
-    @devineladescription.command(name="top",aliases=["t"])
-    async def devineladescription_top(self,ctx:commands.Context):
-        try:
-            resp = supabase.table("profil") \
-                .select("user_id,best_streak") \
-                .gt("best_streak",0) \
-                .order("best_streak",desc=True) \
-                .limit(10) \
-                .execute()
-
-            data = resp.data
-            if not data:
-                return await safe_send(ctx,"📉 Aucun streak enregistré.")
-
-            lines=[]
-            for i,row in enumerate(data,start=1):
-                uid=row.get("user_id")
-                best=row.get("best_streak",0)
-                user = await self.bot.fetch_user(int(uid)) if uid else None
-                name = user.name if user else f"ID {uid}"
-                medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i,f"`#{i}`")
-                lines.append(f"{medal} **{name}** – 🔥 {best}")
-
-            embed=discord.Embed(
-                title="🏆 Top 10 Séries",
-                description="\n".join(lines),
-                color=discord.Color.gold()
-            )
-            await safe_send(ctx,embed=embed)
-        except Exception:
-            await safe_send(ctx,"🚨 Erreur lors du classement.")
+    @commands.command(name="staple_ou_pas", aliases=["sop"])
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_staple_ou_pas(self, ctx: commands.Context):
+        await self.play_round(ctx, False)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
-async def setup(bot:commands.Bot):
-    cog = DevineLaDescription(bot)
+async def setup(bot: commands.Bot):
+    cog = StapleOuPas(bot)
     for command in cog.get_commands():
-        command.category = "Minijeux"
+        if not hasattr(command, "category"):
+            command.category = "Minijeux"
     await bot.add_cog(cog)
