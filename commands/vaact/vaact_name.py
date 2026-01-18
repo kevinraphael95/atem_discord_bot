@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 vaact_pseudo.py — Commande simple /vaact_pseudo et !vaact_pseudo
-# Objectif : Permet à un utilisateur de choisir son pseudo VAACT officiel
+# Objectif : Permet à un utilisateur de choisir son pseudo VAACT officiel via modal
 # Catégorie : VAACT
 # Accès : Tous
 # Cooldown : 1 utilisation / 10 secondes / utilisateur
@@ -12,7 +12,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Select
+from discord.ui import View, Button, Modal, TextInput
 import csv
 import io
 import os
@@ -26,7 +26,7 @@ from utils.supabase_client import supabase
 # ────────────────────────────────────────────────────────────────────────────────
 class VaactPseudo(commands.Cog):
     """
-    Commande /vaact_pseudo et !vaact_pseudo — Permet de choisir un pseudo VAACT officiel
+    Commande /vaact_pseudo et !vaact_pseudo — Permet de choisir un pseudo VAACT officiel via modal
     """
 
     def __init__(self, bot: commands.Bot):
@@ -36,48 +36,67 @@ class VaactPseudo(commands.Cog):
     # 🔗 Récupération des pseudos depuis Google Sheets
     # ────────────────────────────────────────────────────────────────────────────
     def get_vaact_pseudos(self) -> list[str]:
-        """Récupère la liste des pseudos VAACT depuis la colonne 'Joueur' du CSV"""
+        """Récupère tous les pseudos VAACT depuis le CSV et renvoie une liste unique triée"""
         url = os.getenv("VAACT_CLASSEMENT_SHEET")
         response = requests.get(url)
         response.raise_for_status()
-        pseudos = []
+        pseudos = set()
         reader = csv.reader(io.StringIO(response.text))
         next(reader, None)  # ignore l'en-tête
         for row in reader:
-            if len(row) >= 3 and row[2].strip():
-                pseudos.append(row[2].strip())  # 3ᵉ colonne = "Joueur"
-        return pseudos
+            for cell in row:
+                cell = cell.strip()
+                if cell and cell != "Joueur":
+                    pseudos.add(cell)
+        return sorted(pseudos, key=str.lower)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Vue interactive pour sélectionner un pseudo
+    # 🔹 Modal pour entrer un pseudo
     # ────────────────────────────────────────────────────────────────────────────
-    class VaactSelect(Select):
-        def __init__(self, available_pseudos: list[str], user_id: int):
-            options = [discord.SelectOption(label=p, value=p) for p in available_pseudos[:25]]
-            super().__init__(placeholder="Choisissez votre pseudo VAACT", options=options)
+    class VaactModal(Modal):
+        def __init__(self, user_id: int, available_pseudos: list[str]):
+            super().__init__(title="Choisissez votre pseudo VAACT")
             self.user_id = user_id
-
-        async def callback(self, interaction: discord.Interaction):
-            existing = (
-                supabase.table("profil").select("vaact_name")
-                .eq("vaact_name", self.values[0])
-                .execute()
+            self.available_pseudos = available_pseudos
+            self.pseudo_input = TextInput(
+                label="Entrez votre pseudo",
+                placeholder="Exemple : Shinram",
+                max_length=50
             )
-            if existing.data:
-                await safe_respond(interaction, f"❌ Le pseudo **{self.values[0]}** est déjà pris.", ephemeral=True)
+            self.add_item(self.pseudo_input)
+
+        async def on_submit(self, interaction: discord.Interaction):
+            pseudo = self.pseudo_input.value.strip()
+            if pseudo not in self.available_pseudos:
+                await safe_respond(interaction, f"❌ Le pseudo **{pseudo}** n'est pas disponible.", ephemeral=True)
                 return
 
-            supabase.table("profil").update({"vaact_name": self.values[0]}).eq("user_id", str(self.user_id)).execute()
-            await safe_respond(interaction, f"✅ Votre pseudo VAACT est maintenant **{self.values[0]}** !", ephemeral=True)
-            self.view.stop()
+            # Vérifie si le pseudo est déjà pris
+            existing = supabase.table("profil").select("vaact_name").eq("vaact_name", pseudo).execute()
+            if existing.data:
+                await safe_respond(interaction, f"❌ Le pseudo **{pseudo}** est déjà pris.", ephemeral=True)
+                return
+
+            # Sauvegarde le pseudo choisi
+            supabase.table("profil").update({"vaact_name": pseudo}).eq("user_id", str(self.user_id)).execute()
+            await safe_respond(interaction, f"✅ Votre pseudo VAACT est maintenant **{pseudo}** !", ephemeral=True)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Vue complète
+    # 🔹 Vue avec bouton pour entrer le pseudo
     # ────────────────────────────────────────────────────────────────────────────
     class VaactView(View):
-        def __init__(self, available_pseudos: list[str], user_id: int):
-            super().__init__(timeout=60)
-            self.add_item(VaactPseudo.VaactSelect(available_pseudos, user_id))
+        def __init__(self, user_id: int, available_pseudos: list[str]):
+            super().__init__(timeout=120)
+            self.user_id = user_id
+            self.available_pseudos = available_pseudos
+            self.add_item(
+                Button(label="Entrer votre pseudo", style=discord.ButtonStyle.primary, custom_id="enter_vaact")
+            )
+
+        @discord.ui.button(label="Entrer votre pseudo", style=discord.ButtonStyle.primary)
+        async def enter_button(self, button: Button, interaction: discord.Interaction):
+            modal = VaactPseudo.VaactModal(self.user_id, self.available_pseudos)
+            await interaction.response.send_modal(modal)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
@@ -88,19 +107,16 @@ class VaactPseudo(commands.Cog):
     )
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def slash_vaact_pseudo(self, interaction: discord.Interaction):
-        """Commande slash pour choisir un pseudo VAACT"""
+        """Commande slash pour afficher la liste des pseudos et bouton modal"""
         pseudos = self.get_vaact_pseudos()
-        taken = [
-            p["vaact_name"]
-            for p in supabase.table("profil").select("vaact_name").execute().data
-            if p["vaact_name"] and p["vaact_name"] != "Non défini"
-        ]
+        taken = [p["vaact_name"] for p in supabase.table("profil").select("vaact_name").execute().data if p["vaact_name"] and p["vaact_name"] != "Non défini"]
         available = [p for p in pseudos if p not in taken]
         if not available:
             await safe_respond(interaction, "❌ Tous les pseudos sont déjà pris !", ephemeral=True)
             return
-        view = self.VaactView(available, interaction.user.id)
-        await safe_respond(interaction, "Sélectionnez votre pseudo VAACT :", view=view, ephemeral=True)
+        pseudo_list = ", ".join(available[:50]) + ("..." if len(available) > 50 else "")
+        view = self.VaactView(interaction.user.id, available)
+        await safe_respond(interaction, f"**Pseudos disponibles :**\n{pseudo_list}", view=view, ephemeral=True)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
@@ -108,19 +124,16 @@ class VaactPseudo(commands.Cog):
     @commands.command(name="vaact_pseudo")
     @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def prefix_vaact_pseudo(self, ctx: commands.Context):
-        """Commande préfixe pour choisir un pseudo VAACT"""
+        """Commande préfixe pour afficher la liste des pseudos et bouton modal"""
         pseudos = self.get_vaact_pseudos()
-        taken = [
-            p["vaact_name"]
-            for p in supabase.table("profil").select("vaact_name").execute().data
-            if p["vaact_name"] and p["vaact_name"] != "Non défini"
-        ]
+        taken = [p["vaact_name"] for p in supabase.table("profil").select("vaact_name").execute().data if p["vaact_name"] and p["vaact_name"] != "Non défini"]
         available = [p for p in pseudos if p not in taken]
         if not available:
             await safe_send(ctx.channel, "❌ Tous les pseudos sont déjà pris !")
             return
-        view = self.VaactView(available, ctx.author.id)
-        await safe_send(ctx.channel, "Sélectionnez votre pseudo VAACT :", view=view)
+        pseudo_list = ", ".join(available[:50]) + ("..." if len(available) > 50 else "")
+        view = self.VaactView(ctx.author.id, available)
+        await safe_send(ctx.channel, f"**Pseudos disponibles :**\n{pseudo_list}", view=view)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
