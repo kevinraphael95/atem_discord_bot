@@ -40,14 +40,18 @@ class MTGCarte(commands.Cog):
     # 🔹 Utilitaire API
     # ────────────────────────────────────────────────────────────────────────────
     async def fetch_card(self, name: str) -> dict | None:
-        async with aiohttp.ClientSession(headers=HEADERS) as session:
-            async with session.get(
-                f"{SCRYFALL_API}/cards/named",
-                params={"fuzzy": name}
-            ) as resp:
-                if resp.status != 200:
-                    return None
-                return await resp.json()
+        """Récupère une carte Magic depuis Scryfall en réutilisant la session aiohttp du bot."""
+        session = self.bot.aiohttp_session  # ✅ On récupère la session globale
+    
+        async with session.get(
+            f"{SCRYFALL_API}/cards/named",
+            params={"fuzzy": name},
+            headers=HEADERS
+        ) as resp:
+            if resp.status != 200:
+                return None
+            return await resp.json()
+
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Création de l'embed carte
