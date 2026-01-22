@@ -63,41 +63,34 @@ class Prix(commands.Cog):
             await ctx_or_interaction.edit(content=None, embed=embed)
 
     # ── Commande slash ─────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="prix",
-        description="Affiche le prix d'une carte Yu-Gi-Oh!"
-    )
-    @app_commands.describe(carte="Nom exact de la carte")
-    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_prix(self, interaction: discord.Interaction, carte: str):
         await safe_respond(interaction, f"🔄 Recherche du prix pour **{carte}**…")
-
-        card, lang, message = await search_card(carte)
+    
+        card, lang, message = await search_card(carte, self.bot.aiohttp_session)
         if message:
             return await safe_respond(interaction, message)
         if not card:
-            card, lang = await fetch_random_card()
+            card, lang = await fetch_random_card(self.bot.aiohttp_session)
             if not card:
                 return await safe_respond(interaction, "❌ Carte introuvable.")
             await safe_respond(interaction, f"❌ Carte `{carte}` introuvable. 🔄 Voici une carte aléatoire à la place :")
-
+    
         await self.send_price_embed(card, interaction)
-
+    
+    
     # ── Commande préfixe ───────────────────────────────────────────────────────
-    @commands.command(name="prix")
-    @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_prix(self, ctx: commands.Context, *, carte: str):
         msg = await safe_send(ctx.channel, f"🔄 Recherche du prix pour **{carte}**…")
-
-        card, lang, message = await search_card(carte)
+    
+        card, lang, message = await search_card(carte, self.bot.aiohttp_session)
         if message:
             return await safe_send(ctx, message)
         if not card:
-            card, lang = await fetch_random_card()
+            card, lang = await fetch_random_card(self.bot.aiohttp_session)
             if not card:
                 return await safe_send(ctx, "❌ Carte introuvable.")
             await safe_send(ctx, f"❌ Carte `{carte}` introuvable. 🔄 Voici une carte aléatoire à la place :")
-
+    
         await self.send_price_embed(card, msg)
 
 # ────────────────────────────────────────────────────────────────────────────────
