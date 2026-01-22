@@ -68,9 +68,10 @@ class MTGRandom(commands.Cog):
     # 🧩 Utilitaires API
     # ────────────────────────────────────────────────────────────────────────────
     async def fetch_endpoint(self, endpoint: str):
-        async with aiohttp.ClientSession(headers=self.HEADERS) as session:
-            async with session.get(f"{self.SCRYFALL}{endpoint}") as r:
-                return await r.json() if r.status == 200 else None
+        session = self.bot.aiohttp_session  # ✅ On prend la session globale du bot
+        async with session.get(f"{self.SCRYFALL}{endpoint}", headers=self.HEADERS) as r:
+            return await r.json() if r.status == 200 else None
+
 
     def card_embed(self, data: dict) -> discord.Embed:
         embed = discord.Embed(
