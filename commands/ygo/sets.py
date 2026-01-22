@@ -71,7 +71,7 @@ class Sets(commands.Cog):
         help="📦 Affiche tous les sets d’une carte avec rareté, prix et date TCG."
     )
     async def sets(self, ctx: commands.Context, *, nom: str):
-        carte, langue, message = await search_card(nom)
+        carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
 
         if message:
             await safe_send(ctx, message)
