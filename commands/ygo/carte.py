@@ -153,20 +153,20 @@ class Carte(commands.Cog):
     async def carte(self, ctx: commands.Context, *, nom: str = None):
         # ── Mode aléatoire ────────────────────────────────────────────────────────
         if not nom or nom.lower() == "random":
-            carte, langue = await fetch_random_card()
+            carte, langue = await fetch_random_card(self.bot.aiohttp_session)
             if not carte:
                 await safe_send(ctx, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
                 return
         else:
             # ── Recherche classique via utils/card_utils ─────────────────────────
-            carte, langue, message = await search_card(nom)
+            carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
             if message:
                 await safe_send(ctx, message)
                 return
             if not carte:
                 await safe_send(ctx, f"❌ Aucune carte trouvée pour `{nom}`.")
                 return
-
+    
         # ── Infos carte ──────────────────────────────────────────────────────────
         card_name = carte.get("name", "Carte inconnue")
         card_id = carte.get("id", "?")
@@ -180,37 +180,31 @@ class Carte(commands.Cog):
         level = carte.get("level")
         rank = carte.get("rank")
         linkval = carte.get("linkval") or carte.get("link_rating")
-
+    
         # ── Section Archétype / Limites / Genesys ────────────────────────────────
         archetype = carte.get("archetype")
         banlist_info = carte.get("banlist_info", {})
         genesys_points = carte.get("genesys_points")
-
+    
         def format_limit(val):
-            mapping = {
-                "Banned": "0",
-                "Limited": "1",
-                "Semi-Limited": "2",
-                "3": "3",
-                "Unlimited": "3"
-            }
+            mapping = {"Banned": "0", "Limited": "1", "Semi-Limited": "2", "3": "3", "Unlimited": "3"}
             return mapping.get(val, "3")
-
+    
         tcg_limit = format_limit(banlist_info.get("ban_tcg"))
         ocg_limit = format_limit(banlist_info.get("ban_ocg"))
         goat_limit = format_limit(banlist_info.get("ban_goat"))
-
+    
         header_lines = []
         if archetype:
             header_lines.append(f"**Archétype** : 🧬 {archetype}")
         header_lines.append(f"**Limites** : TCG {tcg_limit} / OCG {ocg_limit} / GOAT {goat_limit}")
         if genesys_points is not None:
             header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
-
+    
         # ── Partie principale de la carte ────────────────────────────────────────
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
-
+    
         lines = [f"**Type de carte** : {card_type_fr}"]
         if race:
             lines.append(f"**Type** : {format_race(race, type_raw)}")
@@ -227,25 +221,23 @@ class Carte(commands.Cog):
             def_text = f"🛡️ {defe}" if defe is not None else "🛡️ ?"
             lines.append(f"**ATK/DEF** : {atk_text}/{def_text}")
         lines.append(f"**Description**\n{desc}")
-
+    
         # ── Embed final ──────────────────────────────────────────────────────────
         embed = discord.Embed(
             title=f"**{card_name}**",
             description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
-
+    
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb:
                 embed.set_thumbnail(url=thumb)
-
+    
         embed.set_footer(text=f"ID Carte : {card_id} | ID Konami : {konami_id} | Langue : {langue.upper()}")
         view = CarteFavoriteButton(card_name, ctx.author)
         await safe_send(ctx, embed=embed, view=view)
 
-    def cog_load(self):
-        self.carte.category = "🃏 Yu-Gi-Oh!"
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
