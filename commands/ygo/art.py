@@ -65,7 +65,8 @@ class Art(commands.Cog):
     )
     @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
     async def art(self, ctx: commands.Context, *, nom: str):
-        carte, langue, message = await search_card(nom)
+        # ✅ On passe la session aiohttp du bot
+        carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
 
         if message:  # Message d’erreur ou d’avertissement
             await safe_send(ctx, message)
