@@ -1,10 +1,8 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 opcarte.py — Commande /opcarte et !opcarte
-# Objectif :
-#   - Afficher une carte One Piece TCG
-#   - Recherche par nom (EN / JP)
-#   - Embed propre avec image, stats et effet
-# Catégorie : One Piece TCG
+# Objectif : Affiche une carte One Piece TCG via OPTCG API
+#           Peut afficher une carte aléatoire si aucun nom n’est fourni
+# Catégorie : OnePieceTCG
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -13,81 +11,88 @@
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+import aiohttp
 from discord import app_commands
 from discord.ext import commands
+import random
 
 from utils.discord_utils import safe_send, safe_respond
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🌐 API One Piece TCG
+# 🌐 Constantes API
 # ────────────────────────────────────────────────────────────────────────────────
-OPTCG_API = "https://onepiece-cardgame.dev/api/cards"
+OPTCG_API_ALL = "https://www.optcgapi.com/api/allSetCards"
+
+HEADERS = {
+    "User-Agent": "VaactOPTCGBot/1.0",
+    "Accept": "application/json"
+}
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class OPCarte(commands.Cog):
-    """
-    Commande /opcarte et !opcarte — Affiche une carte One Piece TCG
-    """
+    """Commande /opcarte et !opcarte — Affiche une carte One Piece TCG"""
+    
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Recherche carte
+    # 🔹 Utilitaire API
     # ────────────────────────────────────────────────────────────────────────────
-    async def fetch_card(self, name: str) -> dict | None:
+    async def fetch_card(self, name: str | None = None) -> dict | None:
+        """Récupère une carte One Piece par nom ou aléatoire si name=None."""
         session = self.bot.aiohttp_session
 
-        async with session.get(OPTCG_API, params={"search": name}) as resp:
+        async with session.get(OPTCG_API_ALL, headers=HEADERS) as resp:
             if resp.status != 200:
                 return None
-
             data = await resp.json()
-            cards = data.get("data", [])
-            return cards[0] if cards else None
+            if not data:
+                return None
+
+            if name:
+                # Recherche fuzzy (contient)
+                matches = [c for c in data if name.lower() in c.get("card_name", "").lower()]
+                if matches:
+                    return random.choice(matches)
+                # fallback aléatoire si nom non trouvé
+            return random.choice(data)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Embed carte
+    # 🔹 Création de l'embed carte
     # ────────────────────────────────────────────────────────────────────────────
     def build_card_embed(self, card: dict) -> discord.Embed:
-        name = card.get("name", "Carte inconnue")
-        card_type = card.get("type", "—")
-        effect = card.get("effect", "—")
-        color = card.get("color", [])
-        cost = card.get("cost")
-        power = card.get("power")
-        counter = card.get("counter")
-        rarity = card.get("rarity")
-        set_code = card.get("set")
+        name = card.get("card_name", "Carte inconnue")
+        set_name = card.get("set_name", "—")
+        set_id = card.get("set_id", "—")
+        cost = card.get("card_cost", "—")
+        power = card.get("card_power", "—")
+        card_type = card.get("card_type", "—")
+        sub_types = card.get("sub_types", "—")
+        rarity = card.get("rarity", "—")
+        attribute = card.get("attribute", "—")
+        text = card.get("card_text") or "Pas de texte disponible."
+        image = card.get("card_image")
 
         embed = discord.Embed(
-            title=f"🃏 {name}",
-            description=f"**Effet**\n{effect}",
-            color=discord.Color.red()
+            title=name,
+            description=text,
+            color=discord.Color.blue()
         )
 
         embed.add_field(name="Type", value=card_type, inline=True)
-        if cost is not None:
-            embed.add_field(name="Coût", value=f"{cost}", inline=True)
-        if power:
-            embed.add_field(name="Puissance", value=f"{power}", inline=True)
-        if counter:
-            embed.add_field(name="Counter", value=f"+{counter}", inline=True)
+        embed.add_field(name="Sous-type", value=sub_types, inline=True)
+        embed.add_field(name="Attribut", value=attribute, inline=True)
+        embed.add_field(name="Coût", value=cost, inline=True)
+        embed.add_field(name="Puissance", value=power, inline=True)
+        embed.add_field(name="Rareté", value=rarity, inline=True)
+        embed.add_field(name="Set", value=f"{set_name} ({set_id})", inline=True)
 
-        if color:
-            embed.add_field(name="Couleur", value=", ".join(color), inline=True)
-        if rarity:
-            embed.add_field(name="Rareté", value=rarity, inline=True)
-        if set_code:
-            embed.add_field(name="Set", value=set_code, inline=True)
-
-        image = card.get("image")
         if image:
             embed.set_image(url=image)
 
-        embed.set_footer(text="Source : One Piece Card Game API")
-
+        embed.set_footer(text="💭 Source : OPTCG API")
         return embed
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -95,21 +100,19 @@ class OPCarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="opcarte",
-        description="Affiche une carte One Piece TCG"
+        description="Affiche une carte One Piece TCG (aléatoire si aucun nom)"
     )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_opcarte(
         self,
         interaction: discord.Interaction,
-        nom: str
+        nom: str | None = None
     ):
         await interaction.response.defer()
-
         card = await self.fetch_card(nom)
         if not card:
-            await safe_respond(interaction, "❌ Carte introuvable.")
+            await safe_respond(interaction, f"❌ Carte '{nom}' introuvable.")
             return
-
         embed = self.build_card_embed(card)
         await safe_respond(interaction, embed=embed)
 
@@ -118,12 +121,11 @@ class OPCarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="opcarte")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_opcarte(self, ctx: commands.Context, *, nom: str):
+    async def prefix_opcarte(self, ctx: commands.Context, *, nom: str | None = None):
         card = await self.fetch_card(nom)
         if not card:
-            await safe_send(ctx.channel, "❌ Carte introuvable.")
+            await safe_send(ctx.channel, f"❌ Carte '{nom}' introuvable.")
             return
-
         embed = self.build_card_embed(card)
         await safe_send(ctx.channel, embed=embed)
 
@@ -134,5 +136,5 @@ async def setup(bot: commands.Bot):
     cog = OPCarte(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "One Piece TCG"
+            command.category = "OnePieceTCG"
     await bot.add_cog(cog)
