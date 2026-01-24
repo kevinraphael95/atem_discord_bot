@@ -12,29 +12,32 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Select
+from discord.ui import View, Button
 
 from utils.discord_utils import safe_send, safe_edit, safe_respond, safe_delete  
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Chargement des données JSON (pages du tutoriel)
 # ────────────────────────────────────────────────────────────────────────────────
-YGO_TUTORIAL_DATA = {
-    "Introduction": {
-        "Contenu": [
+YGO_TUTORIAL_DATA = [
+    {
+        "titre": "Introduction",
+        "contenu": [
             "Yu-Gi-Oh! TCG est un jeu de cartes stratégique basé sur l'univers Yu-Gi-Oh!.",
             "Objectif : réduire les Life Points de ton adversaire à 0 en utilisant des monstres, magies et pièges."
         ]
     },
-    "Types de cartes": {
-        "Contenu": [
+    {
+        "titre": "Types de cartes",
+        "contenu": [
             "🟢 Monstres — attaquent et défendent",
             "🔵 Magies — effets instantanés ou permanents",
             "🔴 Pièges — activation réactive aux actions adverses"
         ]
     },
-    "Phases du tour": {
-        "Contenu": [
+    {
+        "titre": "Phases du tour",
+        "contenu": [
             "1️⃣ Draw Phase : Pioche une carte",
             "2️⃣ Standby Phase : Effets automatiques",
             "3️⃣ Main Phase 1 : Poser monstres, magies/pièges",
@@ -43,107 +46,64 @@ YGO_TUTORIAL_DATA = {
             "6️⃣ End Phase : Terminer le tour"
         ]
     },
-    "Combat": {
-        "Contenu": [
+    {
+        "titre": "Combat",
+        "contenu": [
             "⚔️ Déclaration des attaques",
             "🛡️ Comparaison des ATK/DEF des monstres",
             "💥 Résolution des dégâts et destruction des cartes",
             "⚠️ Effets de cartes peuvent modifier le combat"
         ]
     },
-    "Gagner la partie": {
-        "Contenu": [
+    {
+        "titre": "Gagner la partie",
+        "contenu": [
             "❤️ Réduire les Life Points de l'adversaire à 0",
             "📜 Autres conditions spéciales selon les cartes"
         ]
     },
-    "Règles avancées": {
-        "Contenu": [
+    {
+        "titre": "Règles avancées",
+        "contenu": [
             "🔹 Invocation spéciale : Synchro, Fusion, XYZ, Lien",
             "🔹 Chaînes : Activation multiple de cartes",
             "🔹 Priorité des effets : Effets rapides vs lents"
         ]
     }
-}
+]
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Premier menu interactif
+# 🎛️ UI — Vue paginée “Suivant / Précédent”
 # ────────────────────────────────────────────────────────────────────────────────
-class FirstSelectView(View):
-    def __init__(self, bot, data):
+class TutoView(View):
+    def __init__(self, embed_list, message=None):
         super().__init__(timeout=300)
-        self.bot = bot
-        self.data = data
-        self.message = None
-        self.add_item(FirstSelect(self))
+        self.embed_list = embed_list
+        self.message = message
+        self.index = 0
+        self.update_buttons()
 
-    async def on_timeout(self):
-        for child in self.children:
-            child.disabled = True
-        if self.message:
-            await safe_edit(self.message, view=self)
+    def update_buttons(self):
+        self.clear_items()
+        self.add_item(Button(label="⬅️ Précédent", style=discord.ButtonStyle.blurple, custom_id="prev", disabled=self.index == 0))
+        self.add_item(Button(label="➡️ Suivant", style=discord.ButtonStyle.blurple, custom_id="next", disabled=self.index == len(self.embed_list)-1))
 
-class FirstSelect(Select):
-    def __init__(self, parent_view: FirstSelectView):
-        self.parent_view = parent_view
-        options = [discord.SelectOption(label=key, value=key) for key in self.parent_view.data.keys()]
-        super().__init__(placeholder="Sélectionne une section du tutoriel", options=options)
+    async def interaction_check(self, interaction: discord.Interaction):
+        return True
 
-    async def callback(self, interaction: discord.Interaction):
-        selected_key = self.values[0]
-        new_view = SecondSelectView(self.parent_view.bot, self.parent_view.data, selected_key)
-        new_view.message = interaction.message
-        await safe_edit(
-            interaction.message,
-            content=f"Section sélectionnée : **{selected_key}**\nVoici les détails :",
-            embed=None,
-            view=new_view
-        )
+    @discord.ui.button(label="⬅️ Précédent", style=discord.ButtonStyle.blurple)
+    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.index > 0:
+            self.index -= 1
+            await safe_edit(self.message, embed=self.embed_list[self.index], view=self)
+            self.update_buttons()
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — Deuxième menu interactif
-# ────────────────────────────────────────────────────────────────────────────────
-class SecondSelectView(View):
-    def __init__(self, bot, data, key):
-        super().__init__(timeout=300)
-        self.bot = bot
-        self.data = data
-        self.key = key
-        self.message = None
-        self.add_item(SecondSelect(self))
-
-    async def on_timeout(self):
-        for child in self.children:
-            child.disabled = True
-        if self.message:
-            await safe_edit(self.message, view=self)
-
-class SecondSelect(Select):
-    def __init__(self, parent_view: SecondSelectView):
-        self.parent_view = parent_view
-        sub_options = list(self.parent_view.data[self.parent_view.key].keys())
-        options = [discord.SelectOption(label=sub, value=sub) for sub in sub_options]
-        super().__init__(placeholder="Sélectionne un détail", options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        key = self.parent_view.key
-        sub_key = self.values[0]
-        infos = self.parent_view.data[key][sub_key]
-
-        embed = discord.Embed(
-            title=f"{sub_key} — {key}",
-            color=discord.Color.purple()
-        )
-        for field_name, field_value in infos.items():
-            value = "\n".join(f"• {item}" for item in field_value) if isinstance(field_value, list) else str(field_value)
-            embed.add_field(name=field_name.capitalize(), value=value, inline=False)
-
-        await safe_edit(
-            interaction.message,
-            content=None,
-            embed=embed,
-            view=None
-        )
+    @discord.ui.button(label="➡️ Suivant", style=discord.ButtonStyle.blurple)
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.index < len(self.embed_list) - 1:
+            self.index += 1
+            await safe_edit(self.message, embed=self.embed_list[self.index], view=self)
+            self.update_buttons()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal avec cooldowns centralisés
@@ -156,15 +116,23 @@ class YGOTuto(commands.Cog):
         self.bot = bot
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction interne commune
+    # 🔹 Fonction interne pour créer les embeds
     # ────────────────────────────────────────────────────────────────────────────
-    async def _send_menu(self, channel: discord.abc.Messageable):
-        data = YGO_TUTORIAL_DATA
-        if not data:
-            await safe_send(channel, "❌ Impossible de charger les données.")
-            return
-        view = FirstSelectView(self.bot, data)
-        view.message = await safe_send(channel, "Choisis une section :", view=view)
+    def generate_embeds(self):
+        embeds = []
+        for page in YGO_TUTORIAL_DATA:
+            embed = discord.Embed(title=page["titre"], color=discord.Color.purple())
+            embed.description = "\n".join(f"• {line}" for line in page["contenu"])
+            embeds.append(embed)
+        return embeds
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune pour envoyer le tutoriel
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _send_tuto(self, channel: discord.abc.Messageable):
+        embeds = self.generate_embeds()
+        view = TutoView(embeds)
+        view.message = await safe_send(channel, embed=embeds[0], view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
@@ -176,7 +144,7 @@ class YGOTuto(commands.Cog):
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_ygotuto(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self._send_menu(interaction.channel)
+        await self._send_tuto(interaction.channel)
         await interaction.delete_original_response()
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -185,7 +153,7 @@ class YGOTuto(commands.Cog):
     @commands.command(name="ygotuto")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_ygotuto(self, ctx: commands.Context):
-        await self._send_menu(ctx.channel)
+        await self._send_tuto(ctx.channel)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
