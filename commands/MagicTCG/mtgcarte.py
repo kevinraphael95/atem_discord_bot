@@ -1,6 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 mtgcarte.py — Commande /mtgcarte et !mtgcarte
 # Objectif : Afficher une carte Magic: The Gathering via Scryfall
+#           Peut afficher une carte aléatoire si aucun nom n’est fourni
 # Catégorie : MagicTCG
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
@@ -10,7 +11,6 @@
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
-import aiohttp
 from discord import app_commands
 from discord.ext import commands
 
@@ -39,26 +39,31 @@ class MTGCarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Utilitaire API
     # ────────────────────────────────────────────────────────────────────────────
-    async def fetch_card(self, name: str) -> dict | None:
-        """Récupère une carte Magic depuis Scryfall en réutilisant la session aiohttp du bot."""
-        session = self.bot.aiohttp_session  # ✅ On récupère la session globale
-    
-        async with session.get(
-            f"{SCRYFALL_API}/cards/named",
-            params={"fuzzy": name},
-            headers=HEADERS
-        ) as resp:
+    async def fetch_card(self, name: str | None = None) -> dict | None:
+        """
+        Récupère une carte Magic depuis Scryfall en réutilisant la session aiohttp du bot.
+        Si name=None, renvoie une carte aléatoire.
+        """
+        session = self.bot.aiohttp_session  # ✅ Session globale du bot
+
+        if name:
+            url = f"{SCRYFALL_API}/cards/named"
+            params = {"fuzzy": name}
+        else:
+            url = f"{SCRYFALL_API}/cards/random"
+            params = {}
+
+        async with session.get(url, params=params, headers=HEADERS) as resp:
             if resp.status != 200:
                 return None
             return await resp.json()
-
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Création de l'embed carte
     # ────────────────────────────────────────────────────────────────────────────
     def build_card_embed(self, data: dict) -> discord.Embed:
         embed = discord.Embed(
-            title=data["name"],
+            title=data.get("name", "Carte inconnue"),
             description=data.get("oracle_text", "—"),
             color=discord.Color.purple()
         )
@@ -98,21 +103,19 @@ class MTGCarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="mtgcarte",
-        description="Affiche une carte Magic: The Gathering"
+        description="Affiche une carte Magic: The Gathering (aléatoire si aucun nom)"
     )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_mtgcarte(
         self,
         interaction: discord.Interaction,
-        nom: str
+        nom: str | None = None
     ):
         await interaction.response.defer()
-
         data = await self.fetch_card(nom)
         if not data:
             await safe_respond(interaction, "❌ Carte introuvable.")
             return
-
         embed = self.build_card_embed(data)
         await safe_respond(interaction, embed=embed)
 
@@ -121,12 +124,11 @@ class MTGCarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="mtgcarte")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_mtgcarte(self, ctx: commands.Context, *, nom: str):
+    async def prefix_mtgcarte(self, ctx: commands.Context, *, nom: str | None = None):
         data = await self.fetch_card(nom)
         if not data:
             await safe_send(ctx.channel, "❌ Carte introuvable.")
             return
-
         embed = self.build_card_embed(data)
         await safe_send(ctx.channel, embed=embed)
 
