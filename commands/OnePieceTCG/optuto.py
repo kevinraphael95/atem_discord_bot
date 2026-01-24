@@ -1,0 +1,197 @@
+# ────────────────────────────────────────────────────────────────────────────────
+# 📌 optuto.py
+# Objectif : Tutoriel interactif pour apprendre à jouer au One Piece TCG
+# Catégorie : Tutoriel
+# Accès : Tous
+# Cooldown : 5s
+# ────────────────────────────────────────────────────────────────────────────────
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 📦 Imports nécessaires
+# ────────────────────────────────────────────────────────────────────────────────
+import discord
+from discord import app_commands
+from discord.ext import commands
+from discord.ui import View, Select
+
+from utils.discord_utils import safe_send, safe_edit, safe_respond, safe_delete  
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 📂 Chargement des données JSON (pages du tutoriel)
+# ────────────────────────────────────────────────────────────────────────────────
+OPT_TUTORIAL_DATA = {
+    "Introduction": {
+        "Contenu": [
+            "One Piece TCG est un jeu de cartes basé sur l'univers de One Piece.",
+            "Objectif : réduire les points de vie de l'adversaire ou remplir les conditions spéciales des cartes."
+        ]
+    },
+    "Types de cartes": {
+        "Contenu": [
+            "⚔️ Personnages — combat et capacités",
+            "🛠️ Équipements — améliore les personnages",
+            "✨ Actions — effets instantanés",
+            "🏰 Lieux — avantages permanents"
+        ]
+    },
+    "Ressources & énergie": {
+        "Contenu": [
+            "Chaque carte coûte de l'énergie pour être jouée.",
+            "💠 Collecte d'énergie : défausse, actions ou lieux spécifiques.",
+            "🔹 Gérer son énergie est crucial pour le timing des actions."
+        ]
+    },
+    "Déroulement d’un tour": {
+        "Contenu": [
+            "1️⃣ Pioche",
+            "2️⃣ Phase principale : poser personnages, équipements et lieux",
+            "3️⃣ Phase combat : attaquer avec les personnages",
+            "4️⃣ Fin de tour"
+        ]
+    },
+    "Combat": {
+        "Contenu": [
+            "🗡️ Déclaration des attaquants",
+            "🛡️ Déclaration des défenseurs",
+            "💥 Résolution des dégâts et effets",
+            "⚠️ Les effets des cartes peuvent changer les règles du combat."
+        ]
+    },
+    "Gagner la partie": {
+        "Contenu": [
+            "❤️ Réduire les points de vie de l'adversaire à 0",
+            "📜 Compléter une condition spéciale sur tes cartes"
+        ]
+    }
+}
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ UI — Premier menu interactif
+# ────────────────────────────────────────────────────────────────────────────────
+class FirstSelectView(View):
+    def __init__(self, bot, data):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.data = data
+        self.message = None
+        self.add_item(FirstSelect(self))
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            await safe_edit(self.message, view=self)
+
+class FirstSelect(Select):
+    def __init__(self, parent_view: FirstSelectView):
+        self.parent_view = parent_view
+        options = [discord.SelectOption(label=key, value=key) for key in self.parent_view.data.keys()]
+        super().__init__(placeholder="Sélectionne une section du tutoriel", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_key = self.values[0]
+        new_view = SecondSelectView(self.parent_view.bot, self.parent_view.data, selected_key)
+        new_view.message = interaction.message
+        await safe_edit(
+            interaction.message,
+            content=f"Section sélectionnée : **{selected_key}**\nVoici les détails :",
+            embed=None,
+            view=new_view
+        )
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ UI — Deuxième menu interactif
+# ────────────────────────────────────────────────────────────────────────────────
+class SecondSelectView(View):
+    def __init__(self, bot, data, key):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.data = data
+        self.key = key
+        self.message = None
+        self.add_item(SecondSelect(self))
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            await safe_edit(self.message, view=self)
+
+class SecondSelect(Select):
+    def __init__(self, parent_view: SecondSelectView):
+        self.parent_view = parent_view
+        sub_options = list(self.parent_view.data[self.parent_view.key].keys())
+        options = [discord.SelectOption(label=sub, value=sub) for sub in sub_options]
+        super().__init__(placeholder="Sélectionne un détail", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        key = self.parent_view.key
+        sub_key = self.values[0]
+        infos = self.parent_view.data[key][sub_key]
+
+        embed = discord.Embed(
+            title=f"{sub_key} — {key}",
+            color=discord.Color.orange()
+        )
+        for field_name, field_value in infos.items():
+            value = "\n".join(f"• {item}" for item in field_value) if isinstance(field_value, list) else str(field_value)
+            embed.add_field(name=field_name.capitalize(), value=value, inline=False)
+
+        await safe_edit(
+            interaction.message,
+            content=None,
+            embed=embed,
+            view=None
+        )
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🧠 Cog principal avec cooldowns centralisés
+# ────────────────────────────────────────────────────────────────────────────────
+class OPTTuto(commands.Cog):
+    """
+    Commande /optuto et !optuto — Tutoriel One Piece TCG
+    """
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _send_menu(self, channel: discord.abc.Messageable):
+        data = OPT_TUTORIAL_DATA
+        if not data:
+            await safe_send(channel, "❌ Impossible de charger les données.")
+            return
+        view = FirstSelectView(self.bot, data)
+        view.message = await safe_send(channel, "Choisis une section :", view=view)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="optuto",
+        description="Tutoriel interactif pour apprendre à jouer au One Piece TCG"
+    )
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
+    async def slash_optuto(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self._send_menu(interaction.channel)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="optuto")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_optuto(self, ctx: commands.Context):
+        await self._send_menu(ctx.channel)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔌 Setup du Cog
+# ────────────────────────────────────────────────────────────────────────────────
+async def setup(bot: commands.Bot):
+    cog = OPTTuto(bot)
+    for command in cog.get_commands():
+        if not hasattr(command, "category"):
+            command.category = "Tutoriel"
+    await bot.add_cog(cog)
