@@ -9,7 +9,12 @@
 # 📦 Modules standards
 # ────────────────────────────────────────────────────────────────────────────────
 import os
+import json
+import uuid
+import random
+from datetime import datetime, timezone
 import asyncio
+import atexit
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Modules tiers
@@ -17,10 +22,13 @@ import asyncio
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from dateutil import parser
+import aiohttp
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Modules internes
 # ────────────────────────────────────────────────────────────────────────────────
+from utils.supabase_client import supabase
 from utils.discord_utils import safe_send  # ✅ Utilitaires anti-429
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -31,9 +39,10 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 COMMAND_PREFIX = os.getenv("COMMAND_PREFIX", "%")
+INSTANCE_ID = str(uuid.uuid4())
 
-if not TOKEN:
-    raise ValueError("❌ Le token Discord est manquant dans le fichier .env !")
+with open("instance_id.txt", "w") as f:
+    f.write(INSTANCE_ID)
 
 def get_prefix(bot, message):
     return COMMAND_PREFIX
@@ -49,20 +58,28 @@ intents.guild_reactions = True
 intents.dm_reactions = True
 
 bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=None)
+bot.INSTANCE_ID = INSTANCE_ID
+bot.supabase = supabase
+bot.aiohttp_session = None  # sera initialisée plus tard
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔒 Nettoyage aiohttp
+# ────────────────────────────────────────────────────────────────────────────────
+async def cleanup_aiohttp():
+    if bot.aiohttp_session and not bot.aiohttp_session.closed:
+        await bot.aiohttp_session.close()
+
+atexit.register(lambda: asyncio.run(cleanup_aiohttp()))
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Chargement dynamique des commandes depuis /commands/*
 # ────────────────────────────────────────────────────────────────────────────────
 async def load_commands():
-    if not os.path.exists("commands"):
-        print("⚠️ Dossier 'commands/' introuvable, création...")
-        os.makedirs("commands")
-
     for category in os.listdir("commands"):
         cat_path = os.path.join("commands", category)
         if os.path.isdir(cat_path):
             for filename in os.listdir(cat_path):
-                if filename.endswith(".py") and filename != "__init__.py":
+                if filename.endswith(".py"):
                     path = f"commands.{category}.{filename[:-3]}"
                     try:
                         await bot.load_extension(path)
@@ -74,12 +91,8 @@ async def load_commands():
 # 🔌 Chargement dynamique des tasks depuis /tasks/*
 # ────────────────────────────────────────────────────────────────────────────────
 async def load_tasks():
-    if not os.path.exists("tasks"):
-        print("⚠️ Dossier 'tasks/' introuvable, création...")
-        os.makedirs("tasks")
-
     for filename in os.listdir("tasks"):
-        if filename.endswith(".py") and filename != "__init__.py":
+        if filename.endswith(".py") and filename != "keep_alive.py":
             path = f"tasks.{filename[:-3]}"
             try:
                 await bot.load_extension(path)
@@ -87,12 +100,13 @@ async def load_tasks():
             except Exception as e:
                 print(f"❌ Failed to load task {path}: {e}")
 
-
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔔 On Ready : présence
+# 🔔 On Ready : présence et création de session aiohttp
 # ────────────────────────────────────────────────────────────────────────────────
 @bot.event
 async def on_ready():
+    if bot.aiohttp_session is None:
+        bot.aiohttp_session = aiohttp.ClientSession()  # ✅ Créée dans le loop
     print(f"✅ Connecté en tant que {bot.user.name}")
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="Duel Monsters"))
 
@@ -117,7 +131,7 @@ async def on_message(message):
             color=discord.Color.red()
         )
         embed.set_footer(text="Tu dois croire en l'âme des cartes 🎴")
-
+        
         if bot.user.avatar:
             embed.set_thumbnail(url=bot.user.avatar.url)
         else:
