@@ -1,8 +1,9 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 tournoi_date.py — Commande interactive !tournoidate
-# Objectif : Afficher / modifier / supprimer la date et le lieu du tournoi (Supabase)
+# Objectif : Afficher / modifier / supprimer la date et le lieu du tournoi (SQLite)
 # Catégorie : 🧠 VAACT
-# Accès : Modérateur
+# Accès : Admin
+# Base : SQLite locale
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -10,39 +11,45 @@
 # ────────────────────────────────────────────────────────────────────────────────
 import os
 from datetime import datetime
+import sqlite3
 
 import discord
 from discord.ext import commands
-from discord.ui import View, Button
-from supabase import create_client, Client
+from discord.ui import View, Button, Modal, TextInput
 
 from utils.discord_utils import safe_send
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 📂 Configuration Supabase
+# 🗄️ Configuration SQLite
 # ────────────────────────────────────────────────────────────────────────────────
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+DB_PATH = "database/tournoi.db"
+os.makedirs("database", exist_ok=True)
 
+def get_db():
+    return sqlite3.connect(DB_PATH)
+
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tournoi_info (
+        id INTEGER PRIMARY KEY,
+        prochaine_date TEXT,
+        lieu TEXT
+    )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM tournoi_info")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO tournoi_info (id, prochaine_date, lieu) VALUES (1, NULL, NULL)")
+    conn.commit()
+    conn.close()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📝 UI — Modal Date + Lieu
 # ────────────────────────────────────────────────────────────────────────────────
-class TournoiDateModal(discord.ui.Modal, title="📅 Modifier le tournoi"):
-
-    date = discord.ui.TextInput(
-        label="Date du tournoi",
-        placeholder="JJ/MM/AAAA HH:MM",
-        required=True
-    )
-
-    lieu = discord.ui.TextInput(
-        label="Lieu du tournoi",
-        placeholder="Ex: Paris / Discord / Salle XYZ",
-        required=True,
-        max_length=100
-    )
+class TournoiDateModal(Modal, title="📅 Modifier le tournoi"):
+    date = TextInput(label="Date du tournoi", placeholder="JJ/MM/AAAA HH:MM", required=True)
+    lieu = TextInput(label="Lieu du tournoi", placeholder="Ex: Paris / Discord / Salle XYZ", required=True, max_length=100)
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
@@ -52,22 +59,33 @@ class TournoiDateModal(discord.ui.Modal, title="📅 Modifier le tournoi"):
                 "❌ Format invalide.\nUtilise **JJ/MM/AAAA HH:MM**",
                 ephemeral=True
             )
-
-        supabase.table("tournoi_info").upsert({
-            "id": 1,
-            "prochaine_date": dt.isoformat(),
-            "lieu": self.lieu.value
-        }).execute()
-
-        await interaction.response.send_message(
-            "✅ **Tournoi mis à jour avec succès**",
-            ephemeral=True
-        )
-
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE tournoi_info SET prochaine_date = ?, lieu = ? WHERE id = 1", (dt.isoformat(), self.lieu.value))
+        conn.commit()
+        conn.close()
+        await interaction.response.send_message("✅ **Tournoi mis à jour avec succès**", ephemeral=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Boutons Embed
 # ────────────────────────────────────────────────────────────────────────────────
+class EditDateButton(Button):
+    def __init__(self):
+        super().__init__(label="Ajouter / Modifier", style=discord.ButtonStyle.primary, emoji="✏️")
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_modal(TournoiDateModal())
+
+class DeleteDateButton(Button):
+    def __init__(self):
+        super().__init__(label="Supprimer", style=discord.ButtonStyle.danger, emoji="🗑️")
+    async def callback(self, interaction: discord.Interaction):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE tournoi_info SET prochaine_date = NULL, lieu = NULL WHERE id = 1")
+        conn.commit()
+        conn.close()
+        await interaction.response.send_message("🗑️ **La date du tournoi a été supprimée.**", ephemeral=True)
+
 class TournoiDateView(View):
     def __init__(self, has_date: bool):
         super().__init__(timeout=180)
@@ -75,77 +93,34 @@ class TournoiDateView(View):
         if has_date:
             self.add_item(DeleteDateButton())
 
-
-class EditDateButton(Button):
-    def __init__(self):
-        super().__init__(
-            label="Ajouter / Modifier",
-            style=discord.ButtonStyle.primary,
-            emoji="✏️"
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(TournoiDateModal())
-
-
-class DeleteDateButton(Button):
-    def __init__(self):
-        super().__init__(
-            label="Supprimer",
-            style=discord.ButtonStyle.danger,
-            emoji="🗑️"
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        supabase.table("tournoi_info").update(
-            {"prochaine_date": None, "lieu": None}
-        ).eq("id", 1).execute()
-
-        await interaction.response.send_message(
-            "🗑️ **La date du tournoi a été supprimée.**",
-            ephemeral=True
-        )
-
-
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
+# 🧠 Cog principal — !tournoidate (admin)
 # ────────────────────────────────────────────────────────────────────────────────
 class TournoiDate(commands.Cog):
-    """
-    Commande !tournoidate — Affiche et gère la date du tournoi.
-    """
+    """Commande !tournoidate — Affiche et gère la date du tournoi."""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        init_db()
 
-    @commands.command(
-        name="tournoidate",
-        aliases=["settournoi"],
-        help="(Admin) 🛠️ Gérer la date du tournoi VAACT.",
-        description="Affiche la date actuelle et permet de l'ajouter, modifier ou supprimer."
-    )
+    @commands.command(name="tournoidate", aliases=["settournoi"], help="(Admin) 🛠️ Gérer la date du tournoi VAACT.", description="Affiche la date actuelle et permet de l'ajouter, modifier ou supprimer.")
     @commands.has_permissions(administrator=True)
     async def tournoidate(self, ctx: commands.Context):
-        data = supabase.table("tournoi_info").select("*").eq("id", 1).execute().data
-        info = data[0] if data else None
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM tournoi_info WHERE id = 1")
+        row = cursor.fetchone()
+        conn.close()
 
-        embed = discord.Embed(
-            title="🏆 Tournoi VAACT",
-            color=discord.Color.blurple()
-        )
+        info = {"prochaine_date": None, "lieu": None}
+        if row:
+            info = {"prochaine_date": row[1], "lieu": row[2]}
 
-        if info and info.get("prochaine_date"):
+        embed = discord.Embed(title="🏆 Tournoi VAACT", color=discord.Color.blurple())
+        if info["prochaine_date"]:
             dt = datetime.fromisoformat(info["prochaine_date"])
-            embed.add_field(
-                name="📅 Date",
-                value=dt.strftime("%d/%m/%Y à %Hh%M"),
-                inline=False
-            )
-            embed.add_field(
-                name="📍 Lieu",
-                value=info.get("lieu") or "Non précisé",
-                inline=False
-            )
+            embed.add_field(name="📅 Date", value=dt.strftime("%d/%m/%Y à %Hh%M"), inline=False)
+            embed.add_field(name="📍 Lieu", value=info["lieu"] or "Non précisé", inline=False)
             view = TournoiDateView(has_date=True)
         else:
             embed.description = "❌ **Aucun tournoi programmé pour le moment.**"
