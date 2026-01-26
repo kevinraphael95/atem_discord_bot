@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 tournoi_date.py — Commande interactive !tournoidate
-# Objectif : Afficher / modifier / supprimer la date et le lieu du tournoi (Supabase)
+# Objectif : Afficher / modifier / supprimer la date et le lieu du tournoi (TinyDB)
 # Catégorie : 🧠 VAACT
 # Accès : Modérateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,17 +14,20 @@ from datetime import datetime
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
-from supabase import create_client, Client
+from tinydb import TinyDB, Query
 
 from utils.discord_utils import safe_send
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 📂 Configuration Supabase
+# 📂 Configuration TinyDB
 # ────────────────────────────────────────────────────────────────────────────────
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+DB_FOLDER = os.path.join("db")
+os.makedirs(DB_FOLDER, exist_ok=True)
 
+DB_PATH = os.path.join(DB_FOLDER, "tournoi.json")
+db = TinyDB(DB_PATH)
+tournoi_table = db.table("tournoi_info")
+Tournoi = Query()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📝 UI — Modal Date + Lieu
@@ -53,17 +56,25 @@ class TournoiDateModal(discord.ui.Modal, title="📅 Modifier le tournoi"):
                 ephemeral=True
             )
 
-        supabase.table("tournoi_info").upsert({
-            "id": 1,
-            "prochaine_date": dt.isoformat(),
-            "lieu": self.lieu.value
-        }).execute()
+        # ────────────────────────────────────────────────────────────────────────────
+        # 🔹 Insertion ou mise à jour TinyDB
+        # ────────────────────────────────────────────────────────────────────────────
+        if tournoi_table.contains(Tournoi.id == 1):
+            tournoi_table.update(
+                {"prochaine_date": dt.isoformat(), "lieu": self.lieu.value},
+                Tournoi.id == 1
+            )
+        else:
+            tournoi_table.insert({
+                "id": 1,
+                "prochaine_date": dt.isoformat(),
+                "lieu": self.lieu.value
+            })
 
         await interaction.response.send_message(
             "✅ **Tournoi mis à jour avec succès**",
             ephemeral=True
         )
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Boutons Embed
@@ -97,15 +108,11 @@ class DeleteDateButton(Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        supabase.table("tournoi_info").update(
-            {"prochaine_date": None, "lieu": None}
-        ).eq("id", 1).execute()
-
+        tournoi_table.remove(Tournoi.id == 1)
         await interaction.response.send_message(
             "🗑️ **La date du tournoi a été supprimée.**",
             ephemeral=True
         )
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -126,16 +133,15 @@ class TournoiDate(commands.Cog):
     )
     @commands.has_permissions(administrator=True)
     async def tournoidate(self, ctx: commands.Context):
-        data = supabase.table("tournoi_info").select("*").eq("id", 1).execute().data
-        info = data[0] if data else None
+        data = tournoi_table.get(Tournoi.id == 1)
 
         embed = discord.Embed(
             title="🏆 Tournoi VAACT",
             color=discord.Color.blurple()
         )
 
-        if info and info.get("prochaine_date"):
-            dt = datetime.fromisoformat(info["prochaine_date"])
+        if data and data.get("prochaine_date"):
+            dt = datetime.fromisoformat(data["prochaine_date"])
             embed.add_field(
                 name="📅 Date",
                 value=dt.strftime("%d/%m/%Y à %Hh%M"),
@@ -143,7 +149,7 @@ class TournoiDate(commands.Cog):
             )
             embed.add_field(
                 name="📍 Lieu",
-                value=info.get("lieu") or "Non précisé",
+                value=data.get("lieu") or "Non précisé",
                 inline=False
             )
             view = TournoiDateView(has_date=True)
@@ -152,7 +158,6 @@ class TournoiDate(commands.Cog):
             view = TournoiDateView(has_date=False)
 
         await safe_send(ctx, embed=embed, view=view)
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
