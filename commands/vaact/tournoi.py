@@ -1,33 +1,55 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 tournoi.py — Commande interactive !tournoi
-# Objectif : Affiche la date et le lieu du prochain tournoi à partir de Supabase
+# Objectif : Affiche la date et le lieu du prochain tournoi (SQLite)
 # Catégorie : 🧠 VAACT
 # Accès : Public
+# Base : SQLite locale
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
-import discord
-from discord.ext import commands
 import os
 from datetime import datetime
+import sqlite3
+
+import discord
+from discord.ext import commands
 
 from utils.discord_utils import safe_send
-from utils.supabase_client import supabase  # ✅ utilisation du client central
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🗓️ Mois en français (fallback fiable, sans dépendre du locale OS)
+# 🗄️ Configuration SQLite
+# ────────────────────────────────────────────────────────────────────────────────
+DB_PATH = "database/tournoi.db"
+os.makedirs("database", exist_ok=True)
+
+def get_db():
+    return sqlite3.connect(DB_PATH)
+
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tournoi_info (
+        id INTEGER PRIMARY KEY,
+        prochaine_date TEXT,
+        lieu TEXT
+    )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM tournoi_info")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO tournoi_info (id, prochaine_date, lieu) VALUES (1, NULL, NULL)")
+    conn.commit()
+    conn.close()
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🗓️ Mois en français
 # ────────────────────────────────────────────────────────────────────────────────
 MOIS_FR = [
     "janvier", "février", "mars", "avril", "mai", "juin",
     "juillet", "août", "septembre", "octobre", "novembre", "décembre"
 ]
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔐 Variables d’environnement
-# ────────────────────────────────────────────────────────────────────────────────
-SHEET_CSV_URL = os.getenv("SHEET_CSV_URL")  # ⚡ mettre ici le lien partage Google Sheets "visualisable"
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🖼️ Logo VAACT
@@ -42,77 +64,43 @@ class TournoiCommand(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        init_db()
 
     @commands.command(
         name="tournoi",
         help="📅 Affiche la date et le lieu du prochain tournoi VAACT.",
-        description="Récupère la date et le lieu depuis Supabase."
+        description="Récupère la date et le lieu depuis SQLite locale."
     )
     @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
     async def tournoi(self, ctx: commands.Context):
-        """Commande principale !tournoi"""
-        try:
-            # ✅ Lecture de la seule ligne (un seul tournoi possible)
-            result = supabase.table("tournoi_info").select("prochaine_date, lieu").execute()
-            data = result.data
-        except Exception as e:
-            print(f"[ERREUR SUPABASE] {e}")
-            await safe_send(ctx, "❌ Impossible de se connecter à Supabase.")
-            return
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT prochaine_date, lieu FROM tournoi_info WHERE id = 1")
+        row = cursor.fetchone()
+        conn.close()
 
-        if not data or not data[0].get("prochaine_date"):
+        if not row or not row[0]:
             await safe_send(ctx, "📭 Aucun tournoi prévu pour le moment.")
             return
 
-        # ────────────────────────────────────────────────────────────────────
-        # 📅 Formatage de la date (français propre)
-        # ────────────────────────────────────────────────────────────────────
-        iso_date = data[0]["prochaine_date"]
-        lieu = data[0].get("lieu", "Non renseigné")
+        dt = datetime.fromisoformat(row[0])
+        mois = MOIS_FR[dt.month - 1]
+        date_formatee = f"{dt.day} {mois} {dt.year} à {dt.hour:02d}h{dt.minute:02d}"
+        lieu = row[1] or "Non renseigné"
 
-        try:
-            dt = datetime.fromisoformat(iso_date)
-            mois = MOIS_FR[dt.month - 1]
-            date_formatee = f"{dt.day} {mois} {dt.year} à {dt.hour:02d}h{dt.minute:02d}"
-        except Exception:
-            date_formatee = iso_date  # fallback brut
-
-        # ────────────────────────────────────────────────────────────────────
-        # 🎨 Embed principal
-        # ────────────────────────────────────────────────────────────────────
         embed = discord.Embed(
             title="🏆 Prochain tournoi VAACT",
-            description=(
-                f"📆 **Date** : {date_formatee}\n"
-                f"📍 **Lieu** : {lieu}"
-            ),
+            description=f"📆 **Date** : {date_formatee}\n📍 **Lieu** : {lieu}",
             color=discord.Color.gold()
         )
 
-        # Logo VAACT
         files = []
         if os.path.exists(VAACT_LOGO_PATH):
             file = discord.File(VAACT_LOGO_PATH, filename="vaact_logo.png")
             embed.set_thumbnail(url="attachment://vaact_logo.png")
             files.append(file)
 
-        # ────────────────────────────────────────────────────────────────────
-        # 🔘 Bouton pour ouvrir le lien Google Sheets
-        # ────────────────────────────────────────────────────────────────────
-        view = None
-        if SHEET_CSV_URL:
-            class DeckButton(discord.ui.View):
-                def __init__(self):
-                    super().__init__()
-                    # ⚡ URL qui ouvre dans le navigateur, pas download
-                    self.add_item(discord.ui.Button(
-                        label="📋 Voir les decks",
-                        url=SHEET_CSV_URL
-                    ))
-            view = DeckButton()
-
-        await safe_send(ctx, embed=embed, view=view, files=files)
-
+        await safe_send(ctx, embed=embed, files=files)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
