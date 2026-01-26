@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 tournoi.py — Commande interactive !tournoi
-# Objectif : Affiche la date et le lieu du prochain tournoi (TinyDB)
+# Objectif : Affiche la date et le lieu du prochain tournoi à partir de Supabase
 # Catégorie : 🧠 VAACT
 # Accès : Public
 # ────────────────────────────────────────────────────────────────────────────────
@@ -12,9 +12,9 @@ import discord
 from discord.ext import commands
 import os
 from datetime import datetime
-from tinydb import TinyDB, Query
 
 from utils.discord_utils import safe_send
+from utils.supabase_client import supabase  # ✅ utilisation du client central
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🗓️ Mois en français (fallback fiable, sans dépendre du locale OS)
@@ -27,23 +27,12 @@ MOIS_FR = [
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔐 Variables d’environnement
 # ────────────────────────────────────────────────────────────────────────────────
-SHEET_CSV_URL = os.getenv("SHEET_CSV_URL")  # ⚡ lien partage Google Sheets "visualisable"
+SHEET_CSV_URL = os.getenv("SHEET_CSV_URL")  # ⚡ mettre ici le lien partage Google Sheets "visualisable"
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🖼️ Logo VAACT
 # ────────────────────────────────────────────────────────────────────────────────
 VAACT_LOGO_PATH = "data/images/vaact_logo.png"
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 📂 TinyDB configuration
-# ────────────────────────────────────────────────────────────────────────────────
-DB_FOLDER = os.path.join("db")
-os.makedirs(DB_FOLDER, exist_ok=True)
-
-DB_PATH = os.path.join(DB_FOLDER, "tournoi.json")
-db = TinyDB(DB_PATH)
-tournoi_table = db.table("tournoi_info")
-Tournoi = Query()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -57,22 +46,29 @@ class TournoiCommand(commands.Cog):
     @commands.command(
         name="tournoi",
         help="📅 Affiche la date et le lieu du prochain tournoi VAACT.",
-        description="Récupère la date et le lieu depuis TinyDB locale."
+        description="Récupère la date et le lieu depuis Supabase."
     )
     @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
     async def tournoi(self, ctx: commands.Context):
         """Commande principale !tournoi"""
-        data = tournoi_table.get(Tournoi.id == 1)
+        try:
+            # ✅ Lecture de la seule ligne (un seul tournoi possible)
+            result = supabase.table("tournoi_info").select("prochaine_date, lieu").execute()
+            data = result.data
+        except Exception as e:
+            print(f"[ERREUR SUPABASE] {e}")
+            await safe_send(ctx, "❌ Impossible de se connecter à Supabase.")
+            return
 
-        if not data or not data.get("prochaine_date"):
+        if not data or not data[0].get("prochaine_date"):
             await safe_send(ctx, "📭 Aucun tournoi prévu pour le moment.")
             return
 
         # ────────────────────────────────────────────────────────────────────
         # 📅 Formatage de la date (français propre)
         # ────────────────────────────────────────────────────────────────────
-        iso_date = data["prochaine_date"]
-        lieu = data.get("lieu", "Non renseigné")
+        iso_date = data[0]["prochaine_date"]
+        lieu = data[0].get("lieu", "Non renseigné")
 
         try:
             dt = datetime.fromisoformat(iso_date)
@@ -108,6 +104,7 @@ class TournoiCommand(commands.Cog):
             class DeckButton(discord.ui.View):
                 def __init__(self):
                     super().__init__()
+                    # ⚡ URL qui ouvre dans le navigateur, pas download
                     self.add_item(discord.ui.Button(
                         label="📋 Voir les decks",
                         url=SHEET_CSV_URL
@@ -115,6 +112,7 @@ class TournoiCommand(commands.Cog):
             view = DeckButton()
 
         await safe_send(ctx, embed=embed, view=view, files=files)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
