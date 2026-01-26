@@ -1,9 +1,10 @@
 discord.py>=2.3.2
 python-dotenv>=1.0.1
 flask>=2.3.3
-supabase
+tinydb
 pytz
 aiohttp
 pandas
 BeautifulSoup4
+
 psutil
