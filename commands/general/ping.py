@@ -51,7 +51,7 @@ class Ping(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="ping", aliases=["pong", "latence"])
+    @commands.command(name="ping", aliases=["pong", "latence"], help="Affiche la latence actuelle du bot.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_ping(self, ctx: commands.Context):
         await self._send_ping(ctx.channel)
