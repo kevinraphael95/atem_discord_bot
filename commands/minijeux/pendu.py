@@ -138,9 +138,11 @@ class Pendu(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     async def _fetch_random_word(self):
         try:
-            carte, _ = await fetch_random_card()
+            # Utilisation de la session aiohttp du bot
+            carte, _ = await fetch_random_card(self.bot.aiohttp_session)
             if not carte:
                 raise ValueError("Carte introuvable")
+    
             nom = carte.get("name", "").strip()
             type_raw = carte.get("type", "Inconnu")
             attr = carte.get("attribute")
@@ -150,11 +152,15 @@ class Pendu(commands.Cog):
                 indice += f" / {attr}"
             if archetype:
                 indice += f" / {archetype}"
+    
             mot_normalise = normaliser_texte(nom)
             if len(mot_normalise) < 3:
                 raise ValueError("Nom trop court")
+    
             return nom, mot_normalise, indice
+    
         except Exception:
+            # Fallback si la carte n’a pas pu être récupérée
             fallback = [
                 ("Dragon Blanc aux Yeux Bleus", "dragon blanc aux yeux bleus", "Monstre / LUMIÈRE"),
                 ("Magicien Sombre", "magicien sombre", "Magicien / TÉNÈBRES"),
@@ -163,6 +169,7 @@ class Pendu(commands.Cog):
                 ("Force de Miroir", "force de miroir", "Piège"),
             ]
             return random.choice(fallback)
+
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
