@@ -3,40 +3,40 @@ Liste des Commandes
 ### 📂 Admin
 - **commandslist :** Génère un .md avec toutes les commandes et les envoie en fichier.
 - **sync :** Commande préfixe pour synchroniser les commandes (guild ou global).
-- **tournoidate :** Pas de description.
+- **tournoidate :** (Admin) 🛠️ Gérer la date du tournoi VAACT.
 
 ### 📂 Général
 - **code :** Affiche un lien vers le code source du bot.
 - **help :** Affiche l’aide du bot.
-- **ping :** Pas de description.
+- **ping :** Affiche la latence actuelle du bot.
 - **say :** Fait répéter un message par le bot. Options : *embed / *e, *as_me / *am. Ex: !say *e *am Bonjour !
 
 ### 📂 LorcanaTCG
-- **lorcarte :** Pas de description.
-- **lortuto :** Pas de description.
+- **lorcarte :** Affiche une carte Disney Lorcana (aléatoire si aucun nom)
+- **lortuto :** Apprendre à jouer à Disney Lorcana (tutoriel interactif)
 
 ### 📂 MagicTCG
-- **mtgcarte :** Pas de description.
-- **mtgtuto :** Pas de description.
+- **mtgcarte :** Affiche une carte Magic: The Gathering (aléatoire si aucun nom)
+- **mtgtuto :** Apprendre à jouer à Magic: The Gathering
 
 ### 📂 Minijeux
-- **bannisougarde :** Pas de description.
+- **bannisougarde :** Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.
 - **devineladescription :** Pas de description.
 - **devinelillustration :** Pas de description.
-- **pendu :** Pas de description.
+- **pendu :** Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.
 - **quizzvocabulaire :** Fais un quiz interactif sur le vocabulaire Yu-Gi-Oh!
 - **staple_ou_pas :** Pas de description.
 - **topcarte :** Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l’aveugle.
 
 ### 📂 OnePieceTCG
-- **opcarte :** Pas de description.
-- **optuto :** Pas de description.
+- **opcarte :** Affiche une carte One Piece TCG (aléatoire si aucun nom)
+- **optuto :** Tutoriel interactif pour apprendre à jouer au One Piece TCG
 
 ### 📂 VAACT
-- **deck :** Pas de description.
-- **profil :** Pas de description.
+- **deck :** Choisis une saison et un duelliste pour voir ses decks
+- **profil :** Affiche le profil d’un utilisateur.
 - **randeck :** Tire un deck custom aléatoire à jouer.
-- **tournoi :** Pas de description.
+- **tournoi :** Affiche la date et le lieu du prochain tournoi VAACT.
 - **vaact :** Présentation rapide du tournoi animé Yu-Gi-Oh! VAACT.
 - **vaact_pseudo :** Commande préfixe interactive pour choisir son pseudo VAACT
 
