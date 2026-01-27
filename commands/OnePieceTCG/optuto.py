@@ -146,7 +146,7 @@ class OPTTuto(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="optuto")
+    @commands.command(name="optuto", help="Tutoriel interactif pour apprendre à jouer au One Piece TCG")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_optuto(self, ctx: commands.Context):
         await self._send_tuto(ctx.channel)
