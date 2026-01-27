@@ -12,7 +12,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Button
+from discord.ui import View
 import aiohttp
 import random
 
@@ -53,12 +53,12 @@ class GuessView(View):
             child.disabled = True
         await interaction.response.edit_message(embed=self.embed, view=self)
 
-    @Button(label="Staple", style=discord.ButtonStyle.success, emoji="💎")
-    async def guess_staple(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="Staple", style=discord.ButtonStyle.success, emoji="💎")
+    async def guess_staple(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.handle_guess(interaction, True)
 
-    @Button(label="Pas Staple", style=discord.ButtonStyle.danger, emoji="🪨")
-    async def guess_not_staple(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="Pas Staple", style=discord.ButtonStyle.danger, emoji="🪨")
+    async def guess_not_staple(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.handle_guess(interaction, False)
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -69,9 +69,9 @@ class StapleOuPas(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────
     # 🔹 Helpers pour récupérer les cartes
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────
     async def get_random_staple(self):
         async with aiohttp.ClientSession() as session:
             async with session.get(STAPLES_API) as resp:
