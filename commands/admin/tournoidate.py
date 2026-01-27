@@ -1,9 +1,9 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 tournoi_date.py — Commande interactive !tournoidate
+# 📌 tournoi_date.py
 # Objectif : Afficher / modifier / supprimer la date et le lieu du tournoi (SQLite)
 # Catégorie : 🧠 VAACT
 # Accès : Admin
-# Base : SQLite locale
+# Cooldown : 5s
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,10 +14,11 @@ from datetime import datetime
 import sqlite3
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button, Modal, TextInput
 
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_edit
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🗄️ Configuration SQLite
@@ -32,15 +33,17 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS tournoi_info (
-        id INTEGER PRIMARY KEY,
-        prochaine_date TEXT,
-        lieu TEXT
-    )
+        CREATE TABLE IF NOT EXISTS tournoi_info (
+            id INTEGER PRIMARY KEY,
+            prochaine_date TEXT,
+            lieu TEXT
+        )
     """)
     cursor.execute("SELECT COUNT(*) FROM tournoi_info")
     if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO tournoi_info (id, prochaine_date, lieu) VALUES (1, NULL, NULL)")
+        cursor.execute(
+            "INSERT INTO tournoi_info (id, prochaine_date, lieu) VALUES (1, NULL, NULL)"
+        )
     conn.commit()
     conn.close()
 
@@ -61,7 +64,10 @@ class TournoiDateModal(Modal, title="📅 Modifier le tournoi"):
             )
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("UPDATE tournoi_info SET prochaine_date = ?, lieu = ? WHERE id = 1", (dt.isoformat(), self.lieu.value))
+        cursor.execute(
+            "UPDATE tournoi_info SET prochaine_date = ?, lieu = ? WHERE id = 1",
+            (dt.isoformat(), self.lieu.value)
+        )
         conn.commit()
         conn.close()
         await interaction.response.send_message("✅ **Tournoi mis à jour avec succès**", ephemeral=True)
@@ -94,18 +100,19 @@ class TournoiDateView(View):
             self.add_item(DeleteDateButton())
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal — !tournoidate (admin)
+# 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class TournoiDate(commands.Cog):
-    """Commande !tournoidate — Affiche et gère la date du tournoi."""
+    """Commande /tournoidate et !tournoidate — Affiche et gère la date du tournoi."""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         init_db()
 
-    @commands.command(name="tournoidate", aliases=["settournoi"], help="(Admin) 🛠️ Gérer la date du tournoi VAACT.", description="Affiche la date actuelle et permet de l'ajouter, modifier ou supprimer.")
-    @commands.has_permissions(administrator=True)
-    async def tournoidate(self, ctx: commands.Context):
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _send_tournoi_date(self, channel: discord.abc.Messageable):
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM tournoi_info WHERE id = 1")
@@ -126,8 +133,30 @@ class TournoiDate(commands.Cog):
             embed.description = "❌ **Aucun tournoi programmé pour le moment.**"
             view = TournoiDateView(has_date=False)
 
-        await safe_send(ctx, embed=embed, view=view)
+        await safe_send(channel, embed=embed, view=view)
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="tournoidate",
+        description="(Admin) 🛠️ Gérer la date du tournoi VAACT."
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
+    async def slash_tournoidate(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self._send_tournoi_date(interaction.channel)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="tournoidate", aliases=["settournoi"])
+    @commands.has_permissions(administrator=True)
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_tournoidate(self, ctx: commands.Context):
+        await self._send_tournoi_date(ctx.channel)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
