@@ -106,11 +106,15 @@ class StapleOuPas(commands.Cog):
         card = await (self.get_random_staple() if is_staple else self.get_random_card())
         if not card:
             msg = "❌ Impossible de tirer une carte."
-            return await (safe_respond(ctx_or_inter, msg) if is_slash else safe_send(ctx_or_inter, msg))
+            return await (safe_followup(ctx_or_inter, msg) if is_slash else safe_send(ctx_or_inter, msg))
 
         embed = await self.build_embed(card)
         view = GuessView(is_staple, embed, ctx_or_inter.user if is_slash else ctx_or_inter.author)
-        await (safe_respond(ctx_or_inter, embed=embed, view=view) if is_slash else safe_send(ctx_or_inter, embed=embed, view=view))
+
+        if is_slash:
+            await safe_followup(ctx_or_inter, embed=embed, view=view)
+        else:
+            await safe_send(ctx_or_inter, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
@@ -122,8 +126,7 @@ class StapleOuPas(commands.Cog):
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_staple_ou_pas(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self.play_round(interaction, True)  # ✅ Utilise la fonction commune
-        # pas besoin de delete_original_response(), safe_respond gère le followup
+        await self.play_round(interaction, True)
 
     # ────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
@@ -139,7 +142,7 @@ class StapleOuPas(commands.Cog):
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = StapleOuPas(bot)
     for command in cog.get_commands():
