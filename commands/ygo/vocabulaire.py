@@ -1,15 +1,20 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📘 vocabulaire.py — Commande interactive !vocabulaire
-# Objectif : Affiche les définitions des termes du jeu depuis un fichier JSON
+# 📌 vocabulaire.py — Commande interactive !vocabulaire
+# Objectif :
+#   - Affiche les définitions des termes du jeu depuis un fichier JSON
+#   - Permet la navigation entre pages avec des boutons
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
+# Cooldown : 1 utilisation / 5 sec / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
+from discord.ui import View, Button
 import json
 import os
 
@@ -21,41 +26,61 @@ from utils.discord_utils import safe_send, safe_edit, safe_respond
 VOCAB_PATH = os.path.join("data", "vocabulaire.json")
 
 def load_data():
-    """Charge le lexique depuis le fichier JSON."""
-    with open(VOCAB_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(VOCAB_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERREUR JSON] Impossible de charger {VOCAB_PATH} : {e}")
+        return {}
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ View — Pagination interactive
+# ────────────────────────────────────────────────────────────────────────────────
+class VocabulaireView(View):
+    def __init__(self, pages: list[discord.Embed]):
+        super().__init__(timeout=120)
+        self.pages = pages
+        self.index = 0
+        self.message = None
+
+    async def update(self, interaction: discord.Interaction):
+        await safe_edit(self.message, embed=self.pages[self.index], view=self)
+
+    @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
+    async def prev(self, interaction: discord.Interaction, button: Button):
+        self.index = (self.index - 1) % len(self.pages)
+        await self.update(interaction)
+
+    @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
+    async def next(self, interaction: discord.Interaction, button: Button):
+        self.index = (self.index + 1) % len(self.pages)
+        await self.update(interaction)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            await safe_edit(self.message, view=self)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class VocabulaireCommand(commands.Cog):
-    """
-    📘 Commande !vocabulaire : affiche les définitions des termes liés au jeu.
-    Peut être utilisée avec un mot-clé ou sans pour afficher tout le lexique.
-    """
+    """Commande /vocabulaire et !vocabulaire — Définitions interactives de termes Yu-Gi-Oh!"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(
-        name="vocabulaire",
-        aliases=["voc"],
-        help="📘 Affiche la définition des termes du jeu, par mot-clé ou catégorie.",
-        description="Affiche les définitions des termes du lexique, avec ou sans filtre par mot-clé."
-    )
-    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
-    async def vocabulaire(self, ctx: commands.Context, *, mot_cle: str = None):
-        """Commande principale !vocabulaire avec système de pagination par réactions."""
-        try:
-            vocabulaire = load_data()
-        except Exception as e:
-            await safe_send(ctx, f"❌ Erreur lors du chargement du fichier : {e}")
+    async def _show_vocab(self, channel: discord.abc.Messageable, mot_cle: str = None):
+        data = load_data()
+        if not data:
+            await safe_send(channel, "❌ Impossible de charger le lexique.")
             return
 
         definitions = []
-        for terme, data in vocabulaire.items():
-            definition = data.get("definition") if isinstance(data, dict) else data
-            synonymes = data.get("synonymes", []) if isinstance(data, dict) else []
+        for terme, info in data.items():
+            definition = info.get("definition") if isinstance(info, dict) else info
+            synonymes = info.get("synonymes", []) if isinstance(info, dict) else []
             noms_possibles = [terme] + synonymes
 
             if mot_cle:
@@ -65,61 +90,45 @@ class VocabulaireCommand(commands.Cog):
                 definitions.append((terme, definition))
 
         if not definitions:
-            await safe_send(ctx, "❌ Aucun terme trouvé correspondant à ta recherche.")
+            await safe_send(channel, "❌ Aucun terme trouvé correspondant à ta recherche.")
             return
 
         definitions.sort(key=lambda x: x[0].lower())
-
         max_par_page = 5
         pages = []
         total_pages = (len(definitions) - 1) // max_par_page + 1
 
         for i in range(0, len(definitions), max_par_page):
-            embed = discord.Embed(
-                title="📘 Lexique des termes",
-                color=discord.Color.dark_blue()
-            )
-
+            embed = discord.Embed(title="📘 Lexique des termes", color=discord.Color.dark_blue())
             for terme, defi in definitions[i:i + max_par_page]:
-                embed.add_field(
-                    name=f"🔹 {terme}",
-                    value=defi or "Aucune définition disponible.",
-                    inline=False
-                )
-
+                embed.add_field(name=f"🔹 {terme}", value=defi or "Aucune définition disponible.", inline=False)
             embed.set_footer(text=f"📄 Page {len(pages) + 1}/{total_pages}")
             pages.append(embed)
 
-        message = await safe_send(ctx, embed=pages[0])
+        view = VocabulaireView(pages)
+        view.message = await safe_send(channel, embed=pages[0], view=view)
 
-        if len(pages) <= 1:
-            return
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="vocabulaire",
+        description="Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive."
+    )
+    @app_commands.describe(mot_cle="Mot-clé à rechercher (optionnel)")
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
+    async def slash_vocabulaire(self, interaction: discord.Interaction, mot_cle: str = None):
+        await interaction.response.defer()
+        await self._show_vocab(interaction.channel, mot_cle)
+        await interaction.delete_original_response()
 
-        await message.add_reaction("◀️")
-        await message.add_reaction("▶️")
-
-        def check(reaction, user):
-            return (
-                user == ctx.author
-                and reaction.message.id == message.id
-                and str(reaction.emoji) in ["◀️", "▶️"]
-            )
-
-        index = 0
-        while True:
-            try:
-                reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
-                await message.remove_reaction(reaction, user)
-
-                if str(reaction.emoji) == "▶️":
-                    index = (index + 1) % len(pages)
-                elif str(reaction.emoji) == "◀️":
-                    index = (index - 1) % len(pages)
-
-                await safe_edit(message, embed=pages[index])
-
-            except Exception:
-                break  # Timeout ou erreur
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="vocabulaire", aliases=["voc"], help="📘 Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive.")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_vocabulaire(self, ctx: commands.Context, *, mot_cle: str = None):
+        await self._show_vocab(ctx.channel, mot_cle)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
