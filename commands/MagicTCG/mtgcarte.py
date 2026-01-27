@@ -122,7 +122,7 @@ class MTGCarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="mtgcarte")
+    @commands.command(name="mtgcarte", help="Affiche une carte Magic: The Gathering (aléatoire si aucun nom)")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_mtgcarte(self, ctx: commands.Context, *, nom: str | None = None):
         data = await self.fetch_card(nom)
