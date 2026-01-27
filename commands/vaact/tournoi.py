@@ -1,9 +1,9 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 tournoi.py — Commande interactive !tournoi
-# Objectif : Affiche la date et le lieu du prochain tournoi (SQLite)
+# 📌 tournoi.py
+# Objectif : Affiche la date et le lieu du prochain tournoi (SQLite) avec bouton Google Sheet
 # Catégorie : 🧠 VAACT
 # Accès : Public
-# Base : SQLite locale
+# Cooldown : 5s
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,9 +14,13 @@ from datetime import datetime
 import sqlite3
 
 import discord
+from discord import app_commands
 from discord.ext import commands
+from discord.ui import View, Button
 
 from utils.discord_utils import safe_send
+
+SHEET_CSV_URL = os.getenv("SHEET_CSV_URL")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🗄️ Configuration SQLite
@@ -31,15 +35,17 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS tournoi_info (
-        id INTEGER PRIMARY KEY,
-        prochaine_date TEXT,
-        lieu TEXT
-    )
+        CREATE TABLE IF NOT EXISTS tournoi_info (
+            id INTEGER PRIMARY KEY,
+            prochaine_date TEXT,
+            lieu TEXT
+        )
     """)
     cursor.execute("SELECT COUNT(*) FROM tournoi_info")
     if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO tournoi_info (id, prochaine_date, lieu) VALUES (1, NULL, NULL)")
+        cursor.execute(
+            "INSERT INTO tournoi_info (id, prochaine_date, lieu) VALUES (1, NULL, NULL)"
+        )
     conn.commit()
     conn.close()
 
@@ -57,22 +63,37 @@ MOIS_FR = [
 VAACT_LOGO_PATH = "data/images/vaact_logo.png"
 
 # ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ UI — Bouton Google Sheet
+# ────────────────────────────────────────────────────────────────────────────────
+class DecksButtonView(View):
+    def __init__(self, url: str):
+        super().__init__(timeout=None)
+        self.add_item(DecksButton(url))
+
+class DecksButton(Button):
+    def __init__(self, url: str):
+        super().__init__(
+            label="📋 Voir les decks",
+            style=discord.ButtonStyle.link,
+            url=url
+        )
+
+# ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class TournoiCommand(commands.Cog):
-    """📌 Affiche la date et le lieu du prochain tournoi."""
+    """
+    Commande /tournoi et !tournoi — Affiche la date et le lieu du prochain tournoi
+    """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         init_db()
 
-    @commands.command(
-        name="tournoi",
-        help="📅 Affiche la date et le lieu du prochain tournoi VAACT.",
-        description="Récupère la date et le lieu depuis SQLite locale."
-    )
-    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
-    async def tournoi(self, ctx: commands.Context):
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _send_tournoi(self, channel: discord.abc.Messageable):
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("SELECT prochaine_date, lieu FROM tournoi_info WHERE id = 1")
@@ -80,7 +101,7 @@ class TournoiCommand(commands.Cog):
         conn.close()
 
         if not row or not row[0]:
-            await safe_send(ctx, "📭 Aucun tournoi prévu pour le moment.")
+            await safe_send(channel, "📭 Aucun tournoi prévu pour le moment.")
             return
 
         dt = datetime.fromisoformat(row[0])
@@ -100,7 +121,30 @@ class TournoiCommand(commands.Cog):
             embed.set_thumbnail(url="attachment://vaact_logo.png")
             files.append(file)
 
-        await safe_send(ctx, embed=embed, files=files)
+        view = DecksButtonView(SHEET_CSV_URL) if SHEET_CSV_URL else None
+
+        await safe_send(channel, embed=embed, files=files, view=view)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="tournoi",
+        description="Affiche la date et le lieu du prochain tournoi VAACT."
+    )
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
+    async def slash_tournoi(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self._send_tournoi(interaction.channel)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="tournoi")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_tournoi(self, ctx: commands.Context):
+        await self._send_tournoi(ctx.channel)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
