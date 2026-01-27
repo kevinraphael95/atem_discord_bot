@@ -1,23 +1,59 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 tournoi.py — Commande interactive !tournoi
-# Objectif : Affiche la date et le lieu du prochain tournoi à partir de Supabase
+# 📌 tournoi.py
+# Objectif : Affiche la date et le lieu du prochain tournoi
 # Catégorie : 🧠 VAACT
-# Accès : Public
+# Accès : Tous
+# Cooldown : 1 / 5 secondes / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
-import discord
-from discord.ext import commands
 import os
+import sqlite3
 from datetime import datetime
 
-from utils.discord_utils import safe_send
-from utils.supabase_client import supabase  # ✅ utilisation du client central
+import discord
+from discord import app_commands
+from discord.ext import commands
+from discord.ui import View
+
+from utils.discord_utils import safe_send, safe_respond
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🗓️ Mois en français (fallback fiable, sans dépendre du locale OS)
+# 🗄️ Configuration SQLite
+# ────────────────────────────────────────────────────────────────────────────────
+DB_PATH = "database/tournoi.db"
+os.makedirs("database", exist_ok=True)
+
+def get_db():
+    return sqlite3.connect(DB_PATH)
+
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tournoi_info (
+            id INTEGER PRIMARY KEY,
+            prochaine_date TEXT,
+            lieu TEXT
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM tournoi_info")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute(
+            "INSERT INTO tournoi_info (id, prochaine_date, lieu) VALUES (1, NULL, NULL)"
+        )
+    conn.commit()
+    conn.close()
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🔗 Lien externe (bouton)
+# ────────────────────────────────────────────────────────────────────────────────
+SHEET_CSV_URL = os.getenv("SHEET_CSV_URL")
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🗓️ Mois en français
 # ────────────────────────────────────────────────────────────────────────────────
 MOIS_FR = [
     "janvier", "février", "mars", "avril", "mai", "juin",
@@ -25,100 +61,98 @@ MOIS_FR = [
 ]
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔐 Variables d’environnement
-# ────────────────────────────────────────────────────────────────────────────────
-SHEET_CSV_URL = os.getenv("SHEET_CSV_URL")  # ⚡ mettre ici le lien partage Google Sheets "visualisable"
-
-# ────────────────────────────────────────────────────────────────────────────────
 # 🖼️ Logo VAACT
 # ────────────────────────────────────────────────────────────────────────────────
 VAACT_LOGO_PATH = "data/images/vaact_logo.png"
 
 # ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ UI — Bouton vers les decks
+# ────────────────────────────────────────────────────────────────────────────────
+class DeckButtonView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        if SHEET_CSV_URL:
+            self.add_item(
+                discord.ui.Button(
+                    label="📋 Voir les decks",
+                    url=SHEET_CSV_URL
+                )
+            )
+
+# ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class TournoiCommand(commands.Cog):
-    """📌 Affiche la date et le lieu du prochain tournoi."""
+class Tournoi(commands.Cog):
+    """
+    Commande /tournoi et !tournoi — Voir le prochain tournoi VAACT
+    """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        init_db()
 
-    @commands.command(
-        name="tournoi",
-        help="📅 Affiche la date et le lieu du prochain tournoi VAACT.",
-        description="Récupère la date et le lieu depuis Supabase."
-    )
-    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
-    async def tournoi(self, ctx: commands.Context):
-        """Commande principale !tournoi"""
-        try:
-            # ✅ Lecture de la seule ligne (un seul tournoi possible)
-            result = supabase.table("tournoi_info").select("prochaine_date, lieu").execute()
-            data = result.data
-        except Exception as e:
-            print(f"[ERREUR SUPABASE] {e}")
-            await safe_send(ctx, "❌ Impossible de se connecter à Supabase.")
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _send_tournoi(self, channel: discord.abc.Messageable):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT prochaine_date, lieu FROM tournoi_info WHERE id = 1")
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row or not row[0]:
+            await safe_send(channel, "📭 Aucun tournoi prévu pour le moment.")
             return
 
-        if not data or not data[0].get("prochaine_date"):
-            await safe_send(ctx, "📭 Aucun tournoi prévu pour le moment.")
-            return
+        # Formatage date
+        dt = datetime.fromisoformat(row[0])
+        mois = MOIS_FR[dt.month - 1]
+        date_formatee = f"{dt.day} {mois} {dt.year} à {dt.hour:02d}h{dt.minute:02d}"
+        lieu = row[1] or "Non renseigné"
 
-        # ────────────────────────────────────────────────────────────────────
-        # 📅 Formatage de la date (français propre)
-        # ────────────────────────────────────────────────────────────────────
-        iso_date = data[0]["prochaine_date"]
-        lieu = data[0].get("lieu", "Non renseigné")
-
-        try:
-            dt = datetime.fromisoformat(iso_date)
-            mois = MOIS_FR[dt.month - 1]
-            date_formatee = f"{dt.day} {mois} {dt.year} à {dt.hour:02d}h{dt.minute:02d}"
-        except Exception:
-            date_formatee = iso_date  # fallback brut
-
-        # ────────────────────────────────────────────────────────────────────
-        # 🎨 Embed principal
-        # ────────────────────────────────────────────────────────────────────
         embed = discord.Embed(
             title="🏆 Prochain tournoi VAACT",
-            description=(
-                f"📆 **Date** : {date_formatee}\n"
-                f"📍 **Lieu** : {lieu}"
-            ),
+            description=f"📆 **Date** : {date_formatee}\n📍 **Lieu** : {lieu}",
             color=discord.Color.gold()
         )
 
-        # Logo VAACT
         files = []
         if os.path.exists(VAACT_LOGO_PATH):
             file = discord.File(VAACT_LOGO_PATH, filename="vaact_logo.png")
             embed.set_thumbnail(url="attachment://vaact_logo.png")
             files.append(file)
 
-        # ────────────────────────────────────────────────────────────────────
-        # 🔘 Bouton pour ouvrir le lien Google Sheets
-        # ────────────────────────────────────────────────────────────────────
-        view = None
-        if SHEET_CSV_URL:
-            class DeckButton(discord.ui.View):
-                def __init__(self):
-                    super().__init__()
-                    # ⚡ URL qui ouvre dans le navigateur, pas download
-                    self.add_item(discord.ui.Button(
-                        label="📋 Voir les decks",
-                        url=SHEET_CSV_URL
-                    ))
-            view = DeckButton()
+        view = DeckButtonView() if SHEET_CSV_URL else None
 
-        await safe_send(ctx, embed=embed, view=view, files=files)
+        await safe_send(channel, embed=embed, view=view, files=files)
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="tournoi",
+        description="Affiche la date et le lieu du prochain tournoi VAACT."
+    )
+    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
+    async def slash_tournoi(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self._send_tournoi(interaction.channel)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="tournoi")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_tournoi(self, ctx: commands.Context):
+        await self._send_tournoi(ctx.channel)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
-    cog = TournoiCommand(bot)
+    cog = Tournoi(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
             command.category = "VAACT"
