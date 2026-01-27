@@ -119,7 +119,7 @@ class OPCarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="opcarte")
+    @commands.command(name="opcarte", help="Affiche une carte One Piece TCG (aléatoire si aucun nom)")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_opcarte(self, ctx: commands.Context, *, nom: str | None = None):
         card = await self.fetch_card(nom)
