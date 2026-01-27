@@ -152,7 +152,7 @@ class TournoiDate(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="tournoidate", aliases=["settournoi"])
+    @commands.command(name="tournoidate", aliases=["settournoi"], help="(Admin) 🛠️ Gérer la date du tournoi VAACT.")
     @commands.has_permissions(administrator=True)
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_tournoidate(self, ctx: commands.Context):
