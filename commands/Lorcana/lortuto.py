@@ -133,7 +133,7 @@ class LorTuto(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="lortuto")
+    @commands.command(name="lortuto", help="Apprendre à jouer à Disney Lorcana (tutoriel interactif)")
     async def prefix_lortuto(self, ctx: commands.Context):
         view = LorcanaTutorialView()
         await safe_send(ctx.channel, embed=view.get_embed(), view=view)
