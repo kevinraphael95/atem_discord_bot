@@ -100,6 +100,7 @@ class Say(commands.Cog):
             await interaction.response.defer()
             await self._say(interaction.channel, interaction.user, message, embed, as_user)
             await safe_respond(interaction, "✅ Message envoyé !", ephemeral=True)
+            await interaction.delete_original_response()
         except Exception as e:
             print(f"[ERREUR /say] {e}")
             await safe_respond(interaction, "❌ Impossible d’envoyer le message.", ephemeral=True)
