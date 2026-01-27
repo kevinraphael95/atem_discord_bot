@@ -1,5 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 art.py — Commande interactive !art
+# 📌 art.py
 # Objectif :
 #   - Afficher les illustrations d’une carte Yu-Gi-Oh!
 #   - Permettre de naviguer entre plusieurs illustrations si disponibles
@@ -8,16 +8,19 @@
 #   - 🃏 Yu-Gi-Oh!
 # Accès :
 #   - Public
+# Cooldown :
+#   - 1 utilisation / 3 sec / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_respond
 from utils.card_utils import search_card
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -53,30 +56,23 @@ class ArtPagination(View):
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Art(commands.Cog):
-    """Commande !art — Affiche les illustrations d’une carte Yu-Gi-Oh!"""
+    """Commande /art et !art — Affiche les illustrations d’une carte Yu-Gi-Oh!"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(
-        name="art",
-        help="🎨 Affiche les illustrations d’une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT).",
-        description="Permet de naviguer entre plusieurs illustrations si disponibles."
-    )
-    @commands.cooldown(rate=1, per=3, type=commands.BucketType.user)
-    async def art(self, ctx: commands.Context, *, nom: str):
-        # ✅ On passe la session aiohttp du bot
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _show_art(self, channel: discord.abc.Messageable, nom: str):
         carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
-
-        if message:  # Message d’erreur ou d’avertissement
-            await safe_send(ctx, message)
+        if message:
+            await safe_send(channel, message)
             return
-
         if not carte:
-            await safe_send(ctx, f"❌ Impossible de trouver la carte `{nom}`.")
+            await safe_send(channel, f"❌ Impossible de trouver la carte `{nom}`.")
             return
 
-        # Récupération des illustrations (préférence pour cropped si dispo)
         images = []
         for img in carte.get("card_images", []):
             cropped = img.get("image_url_cropped")
@@ -87,7 +83,7 @@ class Art(commands.Cog):
                 images.append(full)
 
         if not images:
-            await safe_send(ctx, "❌ Aucune illustration disponible pour cette carte.")
+            await safe_send(channel, "❌ Aucune illustration disponible pour cette carte.")
             return
 
         titre = f"{carte.get('name', 'Carte inconnue')} ({langue.upper()})"
@@ -96,9 +92,33 @@ class Art(commands.Cog):
             color=discord.Color.purple()
         )
         embed.set_image(url=images[0])
+        await safe_send(channel, embed=embed, view=ArtPagination(images, titre))
 
-        await safe_send(ctx, embed=embed, view=ArtPagination(images, titre))
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="art",
+        description="Affiche les illustrations d’une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT)."
+    )
+    @app_commands.describe(nom="Nom de la carte")
+    @app_commands.checks.cooldown(rate=1, per=3.0, key=lambda i: i.user.id)
+    async def slash_art(self, interaction: discord.Interaction, nom: str):
+        await interaction.response.defer()
+        await self._show_art(interaction.channel, nom)
+        await interaction.delete_original_response()
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(
+        name="art",
+        help="🎨 Affiche les illustrations d’une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT).",
+        description="Permet de naviguer entre plusieurs illustrations si disponibles."
+    )
+    @commands.cooldown(1, 3.0, commands.BucketType.user)
+    async def prefix_art(self, ctx: commands.Context, *, nom: str):
+        await self._show_art(ctx.channel, nom)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
