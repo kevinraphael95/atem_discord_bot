@@ -1,5 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 pendu.py — Commande interactive !pendu
+# 📌 pendu.py
 # Objectif :
 #   - Jeu du pendu interactif avec noms de cartes Yu-Gi-Oh! françaises
 #   - Affiche type, attribut et archétype comme indice
@@ -7,21 +7,24 @@
 #   - Les accents sont ignorés (é/è/ê = e, ç = c, etc.)
 # Catégorie : Minijeux
 # Accès : Public
+# Cooldown : 1 utilisation / 5s
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands, tasks
 import asyncio
 import random
 import unicodedata
+
 from utils.discord_utils import safe_send, safe_edit
 from utils.card_utils import fetch_random_card
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎨 Constantes et ASCII
+# 🎨 Constantes
 # ────────────────────────────────────────────────────────────────────────────────
 PENDU_ASCII = [
     "`     \n     \n     \n     \n     \n=========`",
@@ -35,10 +38,10 @@ PENDU_ASCII = [
 ]
 
 MAX_ERREURS = 7
-INACTIVITE_MAX = 180  # ⏰ 3 minutes
+INACTIVITE_MAX = 180  # 3 minutes
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧩 Fonction utilitaire : normaliser les lettres
+# 🧩 Fonctions utilitaires
 # ────────────────────────────────────────────────────────────────────────────────
 def normaliser_texte(texte: str) -> str:
     """Supprime les accents et met en minuscules"""
@@ -46,7 +49,7 @@ def normaliser_texte(texte: str) -> str:
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧩 Classe PenduGame
+# 🧩 Classes internes
 # ────────────────────────────────────────────────────────────────────────────────
 class PenduGame:
     def __init__(self, mot: str, mot_affiche: str, indice: str = None, mode: str = "solo"):
@@ -107,9 +110,6 @@ class PenduGame:
             return "perdu"
         return "continue"
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🧩 Classe PenduSession
-# ────────────────────────────────────────────────────────────────────────────────
 class PenduSession:
     def __init__(self, game: PenduGame, message: discord.Message, mode: str = "solo", author_id: int = None):
         self.game = game
@@ -126,7 +126,7 @@ class PenduSession:
 # ────────────────────────────────────────────────────────────────────────────────
 class Pendu(commands.Cog):
     """
-    Commande !pendu — Jeu du pendu interactif avec noms de cartes Yu-Gi-Oh! françaises
+    Commande /pendu et !pendu — Jeu du pendu interactif
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -134,34 +134,11 @@ class Pendu(commands.Cog):
         self.verif_inactivite.start()
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande principale
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(
-        name="pendu",
-        help="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.",
-        description="Lance une partie, puis propose des lettres par message."
-    )
-    async def pendu_cmd(self, ctx: commands.Context, mode: str = ""):
-        mode = "multi" if mode.lower() in ("multi", "m") else "solo"
-        if ctx.channel.id in self.sessions:
-            await safe_send(ctx.channel, "❌ Une partie est déjà en cours dans ce salon.")
-            return
-
-        mot_affiche, mot_normalise, indice = await self._fetch_random_word()
-        if not mot_affiche:
-            await safe_send(ctx.channel, "❌ Impossible de récupérer un mot, réessaie plus tard.")
-            return
-
-        game = PenduGame(mot_normalise, mot_affiche, indice=indice, mode=mode)
-        message = await safe_send(ctx.channel, embed=game.create_embed())
-        self.sessions[ctx.channel.id] = PenduSession(game, message, mode=mode, author_id=ctx.author.id)
-
-    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Tirage aléatoire d’un mot
     # ────────────────────────────────────────────────────────────────────────────
-    async def _fetch_random_word(self) -> tuple[str | None, str | None, str | None]:
+    async def _fetch_random_word(self):
         try:
-            carte, _ = await fetch_random_card(lang="fr")
+            carte, _ = await fetch_random_card()
             if not carte:
                 raise ValueError("Carte introuvable")
             nom = carte.get("name", "").strip()
@@ -173,13 +150,11 @@ class Pendu(commands.Cog):
                 indice += f" / {attr}"
             if archetype:
                 indice += f" / {archetype}"
-
             mot_normalise = normaliser_texte(nom)
             if len(mot_normalise) < 3:
                 raise ValueError("Nom trop court")
             return nom, mot_normalise, indice
-        except Exception as e:
-            print(f"[ERREUR] _fetch_random_word : {e}")
+        except Exception:
             fallback = [
                 ("Dragon Blanc aux Yeux Bleus", "dragon blanc aux yeux bleus", "Monstre / LUMIÈRE"),
                 ("Magicien Sombre", "magicien sombre", "Magicien / TÉNÈBRES"),
@@ -188,6 +163,67 @@ class Pendu(commands.Cog):
                 ("Force de Miroir", "force de miroir", "Piège"),
             ]
             return random.choice(fallback)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(name="pendu", description="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
+    async def slash_pendu(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self._start_game(interaction.channel, interaction.user)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="pendu")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_pendu(self, ctx: commands.Context):
+        await self._start_game(ctx.channel, ctx.author)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Démarrage de la partie
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _start_game(self, channel: discord.TextChannel, author):
+        mode = "solo"
+        if channel.id in self.sessions:
+            await safe_send(channel, "❌ Une partie est déjà en cours dans ce salon.")
+            return
+        mot_affiche, mot_normalise, indice = await self._fetch_random_word()
+        game = PenduGame(mot_normalise, mot_affiche, indice=indice, mode=mode)
+        message = await safe_send(channel, embed=game.create_embed())
+        self.sessions[channel.id] = PenduSession(game, message, mode=mode, author_id=author.id)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Gestion des lettres proposées
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.guild:
+            return
+        session = self.sessions.get(message.channel.id)
+        if not session:
+            return
+        if session.mode == "solo" and message.author.id != session.player_id:
+            return
+        contenu = message.content.strip().lower()
+        if len(contenu) != 1 or not contenu.isalpha():
+            return
+        session.last_activity = asyncio.get_event_loop().time()
+        game = session.game
+        resultat = game.propose_lettre(contenu)
+        if resultat is None:
+            await safe_send(message.channel, f"❌ Lettre `{contenu}` déjà proposée.", delete_after=5)
+            await message.delete()
+            return
+        await safe_edit(session.message, embed=game.create_embed())
+        await message.delete()
+        if resultat == "gagne":
+            await safe_send(message.channel, f"🎉 Bravo {message.author.mention} ! Le mot était **{game.mot_affiche}**.")
+            del self.sessions[message.channel.id]
+        elif resultat == "perdu":
+            await safe_send(message.channel, f"💀 Partie terminée ! Le mot était **{game.mot_affiche}**.")
+            del self.sessions[message.channel.id]
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Vérification inactivité
@@ -200,43 +236,6 @@ class Pendu(commands.Cog):
             session = self.sessions.pop(cid, None)
             if session:
                 await safe_send(session.message.channel, "⏰ Partie terminée pour inactivité (3 minutes).")
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Gestion des lettres proposées
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
-        if message.author.bot or not message.guild:
-            return
-
-        session = self.sessions.get(message.channel.id)
-        if not session:
-            return
-        if session.mode == "solo" and message.author.id != session.player_id:
-            return
-
-        contenu = message.content.strip().lower()
-        if len(contenu) != 1 or not contenu.isalpha():
-            return
-
-        session.last_activity = asyncio.get_event_loop().time()
-        game = session.game
-        resultat = game.propose_lettre(contenu)
-
-        if resultat is None:
-            await safe_send(message.channel, f"❌ Lettre `{contenu}` déjà proposée.", delete_after=5)
-            await message.delete()
-            return
-
-        await safe_edit(session.message, embed=game.create_embed())
-        await message.delete()
-
-        if resultat == "gagne":
-            await safe_send(message.channel, f"🎉 Bravo {message.author.mention} ! Le mot était **{game.mot_affiche}**.")
-            del self.sessions[message.channel.id]
-        elif resultat == "perdu":
-            await safe_send(message.channel, f"💀 Partie terminée ! Le mot était **{game.mot_affiche}**.")
-            del self.sessions[message.channel.id]
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
