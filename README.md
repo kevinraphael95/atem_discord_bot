@@ -12,7 +12,7 @@ Il permet de jouer à des mini-jeux, consulter des cartes.
 - **Yu-Gi-Oh!** : commandes générales sur yu gi oh.
 
 La liste complète des commandes est disponible dans :  
-[docs/Liste_des_Commandes.md](docs/Liste_des_Commandes.md)
+[docs/Liste_des_Commandes.md](docs/Liste_des_commandes.md)
 
 # ⚙️ Installation
 
