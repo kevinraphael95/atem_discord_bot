@@ -1,15 +1,17 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 bannisougarde.py — Commande interactive !bannisougarde
+# 📌 bannisougarde.py
 # Objectif : Mini-jeu fun Yu-Gi-Oh! où tu décides pour 3 cartes si elles sont bannies,
-# gardées à 3 ou limitées à 1. Débattez sur l’équilibrage !
-# Catégorie : 🃏 Yu-Gi-Oh!
+# gardées à 3 ou limitées à 1.
+# Catégorie : 🃏 Minijeux
 # Accès : Public
+# Cooldown : 1 utilisation / 30 sec / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import aiohttp
@@ -17,7 +19,7 @@ import random
 from utils.discord_utils import safe_send, safe_edit
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ Vue interactive pour choix sur une carte
+# 🎛️ UI — Boutons pour chaque carte
 # ────────────────────────────────────────────────────────────────────────────────
 class ChoixCarteView(View):
     def __init__(self, bot, ctx, cartes, index=0, choix_faits=None, choix_restants=None):
@@ -25,13 +27,15 @@ class ChoixCarteView(View):
         self.bot = bot
         self.ctx = ctx
         self.cartes = cartes
-        self.index = index  # carte en cours
-        self.choix_faits = choix_faits or {}  # {0: "bannir", 1: "garde", 2: "limite"}
+        self.index = index
+        self.choix_faits = choix_faits or {}
         self.choix_restants = choix_restants or {"bannir", "garde", "limite"}
+        self._init_buttons()
 
+    def _init_buttons(self):
+        self.clear_items()
         emoji_map = {"bannir": "🗑️", "garde": "🔥", "limite": "👎"}
         label_map = {"bannir": "Bannir à vie", "garde": "Garder à 3", "limite": "Limiter à 1"}
-
         for choix in ["bannir", "garde", "limite"]:
             if choix in self.choix_restants:
                 self.add_item(ChoixButton(self, choix, label_map[choix], emoji_map[choix]))
@@ -51,18 +55,11 @@ class ChoixCarteView(View):
         self.choix_faits[self.index] = choix
         self.choix_restants.remove(choix)
         self.index += 1
-
         if self.index == len(self.cartes):
             await self.fin(interaction)
             self.stop()
         else:
-            self.clear_items()
-            emoji_map = {"bannir": "🗑️", "garde": "🔥", "limite": "👎"}
-            label_map = {"bannir": "Bannir à vie", "garde": "Garder à 3", "limite": "Limiter à 1"}
-
-            for choix_restant in self.choix_restants:
-                self.add_item(ChoixButton(self, choix_restant, label_map[choix_restant], emoji_map[choix_restant]))
-
+            self._init_buttons()
             await self.update_message(interaction)
 
     async def fin(self, interaction):
@@ -70,17 +67,18 @@ class ChoixCarteView(View):
             title="Résultat du mini-jeu Bannis ou Garde",
             color=discord.Color.green()
         )
-        status_map = {
-            "bannir": "🗑️ Bannie à vie",
-            "garde": "🔥 Gardée à 3",
-            "limite": "👎 Limitée à 1"
-        }
+        status_map = {"bannir": "🗑️ Bannie à vie", "garde": "🔥 Gardée à 3", "limite": "👎 Limitée à 1"}
         for i, carte in enumerate(self.cartes):
             statut = status_map.get(self.choix_faits.get(i, "?"), "?")
             embed.add_field(name=carte["name"], value=f"{statut}\n{carte['desc'][:300]}...", inline=False)
-
         await safe_edit(interaction.message, content=None, embed=embed, view=None)
         await safe_send(self.ctx.channel, "Merci d’avoir joué à !bannisougarde 🎲")
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if hasattr(self, "ctx"):
+            await safe_send(self.ctx.channel, "⏱️ Temps écoulé, le mini-jeu est terminé.")
 
 class ChoixButton(Button):
     def __init__(self, parent_view: ChoixCarteView, choix: str, label: str, emoji: str):
@@ -92,7 +90,6 @@ class ChoixButton(Button):
         if interaction.user != self.parent_view.ctx.author:
             await interaction.response.send_message("⛔ Ce n'est pas à toi de jouer !", ephemeral=True)
             return
-
         await interaction.response.defer()
         await self.parent_view.avance(interaction, self.choix)
 
@@ -101,10 +98,9 @@ class ChoixButton(Button):
 # ────────────────────────────────────────────────────────────────────────────────
 class BannisOuGarde(commands.Cog):
     """
-    Commande !bannisougarde — Mini-jeu fun : pour 3 cartes aléatoires,
+    Commande /bannisougarde et !bannisougarde — Mini-jeu fun : pour 3 cartes,
     choisis bannir, garder ou limiter.
     """
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -128,36 +124,56 @@ class BannisOuGarde(commands.Cog):
                     for c in sample
                 ]
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _start_game(self, channel: discord.abc.Messageable, author, cartes):
+        view = ChoixCarteView(self.bot, author, cartes)
+        premiere_carte = cartes[0]
+        embed = discord.Embed(
+            title=f"Carte 1 / 3 : {premiere_carte['name']}",
+            description=premiere_carte['desc'][:1000],
+            color=discord.Color.blue()
+        )
+        if premiere_carte.get("image"):
+            embed.set_image(url=premiere_carte["image"])
+        embed.set_footer(text="Choisis le statut de cette carte : 🗑️ Bannir, 🔥 Garder, 👎 Limiter")
+        await safe_send(channel, embed=embed, view=view)
 
-    @commands.command(
-        name="bannisougarde", aliases=["bog"],
-        help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.",
-        description="Le bot te montre 3 cartes et tu choisis leur statut via boutons."
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="bannisougarde",
+        description="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter."
     )
-    async def bannisougarde(self, ctx: commands.Context):
+    @app_commands.checks.cooldown(rate=1, per=30.0, key=lambda i: i.user.id)
+    async def slash_bannisougarde(self, interaction: discord.Interaction):
+        try:
+            await interaction.response.defer()
+            cartes = await self.get_random_cards()
+            if not cartes:
+                return await safe_respond(interaction, "❌ Impossible de récupérer les cartes, réessaie plus tard.", ephemeral=True)
+            await self._start_game(interaction.channel, interaction.user, cartes)
+            await interaction.delete_original_response()
+        except Exception as e:
+            print(f"[ERREUR /bannisougarde] {e}")
+            await safe_respond(interaction, "❌ Une erreur est survenue.", ephemeral=True)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="bannisougarde", aliases=["bog"])
+    @commands.cooldown(1, 30.0, commands.BucketType.user)
+    async def prefix_bannisougarde(self, ctx: commands.Context):
         try:
             cartes = await self.get_random_cards()
             if not cartes:
-                await safe_send(ctx.channel, "❌ Impossible de récupérer les cartes, réessaie plus tard.")
-                return
-
-            view = ChoixCarteView(self.bot, ctx, cartes)
-
-            premiere_carte = cartes[0]
-            embed = discord.Embed(
-                title=f"Carte 1 / 3 : {premiere_carte['name']}",
-                description=premiere_carte['desc'][:1000],
-                color=discord.Color.blue()
-            )
-            if premiere_carte.get("image"):
-                embed.set_image(url=premiere_carte["image"])
-            embed.set_footer(text="Choisis le statut de cette carte : 🗑️ Bannir, 🔥 Garder, 👎 Limiter")
-
-            await safe_send(ctx.channel, embed=embed, view=view)
-
+                return await safe_send(ctx.channel, "❌ Impossible de récupérer les cartes, réessaie plus tard.")
+            await self._start_game(ctx.channel, ctx, cartes)
         except Exception as e:
-            print(f"[ERREUR bannisougarde] {e}")
-            await safe_send(ctx.channel, "❌ Une erreur est survenue lors du mini-jeu.")
+            print(f"[ERREUR !bannisougarde] {e}")
+            await safe_send(ctx.channel, "❌ Une erreur est survenue.")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
