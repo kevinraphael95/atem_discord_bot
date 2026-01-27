@@ -42,7 +42,7 @@ class Profil(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="profil", aliases=["p"])
+    @commands.command(name="profil", aliases=["p"], help="Affiche le profil d’un utilisateur.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_profil(self, ctx: commands.Context, membre: discord.Member = None):
         membre = membre or ctx.author
