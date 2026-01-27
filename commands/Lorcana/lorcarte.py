@@ -126,7 +126,7 @@ class Lorcarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="lorcarte")
+    @commands.command(name="lorcarte", help="Affiche une carte Disney Lorcana (aléatoire si aucun nom)")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_lorcarte(self, ctx: commands.Context, *, nom: str | None = None):
         card = await self.fetch_card(nom)
