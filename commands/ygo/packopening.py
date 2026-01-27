@@ -132,7 +132,7 @@ class PackOpening(commands.Cog):
 # 🔌 Setup
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot):
-    cog = PackOpeningCog(bot)
+    cog = PackOpening(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
             command.category = "🃏 Yu-Gi-Oh!"
