@@ -115,18 +115,35 @@ class PackOpening(commands.Cog):
             await safe_send(interaction.channel, embed=embed)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    
+    # ────────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ────────────────────────────────────────────────────────────────────────────────
     @commands.command(name="packopening", aliases=["pack"])
     @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_packopening(self, ctx: commands.Context, set_name: str = None, cards: int = 5):
-        cards = max(1, min(cards, 10))
-        embed, error = await self._open_booster(set_name, cards)
+    async def prefix_packopening(self, ctx: commands.Context, *, args: str = None):
+        """
+        !packopening <nom du set> [nombre de cartes]
+        Exemple : !packopening Legend of Blue Eyes White Dragon 5
+        """
+        num_cards = 5  # valeur par défaut
+        set_name = None
+    
+        if args:
+            # Vérifie si le dernier mot est un nombre pour le nombre de cartes
+            parts = args.rsplit(" ", 1)
+            if len(parts) == 2 and parts[1].isdigit():
+                set_name = parts[0]
+                num_cards = max(1, min(int(parts[1]), 10))  # limite de 1 à 10 cartes
+            else:
+                set_name = args
+    
+        embed, error = await self._open_booster(set_name, num_cards)
         if error:
             await safe_send(ctx, error)
         else:
             await safe_send(ctx, embed=embed)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup
