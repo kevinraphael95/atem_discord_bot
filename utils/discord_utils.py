@@ -1,151 +1,74 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 staple_ou_pas.py
-# Objectif : Tire une carte aléatoire et l’utilisateur doit deviner si c’est une staple
-# Catégorie : Minijeux
-# Accès : Tous
-# Cooldown : 1 utilisation / 5 secondes / utilisateur
+# 📌 discord_utils.py — Fonctions utilitaires sécurisées pour Discord
+# Objectif : Fournir des fonctions send/edit/respond optimisées avec gestion du rate-limit
+# Version : ✅ Optimisée et robuste, backoff exponentiel, logs clairs
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
+import asyncio
 import discord
-from discord import app_commands
-from discord.ext import commands
-from discord.ui import View
-import aiohttp
-import random
-
-from utils.discord_utils import safe_send, safe_respond, safe_followup
+from discord.errors import HTTPException
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View — Boutons de réponse
+# 🛡️ Gestion centralisée des appels Discord avec backoff 429
 # ────────────────────────────────────────────────────────────────────────────────
-class GuessView(View):
-    def __init__(self, is_staple: bool, embed: discord.Embed, user: discord.User):
-        super().__init__(timeout=15)
-        self.is_staple = is_staple
-        self.embed = embed
-        self.user = user
-        self.answered = False
-
-    async def handle_guess(self, interaction: discord.Interaction, guess: bool):
-        if interaction.user.id != self.user.id:
-            return await interaction.response.send_message("❌ Ce n’est pas ton tour !", ephemeral=True)
-        if self.answered:
-            return await interaction.response.send_message("⏳ Tu as déjà répondu.", ephemeral=True)
-        self.answered = True
-
-        correct = (guess == self.is_staple)
-        color = discord.Color.green() if correct else discord.Color.red()
-        result_text = "✅ **Bonne réponse !**" if correct else "❌ **Mauvaise réponse !**"
-        true_text = "💎 Cette carte **est une Staple !**" if self.is_staple else "🪨 Cette carte **n’est pas une Staple.**"
-
-        self.embed.color = color
-        self.embed.add_field(name="Résultat", value=f"{result_text}\n{true_text}", inline=False)
-        self.embed.set_footer(text="Fin de la manche")
-        for child in self.children:
-            child.disabled = True
-        await interaction.response.edit_message(embed=self.embed, view=self)
-
-    @discord.ui.button(label="Staple", style=discord.ButtonStyle.success, emoji="💎")
-    async def guess_staple(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.handle_guess(interaction, True)
-
-    @discord.ui.button(label="Pas Staple", style=discord.ButtonStyle.danger, emoji="🪨")
-    async def guess_not_staple(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.handle_guess(interaction, False)
+async def _discord_action(action_func, *args, retry=3, delay=0.3, **kwargs):
+    """
+    Exécute une action Discord sécurisée avec gestion du rate-limit et des exceptions.
+    - action_func : fonction Discord à appeler (send, edit, reply, etc.)
+    - retry : nombre de tentatives en cas de 429
+    - delay : délai entre chaque tentative (anti-429)
+    """
+    for attempt in range(1, retry + 2):
+        try:
+            result = await action_func(*args, **kwargs)
+            if delay > 0:
+                await asyncio.sleep(delay)
+            return result
+        except HTTPException as e:
+            if e.status == 429:
+                wait_time = 10 * attempt  # backoff exponentiel
+                print(f"[RateLimit] {action_func.__name__} → 429 Too Many Requests. Pause {wait_time}s...")
+                await asyncio.sleep(wait_time)
+            else:
+                raise e
+        except Exception as e:
+            print(f"[Erreur] {action_func.__name__} → {e}")
+            return None
+    print(f"[Erreur] {action_func.__name__} → Échec après {retry+1} tentatives")
+    return None
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
+# 📩 Fonctions publiques sécurisées
 # ────────────────────────────────────────────────────────────────────────────────
-class StapleOuPas(commands.Cog):
-    """Commande /staple_ou_pas et !staple_ou_pas — Devine si la carte est une staple ou pas"""
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
+async def safe_send(channel: discord.abc.Messageable, content=None, **kwargs):
+    return await _discord_action(channel.send, content=content, **kwargs)
 
-    # ────────────────────────────────────────────────────────────
-    # 🔹 Helpers pour récupérer les cartes
-    # ────────────────────────────────────────────────────────────
-    async def get_random_staple(self):
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr") as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                cards = data.get("data", [])
-                return random.choice(cards) if cards else None
+async def safe_edit(message: discord.Message, content=None, **kwargs):
+    return await _discord_action(message.edit, content=content, **kwargs)
 
-    async def get_random_card(self):
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr") as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                cards = data.get("data", [])
-                return random.choice(cards) if cards else None
+async def safe_respond(interaction: discord.Interaction, content=None, **kwargs):
+    return await _discord_action(interaction.response.send_message, content=content, **kwargs)
 
-    async def build_embed(self, card: dict) -> discord.Embed:
-        name = card.get("name", "Carte inconnue")
-        color = discord.Color.blue()
-        desc = card.get("desc", "Pas de description disponible.")
-        embed = discord.Embed(title=f"**{name}**", description=desc, color=color)
-        if "card_images" in card and card["card_images"]:
-            embed.set_thumbnail(
-                url=card["card_images"][0].get("image_url_cropped") 
-                    or card["card_images"][0].get("image_url")
-            )
-        embed.set_footer(text="💭 Devine si cette carte est une Staple ou non !")
-        return embed
+async def safe_followup(interaction: discord.Interaction, content=None, **kwargs):
+    return await _discord_action(interaction.followup.send, content=content, **kwargs)
 
-    # ────────────────────────────────────────────────────────────
-    # 🔹 Partie commune slash / prefix
-    # ────────────────────────────────────────────────────────────
-    async def play_round(self, ctx_or_inter, is_slash: bool):
-        is_staple = random.choice([True, False])
-        card = await (self.get_random_staple() if is_staple else self.get_random_card())
-        if not card:
-            msg = "❌ Impossible de tirer une carte."
-            return await (safe_followup(ctx_or_inter, msg) if is_slash else safe_send(ctx_or_inter, msg))
+async def safe_reply(ctx_or_message, content=None, **kwargs):
+    return await _discord_action(ctx_or_message.reply, content=content, **kwargs)
 
-        embed = await self.build_embed(card)
-        view = GuessView(is_staple, embed, ctx_or_inter.user if is_slash else ctx_or_inter.author)
+async def safe_add_reaction(message: discord.Message, emoji: str, delay: float = 0.3):
+    return await _discord_action(message.add_reaction, emoji, delay=delay)
 
-        if is_slash:
-            await safe_followup(ctx_or_inter, embed=embed, view=view)
-        else:
-            await safe_send(ctx_or_inter, embed=embed, view=view)
+async def safe_delete(message: discord.Message, delay: float = 0):
+    result = await _discord_action(message.delete)
+    if delay > 0:
+        await asyncio.sleep(delay)
+    return result
 
-    # ────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="staple_ou_pas",
-        description="Devine si la carte tirée est une staple ou pas !"
-    )
-    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
-    async def slash_staple_ou_pas(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        await self.play_round(interaction, True)
-
-    # ────────────────────────────────────────────────────────────
-    # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────
-    @commands.command(
-        name="staple_ou_pas", 
-        aliases=["sop"], 
-        help="Devine si la carte tirée est une staple ou pas !"
-    )
-    @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_staple_ou_pas(self, ctx: commands.Context):
-        await self.play_round(ctx, False)
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────
-async def setup(bot: commands.Bot):
-    cog = StapleOuPas(bot)
-    for command in cog.get_commands():
-        if not hasattr(command, "category"):
-            command.category = "Minijeux"
-    await bot.add_cog(cog)
+async def safe_clear_reactions(message: discord.Message, delay: float = 0.3):
+    result = await _discord_action(message.clear_reactions)
+    if delay > 0:
+        await asyncio.sleep(delay)
+    return result
