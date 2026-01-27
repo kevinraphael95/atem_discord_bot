@@ -153,6 +153,7 @@ class HelpCommand(commands.Cog):
     async def slash_help(self, interaction: discord.Interaction, commande: str = None):
         await interaction.response.defer()
         await self._send_help(interaction.user.id, interaction.channel, commande)
+        await interaction.delete_original_response()
 
     # ──────────────────────────────────────────────────────────────
     # 🔹 Fonction interne commune
