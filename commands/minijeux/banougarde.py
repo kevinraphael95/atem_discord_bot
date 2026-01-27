@@ -163,7 +163,7 @@ class BannisOuGarde(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="bannisougarde", aliases=["bog"])
+    @commands.command(name="bannisougarde", aliases=["bog"], help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.")
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def prefix_bannisougarde(self, ctx: commands.Context):
         try:
