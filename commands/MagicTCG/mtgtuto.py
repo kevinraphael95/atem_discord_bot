@@ -150,7 +150,7 @@ class MTGTuto(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="mtgtuto")
+    @commands.command(name="mtgtuto", help="Apprendre à jouer à Magic: The Gathering")
     async def prefix_mtgtuto(self, ctx: commands.Context):
         view = MTGTutorialView()
         await safe_send(ctx.channel, embed=view.get_embed(), view=view)
