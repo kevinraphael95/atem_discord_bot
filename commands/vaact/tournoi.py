@@ -141,7 +141,7 @@ class TournoiCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="tournoi")
+    @commands.command(name="tournoi", help="Affiche la date et le lieu du prochain tournoi VAACT.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_tournoi(self, ctx: commands.Context):
         await self._send_tournoi(ctx.channel)
