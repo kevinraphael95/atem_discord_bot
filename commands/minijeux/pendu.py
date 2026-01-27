@@ -183,7 +183,7 @@ class Pendu(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="pendu")
+    @commands.command(name="pendu", help="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_pendu(self, ctx: commands.Context):
         await self._start_game(ctx.channel, ctx.author)
