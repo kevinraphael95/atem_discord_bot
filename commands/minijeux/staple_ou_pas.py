@@ -1,5 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 staple_ou_pas.py — Devine si la carte tirée est une staple ou pas
+# 📌 staple_ou_pas.py
 # Objectif : Tire une carte aléatoire et l’utilisateur doit deviner si c’est une staple
 # Catégorie : Minijeux
 # Accès : Tous
@@ -16,12 +16,7 @@ from discord.ui import View
 import aiohttp
 import random
 
-from utils.discord_utils import safe_send, safe_respond
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔗 URLs API
-# ────────────────────────────────────────────────────────────────────────────────
-STAPLES_API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
+from utils.discord_utils import safe_send, safe_respond, safe_followup
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ View — Boutons de réponse
@@ -74,7 +69,7 @@ class StapleOuPas(commands.Cog):
     # ────────────────────────────────────────────────────────────
     async def get_random_staple(self):
         async with aiohttp.ClientSession() as session:
-            async with session.get(STAPLES_API) as resp:
+            async with session.get("https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr") as resp:
                 if resp.status != 200:
                     return None
                 data = await resp.json()
@@ -92,12 +87,14 @@ class StapleOuPas(commands.Cog):
 
     async def build_embed(self, card: dict) -> discord.Embed:
         name = card.get("name", "Carte inconnue")
-        type_raw = card.get("type", "")
         color = discord.Color.blue()
         desc = card.get("desc", "Pas de description disponible.")
         embed = discord.Embed(title=f"**{name}**", description=desc, color=color)
         if "card_images" in card and card["card_images"]:
-            embed.set_thumbnail(url=card["card_images"][0].get("image_url_cropped") or card["card_images"][0].get("image_url"))
+            embed.set_thumbnail(
+                url=card["card_images"][0].get("image_url_cropped") 
+                    or card["card_images"][0].get("image_url")
+            )
         embed.set_footer(text="💭 Devine si cette carte est une Staple ou non !")
         return embed
 
@@ -118,16 +115,24 @@ class StapleOuPas(commands.Cog):
     # ────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────
-    @app_commands.command(name="staple_ou_pas", description="Devine si la carte tirée est une staple ou pas !")
+    @app_commands.command(
+        name="staple_ou_pas",
+        description="Devine si la carte tirée est une staple ou pas !"
+    )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_staple_ou_pas(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self.play_round(interaction, True)
+        await self.play_round(interaction, True)  # ✅ Utilise la fonction commune
+        # pas besoin de delete_original_response(), safe_respond gère le followup
 
     # ────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────
-    @commands.command(name="staple_ou_pas", aliases=["sop"], help="Devine si la carte tirée est une staple ou pas !")
+    @commands.command(
+        name="staple_ou_pas", 
+        aliases=["sop"], 
+        help="Devine si la carte tirée est une staple ou pas !"
+    )
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_staple_ou_pas(self, ctx: commands.Context):
         await self.play_round(ctx, False)
