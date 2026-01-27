@@ -86,7 +86,7 @@ class Prix(commands.Cog):
     
     
     # ── Commande préfixe
-    @commands.command(name="prix")
+    @commands.command(name="prix", help="Affiche le prix d'une carte Yu-Gi-Oh!")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_prix(self, ctx: commands.Context, *, carte: str):
         msg = await safe_send(ctx.channel, f"🔄 Recherche du prix pour **{carte}**…")
