@@ -191,7 +191,7 @@ class SetsRecents(commands.Cog):
         await self._send_menu(interaction.channel)
         await interaction.delete_original_response()
 
-    @commands.command(name="setsrecents", aliases=["sets"])
+    @commands.command(name="setsrecents", aliases=["setsrec"])
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_setsrecents(self, ctx: commands.Context):
         await self._send_menu(ctx.channel)
