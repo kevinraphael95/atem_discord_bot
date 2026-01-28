@@ -6,6 +6,7 @@ pytz
 aiohttp
 pandas
 BeautifulSoup4
-
+requests
 psutil
+
 
