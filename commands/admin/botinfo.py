@@ -15,7 +15,7 @@ from discord.ext import commands
 import psutil
 from datetime import datetime
 
-from utils.discord_utils import safe_send, safe_edit  
+from utils.discord_utils import safe_send, safe_respond  
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -32,27 +32,20 @@ class BotInfo(commands.Cog):
     # 🔹 Préparation de l'embed avec toutes les infos
     # ────────────────────────────────────────────────────────────────────────────
     def get_bot_embed(self) -> discord.Embed:
-        # Uptime
         delta = datetime.utcnow() - self.start_time
         uptime = str(delta).split(".")[0]
 
-        # Serveurs et membres
         total_members = sum(g.member_count for g in self.bot.guilds)
         total_guilds = len(self.bot.guilds)
-
-        # Ping
         latency = round(self.bot.latency * 1000)
 
-        # Cogs et commandes
         cogs = list(self.bot.cogs.keys())
         commands_list = [c.name for c in self.bot.commands if not getattr(c, "hidden", False)]
 
-        # CPU / Mémoire
         process = psutil.Process()
         mem = process.memory_info().rss / 1024 / 1024
         cpu = psutil.cpu_percent(interval=0.1)
 
-        # Création de l'embed
         embed = discord.Embed(
             title=f"🤖 Informations du bot — {self.bot.user.name}",
             color=discord.Color.blue(),
@@ -69,8 +62,8 @@ class BotInfo(commands.Cog):
         embed.add_field(name="CPU utilisé", value=f"{cpu} %", inline=True)
         embed.add_field(name="Cogs chargés", value=", ".join(cogs) if cogs else "Aucun", inline=False)
         embed.add_field(name="Commandes disponibles", value=", ".join(commands_list) if commands_list else "Aucune", inline=False)
-
         embed.set_footer(text="Bot Admin Info")
+
         return embed
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -82,10 +75,8 @@ class BotInfo(commands.Cog):
     )
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_botinfo(self, interaction: discord.Interaction):
-        await interaction.response.defer()
         embed = self.get_bot_embed()
-        await safe_send(interaction.channel, embed=embed)
-        await interaction.delete_original_response()
+        await safe_respond(interaction, embed=embed)  # ✅ on répond directement à l'interaction
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
