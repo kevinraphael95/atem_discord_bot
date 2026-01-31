@@ -1,14 +1,14 @@
 # ────────────────────────────────────────────────────────────────
 # 📌 ygoblackjack.py
-# Objectif : Jouer au blackjack avec les cartes Yu-Gi-Oh! (valeur = ATK)
+# Objectif : Jouer au blackjack avec les cartes Yu-Gi-Oh! (valeur = niveau)
 # Catégorie : Fun
 # Accès : Tous
 # Cooldown : 10s
 # ────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
@@ -18,17 +18,17 @@ import random
 # ────────────────────────────────────────────────────────────────
 # 🔹 Helper pour calculer la valeur de blackjack d’une carte
 # ────────────────────────────────────────────────────────────────
-def card_value(attack: int) -> int:
-    """Convertit l'ATK d'une carte en valeur blackjack."""
-    if attack is None or attack <= 0:
+def card_value(level: int) -> int:
+    """Convertit le niveau d'une carte en valeur blackjack."""
+    if level is None or level <= 0:
         return 1
-    return attack // 100
+    return level
 
 # ────────────────────────────────────────────────────────────────
-# 🔧 Fetch carte aléatoire via YGOPRODeck
+# 🔧 Fetch carte monstre aléatoire via YGOPRODeck
 # ────────────────────────────────────────────────────────────────
-async def fetch_random_card(session: aiohttp.ClientSession):
-    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
+async def fetch_random_monster(session: aiohttp.ClientSession):
+    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?type=Monster&language=fr"
     async with session.get(url) as resp:
         if resp.status != 200:
             return None
@@ -53,8 +53,8 @@ class BlackjackView(View):
 
     async def end_game(self, msg):
         self.game_over = True
-        player_total = sum(card_value(c.get("atk")) for c in self.player_cards)
-        dealer_total = sum(card_value(c.get("atk")) for c in self.dealer_cards)
+        player_total = sum(card_value(c.get("level")) for c in self.player_cards)
+        dealer_total = sum(card_value(c.get("level")) for c in self.dealer_cards)
 
         result = ""
         if player_total > 21:
@@ -69,12 +69,12 @@ class BlackjackView(View):
         embed = discord.Embed(title="Résultat du Blackjack YGO", color=discord.Color.blue())
         embed.add_field(
             name="Tes cartes",
-            value="\n".join(f"{c['name']} ({c.get('atk', 0)} ATK)" for c in self.player_cards) + f"\n**Total : {player_total}**",
+            value="\n".join(f"{c['name']} (Niveau {c.get('level', 0)})" for c in self.player_cards) + f"\n**Total : {player_total}**",
             inline=False
         )
         embed.add_field(
             name="Cartes du dealer",
-            value="\n".join(f"{c['name']} ({c.get('atk', 0)} ATK)" for c in self.dealer_cards) + f"\n**Total : {dealer_total}**",
+            value="\n".join(f"{c['name']} (Niveau {c.get('level', 0)})" for c in self.dealer_cards) + f"\n**Total : {dealer_total}**",
             inline=False
         )
         embed.add_field(name="Résultat", value=result, inline=False)
@@ -88,13 +88,13 @@ class BlackjackView(View):
     async def hit(self, interaction: discord.Interaction, button: Button):
         if self.game_over:
             return
-        card = await fetch_random_card(self.session)
+        card = await fetch_random_monster(self.session)
         if not card:
             await interaction.response.send_message("❌ Impossible de récupérer une carte.", ephemeral=True)
             return
         self.player_cards.append(card)
-        total = sum(card_value(c.get("atk")) for c in self.player_cards)
-        content = f"Tu as tiré : **{card['name']} ({card.get('atk', 0)} ATK)**\nTotal actuel : **{total}**"
+        total = sum(card_value(c.get("level")) for c in self.player_cards)
+        content = f"Tu as tiré : **{card['name']} (Niveau {card.get('level', 0)})**\nTotal actuel : **{total}**"
         if total > 21:
             await self.end_game("💀 Bust !")
         else:
@@ -106,8 +106,8 @@ class BlackjackView(View):
         if self.game_over:
             return
         # Dealer tire jusqu'à 17+
-        while sum(card_value(c.get("atk")) for c in self.dealer_cards) < 17:
-            card = await fetch_random_card(self.session)
+        while sum(card_value(c.get("level")) for c in self.dealer_cards) < 17:
+            card = await fetch_random_monster(self.session)
             if card:
                 self.dealer_cards.append(card)
         await self.end_game("🛑 Tu as choisi de rester.")
@@ -133,10 +133,10 @@ class YGOBlackjack(commands.Cog):
 
         # ── Tirage initial
         for _ in range(2):
-            card = await fetch_random_card(self.session)
+            card = await fetch_random_monster(self.session)
             if card:
                 player_cards.append(card)
-        card = await fetch_random_card(self.session)
+        card = await fetch_random_monster(self.session)
         if card:
             dealer_cards.append(card)
 
