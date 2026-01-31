@@ -12,8 +12,6 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
-from utils.discord_utils import safe_send, safe_edit
-from utils.card_utils import fetch_random_card
 import aiohttp
 import random
 
@@ -25,6 +23,20 @@ def card_value(attack: int) -> int:
     if attack is None or attack <= 0:
         return 1
     return attack // 100
+
+# ────────────────────────────────────────────────────────────────
+# 🔧 Fetch carte aléatoire via YGOPRODeck
+# ────────────────────────────────────────────────────────────────
+async def fetch_random_card(session: aiohttp.ClientSession):
+    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
+    async with session.get(url) as resp:
+        if resp.status != 200:
+            return None
+        data = await resp.json()
+        cards = data.get("data", [])
+        if not cards:
+            return None
+        return random.choice(cards)
 
 # ────────────────────────────────────────────────────────────────
 # 🎛️ UI — Blackjack interactif
@@ -39,24 +51,10 @@ class BlackjackView(View):
         self.message = None
         self.game_over = False
 
-        self.add_item(Button(label="Tirer 🃏", style=discord.ButtonStyle.green, custom_id="hit"))
-        self.add_item(Button(label="Rester ✋", style=discord.ButtonStyle.red, custom_id="stand"))
-
-    async def on_timeout(self):
-        if not self.game_over:
-            await self.end_game("⏰ Temps écoulé ! Partie terminée.")
-        for child in self.children:
-            child.disabled = True
-        if self.message:
-            await safe_edit(self.message, view=self)
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        return True
-
     async def end_game(self, msg):
         self.game_over = True
-        player_total = sum(card_value(c["atk"]) for c in self.player_cards)
-        dealer_total = sum(card_value(c["atk"]) for c in self.dealer_cards)
+        player_total = sum(card_value(c.get("atk")) for c in self.player_cards)
+        dealer_total = sum(card_value(c.get("atk")) for c in self.dealer_cards)
 
         result = ""
         if player_total > 21:
@@ -69,35 +67,47 @@ class BlackjackView(View):
             result = "⚖️ Égalité !"
 
         embed = discord.Embed(title="Résultat du Blackjack YGO", color=discord.Color.blue())
-        embed.add_field(name="Tes cartes", value="\n".join(f"{c['name']} ({c['atk'] or 0} ATK)" for c in self.player_cards) + f"\n**Total : {player_total}**", inline=False)
-        embed.add_field(name="Cartes du dealer", value="\n".join(f"{c['name']} ({c['atk'] or 0} ATK)" for c in self.dealer_cards) + f"\n**Total : {dealer_total}**", inline=False)
+        embed.add_field(
+            name="Tes cartes",
+            value="\n".join(f"{c['name']} ({c.get('atk', 0)} ATK)" for c in self.player_cards) + f"\n**Total : {player_total}**",
+            inline=False
+        )
+        embed.add_field(
+            name="Cartes du dealer",
+            value="\n".join(f"{c['name']} ({c.get('atk', 0)} ATK)" for c in self.dealer_cards) + f"\n**Total : {dealer_total}**",
+            inline=False
+        )
         embed.add_field(name="Résultat", value=result, inline=False)
 
         for child in self.children:
             child.disabled = True
-        await safe_edit(self.message, embed=embed, view=self)
+        await self.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Tirer 🃏", style=discord.ButtonStyle.green, custom_id="hit")
+    # ── Bouton Tirer 🃏 ──
+    @discord.ui.button(label="Tirer 🃏", style=discord.ButtonStyle.green)
     async def hit(self, interaction: discord.Interaction, button: Button):
         if self.game_over:
             return
-        card, _ = await fetch_random_card(self.session)
-        if card:
-            self.player_cards.append(card)
-            total = sum(card_value(c["atk"]) for c in self.player_cards)
-            content = f"Tu as tiré : **{card['name']} ({card['atk'] or 0} ATK)**\nTotal actuel : **{total}**"
-            if total > 21:
-                await self.end_game("💀 Bust !")
-            else:
-                await safe_edit(interaction.message, content=content, view=self)
+        card = await fetch_random_card(self.session)
+        if not card:
+            await interaction.response.send_message("❌ Impossible de récupérer une carte.", ephemeral=True)
+            return
+        self.player_cards.append(card)
+        total = sum(card_value(c.get("atk")) for c in self.player_cards)
+        content = f"Tu as tiré : **{card['name']} ({card.get('atk', 0)} ATK)**\nTotal actuel : **{total}**"
+        if total > 21:
+            await self.end_game("💀 Bust !")
+        else:
+            await interaction.response.edit_message(content=content, view=self)
 
-    @discord.ui.button(label="Rester ✋", style=discord.ButtonStyle.red, custom_id="stand")
+    # ── Bouton Rester ✋ ──
+    @discord.ui.button(label="Rester ✋", style=discord.ButtonStyle.red)
     async def stand(self, interaction: discord.Interaction, button: Button):
         if self.game_over:
             return
-        # Dealer tire jusqu’à 17+
-        while sum(card_value(c["atk"]) for c in self.dealer_cards) < 17:
-            card, _ = await fetch_random_card(self.session)
+        # Dealer tire jusqu'à 17+
+        while sum(card_value(c.get("atk")) for c in self.dealer_cards) < 17:
+            card = await fetch_random_card(self.session)
             if card:
                 self.dealer_cards.append(card)
         await self.end_game("🛑 Tu as choisi de rester.")
@@ -121,25 +131,25 @@ class YGOBlackjack(commands.Cog):
         player_cards = []
         dealer_cards = []
 
-        # Tirage initial
+        # ── Tirage initial
         for _ in range(2):
-            card, _ = await fetch_random_card(self.session)
+            card = await fetch_random_card(self.session)
             if card:
                 player_cards.append(card)
-        card, _ = await fetch_random_card(self.session)
+        card = await fetch_random_card(self.session)
         if card:
             dealer_cards.append(card)
 
         view = BlackjackView(self.bot, self.session, player_cards, dealer_cards)
-        view.message = await safe_send(channel, "🃏 Blackjack YGO — Ta main :", view=view)
+        # ── Envoi du message initial
+        view.message = await channel.send("🃏 Blackjack YGO — Ta main :", view=view)
 
     def cog_unload(self):
-        # Fermer la session aiohttp
         self.bot.loop.create_task(self.session.close())
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
     cog = YGOBlackjack(bot)
     for command in cog.get_commands():
