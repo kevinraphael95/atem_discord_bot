@@ -1,17 +1,20 @@
 # ─────────────────────────────────────────────────────────────
 # 📌 pcarte.py — Commande Pokémon TCG
-# Objectif : Afficher une carte Pokémon TCG
-# Catégorie : Pokémon TCG
+# Objectif : Afficher une carte Pokémon (ou random)
+# Catégorie : 🃏 Pokémon TCG
 # Accès : Public
-# Cooldown : 3 sec / user
+# Cooldown : 1 / 3 sec
 # ─────────────────────────────────────────────────────────────
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-from tcgdexsdk import TCGdex, Language
-from tcgdexsdk.enums import Quality, Extension
+import aiohttp
+import random
 
 from utils.discord_utils import safe_send
+
+BASE_URL = "https://api.tcgdex.net/v2/en"
 
 # ─────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -19,77 +22,85 @@ from utils.discord_utils import safe_send
 class PokemonCarte(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.tcgdex = TCGdex(Language.EN)  # Anglais par défaut, on peut changer en FR si voulu
 
-    async def _show_card(self, channel: discord.abc.Messageable, query: str | None):
-        card = None
-
-        try:
+    # ─────────────────────────────────────────────────────────
+    # 🔹 Fonction interne pour afficher une carte
+    # ─────────────────────────────────────────────────────────
+    async def _show_card(self, channel, query: str | None):
+        async with aiohttp.ClientSession() as session:
+            # 🔀 Random
             if not query or query.lower() == "random":
-                # 🔀 Random : on récupère 1 carte aléatoire
-                cards = await self.tcgdex.card.list()  # retourne toutes les cartes
-                import random
-                card = random.choice(cards)
-                # Recharger la carte complète par son ID
-                card = await self.tcgdex.card.get(card.id)
-
+                async with session.get(f"{BASE_URL}/cards") as r:
+                    if r.status != 200:
+                        await safe_send(channel, "❌ Impossible de récupérer une carte.")
+                        return
+                    data = await r.json()
+                    card = random.choice(data) if data else None
+            # 🆔 ID direct
             elif "-" in query:
-                # 🆔 ID direct
-                card = await self.tcgdex.card.get(query)
+                async with session.get(f"{BASE_URL}/cards/{query}") as r:
+                    if r.status != 200:
+                        await safe_send(channel, "❌ Carte introuvable.")
+                        return
+                    card = await r.json()
+            # 🔍 Recherche par nom
             else:
-                # 🔍 Recherche par nom (première correspondance)
-                cards = await self.tcgdex.card.list(query=query)
-                if cards:
-                    card = await self.tcgdex.card.get(cards[0].id)
-
-        except Exception as e:
-            await safe_send(channel, f"❌ Une erreur est survenue : {e}")
-            return
+                async with session.get(f"{BASE_URL}/cards", params={"name": query}) as r:
+                    if r.status != 200:
+                        await safe_send(channel, "❌ Carte introuvable.")
+                        return
+                    data = await r.json()
+                    card = random.choice(data) if data else None
 
         if not card:
             await safe_send(channel, "❌ Carte introuvable.")
             return
 
         # ───────────────
-        # 📊 Création embed
+        # 📊 Infos carte
         # ───────────────
+        name = card.get("name", "Carte inconnue")
+        hp = card.get("hp")
+        types = card.get("types", [])
+        rarity = card.get("rarity", "Inconnue")
+        image = card.get("image")
+        set_data = card.get("set", {})
+        attacks = card.get("attacks", [])
+        evolve_from = card.get("evolveFrom")
+
+        desc_lines = []
+
+        if hp:
+            desc_lines.append(f"❤️ **HP** : {hp}")
+        if types:
+            desc_lines.append(f"🔮 **Type(s)** : {', '.join(types)}")
+        if rarity:
+            desc_lines.append(f"💎 **Rareté** : {rarity}")
+        if set_data:
+            desc_lines.append(f"📦 **Set** : {set_data.get('name')}")
+        if evolve_from:
+            desc_lines.append(f"🔼 **Évolue de** : {evolve_from}")
+
+        if attacks:
+            attack_lines = []
+            for atk in attacks:
+                name_atk = atk.get("name")
+                effect = atk.get("effect")
+                damage = atk.get("damage")
+                line = f"**{name_atk}**"
+                if damage: line += f" ({damage} dmg)"
+                if effect: line += f" → {effect}"
+                attack_lines.append(line)
+            desc_lines.append("⚔️ **Attaques** :\n" + "\n".join(attack_lines))
+
         embed = discord.Embed(
-            title=f"{card.name} ({card.localId})",
-            description=card.description or "Pas de description disponible",
+            title=name,
+            description="\n".join(desc_lines),
             color=discord.Color.red()
         )
 
-        if card.hp:
-            embed.add_field(name="❤️ HP", value=str(card.hp), inline=True)
-
-        if card.types:
-            embed.add_field(name="🔮 Type(s)", value=", ".join(card.types), inline=True)
-
-        embed.add_field(name="💎 Rareté", value=card.rarity or "Inconnue", inline=True)
-
-        if card.set:
-            embed.add_field(name="📦 Set", value=card.set.name, inline=True)
-
-        # Variantes
-        if card.variants:
-            var_list = [k for k, v in card.variants.items() if v]
-            if var_list:
-                embed.add_field(name="🎭 Variantes", value=", ".join(var_list), inline=True)
-
-        # Image
-        image_url = card.get_image_url(Quality.HIGH, Extension.PNG)
-        if image_url:
-            embed.set_thumbnail(url=image_url)
-
-        # Attaques
-        if card.attacks:
-            attacks_desc = ""
-            for atk in card.attacks:
-                cost = ", ".join(atk.cost) if atk.cost else "None"
-                effect = atk.effect if atk.effect else ""
-                dmg = atk.damage if atk.damage else ""
-                attacks_desc += f"**{atk.name}** ({cost}) — {effect} {dmg}\n"
-            embed.add_field(name="⚔️ Attaques", value=attacks_desc, inline=False)
+        if image:
+            embed.set_thumbnail(url=image)
 
         await safe_send(channel, embed=embed)
 
@@ -100,11 +111,11 @@ class PokemonCarte(commands.Cog):
         name="pcarte",
         description="Afficher une carte Pokémon TCG (ou random)."
     )
-    @app_commands.describe(query="Nom, ID (ex: swsh3-136) ou 'random'")
+    @app_commands.describe(nom="Nom, ID (ex: swsh3-136) ou 'random'")
     @app_commands.checks.cooldown(1, 3.0, key=lambda i: i.user.id)
-    async def slash_pcarte(self, interaction: discord.Interaction, query: str = None):
+    async def slash_pcarte(self, interaction: discord.Interaction, nom: str = None):
         await interaction.response.defer()
-        await self._show_card(interaction.channel, query)
+        await self._show_card(interaction.channel, nom)
         await interaction.delete_original_response()
 
     # ─────────────────────────────────────────────────────────
@@ -112,8 +123,8 @@ class PokemonCarte(commands.Cog):
     # ─────────────────────────────────────────────────────────
     @commands.command(name="pcarte", aliases=["pokemon"])
     @commands.cooldown(1, 3.0, commands.BucketType.user)
-    async def prefix_pcarte(self, ctx: commands.Context, *, query: str = None):
-        await self._show_card(ctx.channel, query)
+    async def prefix_pcarte(self, ctx: commands.Context, *, nom: str = None):
+        await self._show_card(ctx.channel, nom)
 
 # ─────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
