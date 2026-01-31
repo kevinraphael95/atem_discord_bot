@@ -20,7 +20,7 @@ import random
 # ────────────────────────────────────────────────────────────────
 def card_value(level: int) -> int:
     """Convertit le niveau d'une carte en valeur blackjack."""
-    if level is None or level <= 0:
+    if level is None or level < 1:
         return 1
     return level
 
@@ -34,6 +34,8 @@ async def fetch_random_monster(session: aiohttp.ClientSession):
             return None
         data = await resp.json()
         cards = data.get("data", [])
+        # filtrer les monstres niveau >= 1
+        cards = [c for c in cards if c.get("level") and c["level"] >= 1]
         if not cards:
             return None
         return random.choice(cards)
@@ -51,12 +53,12 @@ class BlackjackView(View):
         self.message = None
         self.game_over = False
 
-    async def update_message(self, content=None):
-        """Affiche la main actuelle dans un embed"""
+    async def update_embed(self, footer=None):
+        """Met à jour l'embed avec la main du joueur et du dealer"""
         player_total = sum(card_value(c.get("level")) for c in self.player_cards)
         dealer_total = sum(card_value(c.get("level")) for c in self.dealer_cards)
 
-        embed = discord.Embed(title="Blackjack YGO", color=discord.Color.blue())
+        embed = discord.Embed(title="🃏 Blackjack YGO", color=discord.Color.blue())
         embed.add_field(
             name="Tes cartes",
             value="\n".join(f"{c['name']} - Niveau {c.get('level', 1)}" for c in self.player_cards) + f"\n**Total : {player_total}**",
@@ -67,15 +69,15 @@ class BlackjackView(View):
             value="\n".join(f"{c['name']} - Niveau {c.get('level', 1)}" for c in self.dealer_cards) + f"\n**Total : {dealer_total}**",
             inline=False
         )
-        if content:
-            embed.set_footer(text=content)
+        if footer:
+            embed.set_footer(text=footer)
         await self.message.edit(embed=embed, view=self)
 
     async def end_game(self, msg):
         self.game_over = True
         for child in self.children:
             child.disabled = True
-        await self.update_message(content=msg)
+        await self.update_embed(footer=msg)
 
     # ── Bouton Tirer 🃏 ──
     @discord.ui.button(label="Tirer 🃏", style=discord.ButtonStyle.green)
@@ -91,8 +93,8 @@ class BlackjackView(View):
         if total > 21:
             await self.end_game("💀 Bust ! Tu as dépassé 21.")
         else:
-            await self.update_message(content=f"Tu as tiré : {card['name']} - Niveau {card.get('level', 1)}")
-            await interaction.response.defer()  # Ne pas envoyer de message supplémentaire
+            await self.update_embed(footer=f"Tu as tiré : {card['name']} - Niveau {card.get('level', 1)}")
+            await interaction.response.defer()
 
     # ── Bouton Rester ✋ ──
     @discord.ui.button(label="Rester ✋", style=discord.ButtonStyle.red)
@@ -125,19 +127,22 @@ class YGOBlackjack(commands.Cog):
         player_cards = []
         dealer_cards = []
 
-        # ── Tirage initial
-        for _ in range(2):
+        # ── Tirage initial avec des monstres niveau >=1
+        while len(player_cards) < 2:
             card = await fetch_random_monster(self.session)
             if card:
                 player_cards.append(card)
-        card = await fetch_random_monster(self.session)
-        if card:
-            dealer_cards.append(card)
+        while len(dealer_cards) < 1:
+            card = await fetch_random_monster(self.session)
+            if card:
+                dealer_cards.append(card)
 
         view = BlackjackView(self.bot, self.session, player_cards, dealer_cards)
-        # ── Envoi du message initial avec la main complète
-        view.message = await channel.send("🃏 Blackjack YGO — Ta main :")
-        await view.update_message(content="Partie commencée !")
+        # ── Envoi du message initial embed
+        view.message = await channel.send("🃏 Blackjack YGO — Partie commencée !")
+        await view.update_embed()
+
+        # Ajouter la view pour les boutons
         await view.message.edit(view=view)
 
     def cog_unload(self):
