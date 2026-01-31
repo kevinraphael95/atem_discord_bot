@@ -6,9 +6,9 @@
 # Cooldown : 10s
 # ────────────────────────────────────────────────────────────────
 
-# ────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
@@ -51,37 +51,31 @@ class BlackjackView(View):
         self.message = None
         self.game_over = False
 
-    async def end_game(self, msg):
-        self.game_over = True
+    async def update_message(self, content=None):
+        """Affiche la main actuelle dans un embed"""
         player_total = sum(card_value(c.get("level")) for c in self.player_cards)
         dealer_total = sum(card_value(c.get("level")) for c in self.dealer_cards)
 
-        result = ""
-        if player_total > 21:
-            result = "💀 Bust ! Tu as dépassé 21."
-        elif dealer_total > 21 or player_total > dealer_total:
-            result = "🏆 Tu gagnes !"
-        elif player_total < dealer_total:
-            result = "😢 Tu perds !"
-        else:
-            result = "⚖️ Égalité !"
-
-        embed = discord.Embed(title="Résultat du Blackjack YGO", color=discord.Color.blue())
+        embed = discord.Embed(title="Blackjack YGO", color=discord.Color.blue())
         embed.add_field(
             name="Tes cartes",
-            value="\n".join(f"{c['name']} (Niveau {c.get('level', 0)})" for c in self.player_cards) + f"\n**Total : {player_total}**",
+            value="\n".join(f"{c['name']} - Niveau {c.get('level', 1)}" for c in self.player_cards) + f"\n**Total : {player_total}**",
             inline=False
         )
         embed.add_field(
             name="Cartes du dealer",
-            value="\n".join(f"{c['name']} (Niveau {c.get('level', 0)})" for c in self.dealer_cards) + f"\n**Total : {dealer_total}**",
+            value="\n".join(f"{c['name']} - Niveau {c.get('level', 1)}" for c in self.dealer_cards) + f"\n**Total : {dealer_total}**",
             inline=False
         )
-        embed.add_field(name="Résultat", value=result, inline=False)
+        if content:
+            embed.set_footer(text=content)
+        await self.message.edit(embed=embed, view=self)
 
+    async def end_game(self, msg):
+        self.game_over = True
         for child in self.children:
             child.disabled = True
-        await self.message.edit(embed=embed, view=self)
+        await self.update_message(content=msg)
 
     # ── Bouton Tirer 🃏 ──
     @discord.ui.button(label="Tirer 🃏", style=discord.ButtonStyle.green)
@@ -94,11 +88,11 @@ class BlackjackView(View):
             return
         self.player_cards.append(card)
         total = sum(card_value(c.get("level")) for c in self.player_cards)
-        content = f"Tu as tiré : **{card['name']} (Niveau {card.get('level', 0)})**\nTotal actuel : **{total}**"
         if total > 21:
-            await self.end_game("💀 Bust !")
+            await self.end_game("💀 Bust ! Tu as dépassé 21.")
         else:
-            await interaction.response.edit_message(content=content, view=self)
+            await self.update_message(content=f"Tu as tiré : {card['name']} - Niveau {card.get('level', 1)}")
+            await interaction.response.defer()  # Ne pas envoyer de message supplémentaire
 
     # ── Bouton Rester ✋ ──
     @discord.ui.button(label="Rester ✋", style=discord.ButtonStyle.red)
@@ -141,8 +135,10 @@ class YGOBlackjack(commands.Cog):
             dealer_cards.append(card)
 
         view = BlackjackView(self.bot, self.session, player_cards, dealer_cards)
-        # ── Envoi du message initial
-        view.message = await channel.send("🃏 Blackjack YGO — Ta main :", view=view)
+        # ── Envoi du message initial avec la main complète
+        view.message = await channel.send("🃏 Blackjack YGO — Ta main :")
+        await view.update_message(content="Partie commencée !")
+        await view.message.edit(view=view)
 
     def cog_unload(self):
         self.bot.loop.create_task(self.session.close())
