@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 devine_carte_buttons.py
-# Objectif : Roulette de devinette YGO avec boutons
-# Catégorie : Fun
+# 📌 roulette_devine.py
+# Objectif : Tire une carte aléatoire via roulette YGO (Monster/Spell/Trap/Token) et devine le type
+# Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 5 secondes
 # ────────────────────────────────────────────────────────────────────────────────
@@ -10,17 +10,26 @@
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 import aiohttp
 import random
 
 from utils.discord_utils import safe_send, safe_edit
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎰 Types disponibles
+# 🎰 Roulette : types + poids
 # ────────────────────────────────────────────────────────────────────────────────
-CARD_TYPES = ["monster", "spell", "trap", "token"]
+ROULETTE = [
+    ("monster", 33),
+    ("spell", 33),
+    ("trap", 33),
+    ("token", 1),
+]
+
+def spin_roulette():
+    types, weights = zip(*ROULETTE)
+    return random.choices(types, weights=weights, k=1)[0]
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔹 Récupération carte aléatoire via YGOPRODeck
@@ -42,47 +51,45 @@ async def fetch_random_card(card_type: str):
             return random.choice(cards) if cards else None
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ UI — View pour devinette
+# 🎛️ UI — Deviner le type de carte
 # ────────────────────────────────────────────────────────────────────────────────
-class GuessView(discord.ui.View):
-    def __init__(self, correct_card: dict, all_cards: list):
+class GuessTypeView(discord.ui.View):
+    def __init__(self, correct_type: str, card: dict):
         super().__init__(timeout=30)
-        self.correct_card = correct_card
-        self.result_sent = False
+        self.correct_type = correct_type
+        self.card = card
+        self.guessed = False
 
-        # Mélange des cartes pour boutons
-        random.shuffle(all_cards)
-        for card in all_cards:
-            label = card.get("name", "Inconnu")
-            self.add_item(GuessButton(label=label, card=card, parent=self))
+        for t in ["monster", "spell", "trap", "token"]:
+            self.add_item(GuessButton(label=t.capitalize(), guess_type=t, parent=self))
 
 class GuessButton(discord.ui.Button):
-    def __init__(self, label, card, parent: GuessView):
+    def __init__(self, label: str, guess_type: str, parent: GuessTypeView):
         super().__init__(label=label, style=discord.ButtonStyle.primary)
-        self.card = card
+        self.guess_type = guess_type
         self.parent_view = parent
 
     async def callback(self, interaction: discord.Interaction):
-        if self.parent_view.result_sent:
-            await interaction.response.send_message("⏳ Déjà répondu.", ephemeral=True)
+        if self.parent_view.guessed:
+            await interaction.response.send_message("⏳ Déjà deviné !", ephemeral=True)
             return
+        self.parent_view.guessed = True
 
-        self.parent_view.result_sent = True
-        correct = self.card == self.parent_view.correct_card
+        correct = self.guess_type == self.parent_view.correct_type
         color = discord.Color.green() if correct else discord.Color.red()
-        verdict = "✅ Bien joué ! Tu as deviné la bonne carte." if correct else f"❌ Mauvaise carte… C'était **{self.parent_view.correct_card.get('name')}**."
+        verdict = "✅ Bien joué ! Tu as deviné le type." if correct else f"❌ Mauvaise devinette… C'était **{self.parent_view.correct_type.capitalize()}**."
 
         embed = discord.Embed(
-            title=f"{self.parent_view.correct_card.get('name')} ({self.parent_view.correct_card.get('type', '')})",
-            description=self.parent_view.correct_card.get('desc', 'Pas de description.'),
+            title=f"{self.parent_view.card.get('name', 'Carte inconnue')} ({self.parent_view.correct_type.capitalize()})",
+            description=self.parent_view.card.get("desc", "Pas de description."),
             color=color
         )
-        if "card_images" in self.parent_view.correct_card and self.parent_view.correct_card["card_images"]:
-            embed.set_image(url=self.parent_view.correct_card["card_images"][0].get("image_url", ""))
+        if "card_images" in self.parent_view.card and self.parent_view.card["card_images"]:
+            embed.set_image(url=self.parent_view.card["card_images"][0].get("image_url", ""))
 
         embed.set_footer(text=verdict)
 
-        # Désactive tous les boutons
+        # Désactive les boutons
         for child in self.parent_view.children:
             child.disabled = True
         await interaction.response.edit_message(embed=embed, view=self.parent_view)
@@ -90,9 +97,9 @@ class GuessButton(discord.ui.Button):
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class DevineCarteButtons(commands.Cog):
+class RouletteDevine(commands.Cog):
     """
-    Commande /devine_carte et !devine_carte — Devine la carte parmi 3-4 options
+    Commande /roulette_devine et !roulette_devine — Tire une carte aléatoire via roulette pondérée et devine le type
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -100,59 +107,55 @@ class DevineCarteButtons(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction commune
     # ────────────────────────────────────────────────────────────────────────────
-    async def _run_game(self, channel: discord.abc.Messageable, card_type: str):
-        card_type = card_type.lower()
-        if card_type not in CARD_TYPES:
-            await safe_send(channel, f"❌ Type invalide. Choisis parmi : {', '.join(CARD_TYPES)}")
-            return
+    async def _run_roulette(self, channel: discord.abc.Messageable):
+        embed = discord.Embed(
+            title="🎰 Roulette YGO",
+            description=(
+                "Clique sur le bouton correspondant au **type de carte** que tu penses être tiré !\n\n"
+                "• 33% Monster\n"
+                "• 33% Spell\n"
+                "• 33% Trap\n"
+                "• 1% Token"
+            ),
+            color=discord.Color.blurple()
+        )
+        embed.set_footer(text="Tu as 30 secondes pour deviner… Ding ding ding !")
 
-        # Carte correcte
-        correct_card = await fetch_random_card(card_type)
-        if not correct_card:
+        # Tirage réel de la roulette
+        card_type = spin_roulette()
+        card = await fetch_random_card(card_type)
+        if not card:
             await safe_send(channel, "❌ Impossible de récupérer une carte. Réessaye plus tard.")
             return
 
-        # Autres cartes pour les boutons (3-4 cartes total)
-        options = [correct_card]
-        while len(options) < 4:
-            card = await fetch_random_card(card_type)
-            if card and card not in options:
-                options.append(card)
-
-        embed = discord.Embed(
-            title=f"🎰 Devine la carte ({card_type.capitalize()}) !",
-            description="Clique sur le bouton correspondant à la bonne carte.",
-            color=discord.Color.blurple()
-        )
-        await safe_send(channel, embed=embed, view=GuessView(correct_card, options))
+        await safe_send(channel, embed=embed, view=GuessTypeView(card_type, card))
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="devine_carte",
-        description="Devine la carte parmi 3-4 options (Monster/Spell/Trap/Token)."
+        name="roulette",
+        description="Tire une carte aléatoire et devine son type (Monster/Spell/Trap/Token)."
     )
-    @app_commands.describe(type="Type de carte à deviner")
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
-    async def slash_devine_carte(self, interaction: discord.Interaction, type: str):
+    async def slash_roulette_devine(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self._run_game(interaction.channel, type)
+        await self._run_roulette(interaction.channel)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="devine_carte")
+    @commands.command(name="roulette")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
-    async def prefix_devine_carte(self, ctx: commands.Context, type: str):
-        await self._run_game(ctx.channel, type)
+    async def prefix_roulette_devine(self, ctx: commands.Context):
+        await self._run_roulette(ctx.channel)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
 async def setup(bot: commands.Bot):
-    cog = DevineCarteButtons(bot)
+    cog = RouletteDevine(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Fun"
+            command.category = "Minijeux"
     await bot.add_cog(cog)
