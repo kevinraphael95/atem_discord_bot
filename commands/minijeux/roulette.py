@@ -135,7 +135,7 @@ class RouletteDevine(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="roulette",
-        description="Tire une carte aléatoire et devine son type (Monstre/Magie/Piège/Jeton)."
+        description="Jouer au Blackjack avec des cartes Yu-Gi-Oh!."
     )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_roulette_devine(self, interaction: discord.Interaction):
@@ -145,7 +145,7 @@ class RouletteDevine(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="roulette")
+    @commands.command(name="roulette", help="Jouer au Blackjack avec des cartes Yu-Gi-Oh!.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_roulette_devine(self, ctx: commands.Context):
         await self._run_roulette(ctx.channel)
