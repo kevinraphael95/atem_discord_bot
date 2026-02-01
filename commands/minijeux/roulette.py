@@ -112,10 +112,10 @@ class RouletteDevine(commands.Cog):
             title="🎰 Roulette YGO",
             description=(
                 "Clique sur le bouton correspondant au **type de carte** que tu penses être tiré !\n\n"
-                "• 33% Monster\n"
-                "• 33% Spell\n"
-                "• 33% Trap\n"
-                "• 1% Token"
+                "• 33% Monstre\n"
+                "• 33% Magie\n"
+                "• 33% Piège\n"
+                "• 1% Jeton"
             ),
             color=discord.Color.blurple()
         )
@@ -135,7 +135,7 @@ class RouletteDevine(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="roulette",
-        description="Tire une carte aléatoire et devine son type (Monster/Spell/Trap/Token)."
+        description="Tire une carte aléatoire et devine son type (Monstre/Magie/Piège/Jeton)."
     )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_roulette_devine(self, interaction: discord.Interaction):
