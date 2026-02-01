@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 import aiohttp
 
-from utils.discord_utils import safe_send, safe_respond
+from utils.discord_utils import safe_send
 from utils.supabase_client import supabase
 from utils.card_utils import search_card, fetch_random_card
 
@@ -124,8 +124,6 @@ async def fetch_exact_banlist(card_name: str, session: aiohttp.ClientSession) ->
             return {}
         return data["data"][0].get("banlist_info", {})
 
-
-
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
@@ -167,21 +165,13 @@ class Carte(commands.Cog):
         archetype = carte.get("archetype")
         genesys_points = carte.get("genesys_points")
 
-        # Limites (banlist exacte par nom)
-        # Limites (banlist exacte par nom)
+        # Limites (banlist exacte par nom, exactement comme banlist_check)
         banlist_info = await fetch_exact_banlist(card_name, self.bot.aiohttp_session)
+        tcg_limit = banlist_info.get("ban_tcg", "Autorisé")
+        ocg_limit = banlist_info.get("ban_ocg", "Autorisé")
+        goat_limit = banlist_info.get("ban_goat", "Autorisé")
 
-
-        def format_limit(val):
-            if val is None:
-                return "Autorisé"
-            mapping = {"Banned":"Banni","Limited":"Limited","Semi-Limited":"Semi-Limited"}
-            return mapping.get(val, "Autorisé")
-
-        tcg_limit = format_limit(banlist_info.get("ban_tcg"))
-        ocg_limit = format_limit(banlist_info.get("ban_ocg"))
-        goat_limit = format_limit(banlist_info.get("ban_goat"))
-
+        # Embed
         header_lines = []
         if archetype:
             header_lines.append(f"**Archétype** : 🧬 {archetype}")
