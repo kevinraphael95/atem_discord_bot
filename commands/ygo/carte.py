@@ -111,6 +111,19 @@ def format_race(race: str, type_raw: str) -> str:
     return TYPE_EMOJI.get(race, race)
 
 # ────────────────────────────────────────────────────────────────────────────────
+# 🔧 Helper pour nom anglais STRICT (banlist)
+# ────────────────────────────────────────────────────────────────────────────────
+async def fetch_english_name_by_id(card_id: int, session: aiohttp.ClientSession) -> str | None:
+    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
+    async with session.get(url, params={"id": card_id}) as resp:
+        if resp.status != 200:
+            return None
+        data = await resp.json()
+        if "data" not in data or not data["data"]:
+            return None
+        return data["data"][0].get("name")
+
+# ────────────────────────────────────────────────────────────────────────────────
 # 🔧 Helper pour fetch banlist exacte (identique à banlist_check)
 # ────────────────────────────────────────────────────────────────────────────────
 async def fetch_exact_banlist(card_name: str, session: aiohttp.ClientSession) -> dict:
@@ -152,11 +165,19 @@ class Carte(commands.Cog):
             if not carte:
                 await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
                 return
-    
+
         # --- Choix des noms selon la langue ---
-        card_name_en = carte.get("name")  # Toujours anglais pour la banlist
-        card_name_display = carte.get(f"name_{langue.lower()}") or carte.get("name_fr") or card_name_en
-    
+        card_name_display = (
+            carte.get(f"name_{langue.lower()}")
+            or carte.get("name_fr")
+            or carte.get("name")
+        )
+
+        card_id = carte.get("id")
+        card_name_en = await fetch_english_name_by_id(card_id, self.bot.aiohttp_session)
+        if not card_name_en:
+            card_name_en = carte.get("name")
+
         # --- Infos carte ---
         type_raw = carte.get("type", "")
         race = carte.get("race", "")
@@ -169,13 +190,13 @@ class Carte(commands.Cog):
         desc = carte.get(f"desc_{langue.lower()}") or carte.get("desc") or "Pas de description disponible."
         archetype = carte.get("archetype")
         genesys_points = carte.get("genesys_points")
-    
-        # --- Banlist exacte (toujours avec le nom anglais) ---
+
+        # --- Banlist exacte ---
         banlist_info = await fetch_exact_banlist(card_name_en, self.bot.aiohttp_session)
         tcg_limit = banlist_info.get("ban_tcg", "Autorisé")
         ocg_limit = banlist_info.get("ban_ocg", "Autorisé")
         goat_limit = banlist_info.get("ban_goat", "Autorisé")
-    
+
         # --- Header ---
         header_lines = []
         if archetype:
@@ -183,34 +204,40 @@ class Carte(commands.Cog):
         header_lines.append(f"**Limites** : TCG {tcg_limit} / OCG {ocg_limit} / GOAT {goat_limit}")
         if genesys_points is not None:
             header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
-    
+
         # --- Détails ---
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
         lines = [f"**Type de carte** : {card_type_fr}"]
-        if race: lines.append(f"**Type** : {format_race(race, type_raw)}")
-        if attr: lines.append(f"**Attribut** : {format_attribute(attr)}")
-        if linkval: lines.append(f"**Lien** : 🔗 {linkval}")
-        elif rank: lines.append(f"**Niveau/Rang** : ⭐ {rank}")
-        elif level: lines.append(f"**Niveau/Rang** : ⭐ {level}")
+        if race:
+            lines.append(f"**Type** : {format_race(race, type_raw)}")
+        if attr:
+            lines.append(f"**Attribut** : {format_attribute(attr)}")
+        if linkval:
+            lines.append(f"**Lien** : 🔗 {linkval}")
+        elif rank:
+            lines.append(f"**Niveau/Rang** : ⭐ {rank}")
+        elif level:
+            lines.append(f"**Niveau/Rang** : ⭐ {level}")
         if atk is not None or defe is not None:
             lines.append(f"**ATK/DEF** : ⚔️ {atk or '?'} / 🛡️ {defe or '?'}")
         lines.append(f"**Description**\n{desc}")
-    
+
         # --- Embed ---
         embed = discord.Embed(
             title=f"**{card_name_display}**",
             description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
-        # Ajouter vignette si disponible
+
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
-            if thumb: embed.set_thumbnail(url=thumb)
-        # Footer avec le nom anglais
+            if thumb:
+                embed.set_thumbnail(url=thumb)
+
         embed.set_footer(text=f"Nom anglais : {card_name_en}")
-    
-        # --- Vue pour favoris ---
+
+        # --- Vue favoris ---
         view = CarteFavoriteButton(card_name_en, user or channel)
         await safe_send(channel, embed=embed, view=view)
 
@@ -231,7 +258,11 @@ class Carte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="carte", aliases=["card"], help="🔍 Rechercher une carte ou tirer une carte aléatoire avec !carte random.")
+    @commands.command(
+        name="carte",
+        aliases=["card"],
+        help="🔍 Rechercher une carte ou tirer une carte aléatoire avec !carte random."
+    )
     @commands.cooldown(1, 3.0, commands.BucketType.user)
     async def prefix_carte(self, ctx: commands.Context, *, nom: str = None):
         await self._show_card(ctx.channel, nom, user=ctx.author)
