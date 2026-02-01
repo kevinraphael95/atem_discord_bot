@@ -153,8 +153,11 @@ class Carte(commands.Cog):
 
         # Limites
         def format_limit(val):
-            mapping = {"Banned":"0","Limited":"1","Semi-Limited":"2","3":"3","Unlimited":"3"}
-            return mapping.get(val, "3")
+            if val is None:
+                return "Autorisé"
+            mapping = {"Banned":"Banni","Limited":"Limited","Semi-Limited":"Semi-Limited"}
+            return mapping.get(val, "Autorisé")
+
         tcg_limit = format_limit(banlist_info.get("ban_tcg"))
         ocg_limit = format_limit(banlist_info.get("ban_ocg"))
         goat_limit = format_limit(banlist_info.get("ban_goat"))
@@ -178,7 +181,11 @@ class Carte(commands.Cog):
             lines.append(f"**ATK/DEF** : ⚔️ {atk or '?'} / 🛡️ {defe or '?'}")
         lines.append(f"**Description**\n{desc}")
 
-        embed = discord.Embed(title=f"**{card_name}**", description="\n".join(header_lines)+"\n\n"+"\n".join(lines), color=color)
+        embed = discord.Embed(
+            title=f"**{card_name}**",
+            description="\n".join(header_lines)+"\n\n"+"\n".join(lines),
+            color=color
+        )
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb: embed.set_thumbnail(url=thumb)
