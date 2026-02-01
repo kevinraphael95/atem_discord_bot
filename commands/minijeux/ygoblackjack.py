@@ -227,7 +227,7 @@ class YGOBlackjack(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="ygoblackjack")
+    @commands.command(name="ygoblackjack", help="Jouer au Blackjack avec des cartes Yu-Gi-Oh!")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def prefix_ygoblackjack(self, ctx: commands.Context):
         await self._start_game(ctx.channel)
