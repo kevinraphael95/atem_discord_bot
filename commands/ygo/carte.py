@@ -111,10 +111,10 @@ def format_race(race: str, type_raw: str) -> str:
     return TYPE_EMOJI.get(race, race)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Helper pour fetch banlist exacte
+# 🔧 Helper pour fetch banlist exacte (identique à banlist_check)
 # ────────────────────────────────────────────────────────────────────────────────
 async def fetch_exact_banlist(card_name: str, session: aiohttp.ClientSession) -> dict:
-    """Récupère la banlist exacte d'une carte par son nom exact (comme banlist_check)."""
+    """Récupère la banlist exacte d'une carte par son nom exact, comme banlist_check."""
     url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
     async with session.get(url, params={"name": card_name}) as resp:
         if resp.status != 200:
@@ -123,6 +123,7 @@ async def fetch_exact_banlist(card_name: str, session: aiohttp.ClientSession) ->
         if "data" not in data or not data["data"]:
             return {}
         return data["data"][0].get("banlist_info", {})
+
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -169,6 +170,7 @@ class Carte(commands.Cog):
         # Limites (banlist exacte par nom)
         # Limites (banlist exacte par nom)
         banlist_info = await fetch_exact_banlist(card_name, self.bot.aiohttp_session)
+
 
         def format_limit(val):
             if val is None:
