@@ -1,7 +1,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 ygoblackjack.py
 # Objectif : Jouer au blackjack avec cartes Yu-Gi-Oh! (valeur = niveau des monstres)
-# Catégorie : Fun
+# Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 10s
 # ────────────────────────────────────────────────────────────────────────────────
@@ -26,17 +26,32 @@ def card_value(level: int) -> int:
     return level if level and level > 0 else 1
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Fetch 50 cartes monstres de niveau 1+ via YGOPRODeck
+# 🔧 Fetch 50 cartes monstres de niveau 1+ via YGOPRODeck (API v7 OK)
 # ────────────────────────────────────────────────────────────────────────────────
 async def fetch_monsters(session: aiohttp.ClientSession):
-    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?type=Monster&language=fr"
+    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
+
     async with session.get(url) as resp:
         if resp.status != 200:
+            print("[YGO BJ] HTTP error:", resp.status)
             return []
+
         data = await resp.json()
-        monsters = [c for c in data.get("data", []) if c.get("level", 0) >= 1]
+
+        if "data" not in data:
+            print("[YGO BJ] API error:", data)
+            return []
+
+        monsters = [
+            c for c in data["data"]
+            if "Monster" in c.get("type", "")
+            and c.get("level") is not None
+            and c["level"] >= 1
+        ]
+
         random.shuffle(monsters)
         return monsters[:50]
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Blackjack interactif
@@ -227,5 +242,5 @@ async def setup(bot: commands.Bot):
     cog = YGOBlackjack(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "Fun"
+            command.category = "Minijeux"
     await bot.add_cog(cog)
