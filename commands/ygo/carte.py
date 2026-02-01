@@ -150,9 +150,10 @@ class Carte(commands.Cog):
             if not carte:
                 await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
                 return
-
-        # Infos carte
-        card_name = carte.get("name", "Carte inconnue")
+    
+        # --- Infos carte ---
+        card_name_fr = carte.get("name_fr") or carte.get("name")  # si disponible
+        card_name_en = carte.get("name")  # Nom anglais exact pour la banlist
         type_raw = carte.get("type", "")
         race = carte.get("race", "")
         attr = carte.get("attribute", "")
@@ -164,21 +165,21 @@ class Carte(commands.Cog):
         desc = carte.get("desc", "Pas de description disponible.")
         archetype = carte.get("archetype")
         genesys_points = carte.get("genesys_points")
-
-        # Limites (banlist exacte par nom, exactement comme banlist_check)
-        banlist_info = await fetch_exact_banlist(card_name, self.bot.aiohttp_session)
+    
+        # --- Limites (banlist exacte par nom anglais) ---
+        banlist_info = await fetch_exact_banlist(card_name_en, self.bot.aiohttp_session)
         tcg_limit = banlist_info.get("ban_tcg", "Autorisé")
         ocg_limit = banlist_info.get("ban_ocg", "Autorisé")
         goat_limit = banlist_info.get("ban_goat", "Autorisé")
-
-        # Embed
+    
+        # --- Embed ---
         header_lines = []
         if archetype:
             header_lines.append(f"**Archétype** : 🧬 {archetype}")
         header_lines.append(f"**Limites** : TCG {tcg_limit} / OCG {ocg_limit} / GOAT {goat_limit}")
         if genesys_points is not None:
             header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
-
+    
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
         lines = [f"**Type de carte** : {card_type_fr}"]
@@ -190,17 +191,17 @@ class Carte(commands.Cog):
         if atk is not None or defe is not None:
             lines.append(f"**ATK/DEF** : ⚔️ {atk or '?'} / 🛡️ {defe or '?'}")
         lines.append(f"**Description**\n{desc}")
-
+    
         embed = discord.Embed(
-            title=f"**{card_name}**",
+            title=f"**{card_name_fr}**",  # Affiche FR si dispo, sinon anglais
             description="\n".join(header_lines)+"\n\n"+"\n".join(lines),
             color=color
         )
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb: embed.set_thumbnail(url=thumb)
-
-        view = CarteFavoriteButton(card_name, user or channel)
+    
+        view = CarteFavoriteButton(card_name_en, user or channel)  # Sauvegarde le nom anglais pour favoris
         await safe_send(channel, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
