@@ -137,12 +137,14 @@ class Carte(commands.Cog):
     # 🔹 Fonction interne commune
     # ────────────────────────────────────────────────────────────────────────────
     async def _show_card(self, channel: discord.abc.Messageable, nom: str, user=None):
+        # Tirage aléatoire
         if not nom or nom.lower() == "random":
             carte, langue = await fetch_random_card(self.bot.aiohttp_session)
             if not carte:
                 await safe_send(channel, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
                 return
         else:
+            # Recherche carte
             carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
             if message:
                 await safe_send(channel, message)
@@ -151,9 +153,11 @@ class Carte(commands.Cog):
                 await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
                 return
     
+        # --- Choix des noms selon la langue ---
+        card_name_en = carte.get("name")  # Toujours anglais pour la banlist
+        card_name_display = carte.get(f"name_{langue.lower()}") or carte.get("name_fr") or card_name_en
+    
         # --- Infos carte ---
-        card_name_fr = carte.get("name_fr") or carte.get("name")  # si disponible
-        card_name_en = carte.get("name")  # Nom anglais exact pour la banlist
         type_raw = carte.get("type", "")
         race = carte.get("race", "")
         attr = carte.get("attribute", "")
@@ -162,17 +166,17 @@ class Carte(commands.Cog):
         level = carte.get("level")
         rank = carte.get("rank")
         linkval = carte.get("linkval") or carte.get("link_rating")
-        desc = carte.get("desc", "Pas de description disponible.")
+        desc = carte.get(f"desc_{langue.lower()}") or carte.get("desc") or "Pas de description disponible."
         archetype = carte.get("archetype")
         genesys_points = carte.get("genesys_points")
     
-        # --- Limites (banlist exacte par nom anglais) ---
+        # --- Banlist exacte (toujours avec le nom anglais) ---
         banlist_info = await fetch_exact_banlist(card_name_en, self.bot.aiohttp_session)
         tcg_limit = banlist_info.get("ban_tcg", "Autorisé")
         ocg_limit = banlist_info.get("ban_ocg", "Autorisé")
         goat_limit = banlist_info.get("ban_goat", "Autorisé")
     
-        # --- Embed ---
+        # --- Header ---
         header_lines = []
         if archetype:
             header_lines.append(f"**Archétype** : 🧬 {archetype}")
@@ -180,6 +184,7 @@ class Carte(commands.Cog):
         if genesys_points is not None:
             header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
     
+        # --- Détails ---
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
         lines = [f"**Type de carte** : {card_type_fr}"]
@@ -192,16 +197,21 @@ class Carte(commands.Cog):
             lines.append(f"**ATK/DEF** : ⚔️ {atk or '?'} / 🛡️ {defe or '?'}")
         lines.append(f"**Description**\n{desc}")
     
+        # --- Embed ---
         embed = discord.Embed(
-            title=f"**{card_name_fr}**",  # Affiche FR si dispo, sinon anglais
-            description="\n".join(header_lines)+"\n\n"+"\n".join(lines),
+            title=f"**{card_name_display}**",
+            description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
+        # Ajouter vignette si disponible
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb: embed.set_thumbnail(url=thumb)
+        # Footer avec le nom anglais
+        embed.set_footer(text=f"Nom anglais : {card_name_en}")
     
-        view = CarteFavoriteButton(card_name_en, user or channel)  # Sauvegarde le nom anglais pour favoris
+        # --- Vue pour favoris ---
+        view = CarteFavoriteButton(card_name_en, user or channel)
         await safe_send(channel, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
