@@ -57,7 +57,7 @@ class CommandsList(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command(
         name="commandslist",
-        description="Génère un .md avec toutes les commandes et les envoie en fichier."
+        description="(Admin) Génère un .md avec toutes les commandes et les envoie en fichier."
     )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_readme(self, interaction: discord.Interaction):
@@ -77,7 +77,7 @@ class CommandsList(commands.Cog):
     @commands.has_permissions(administrator=True)
     @commands.command(
         name="commandslist",
-        help="Génère un .md avec toutes les commandes et les envoie en fichier."
+        help="(Admin) Génère un .md avec toutes les commandes et les envoie en fichier."
     )
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_readme(self, ctx: commands.Context):
