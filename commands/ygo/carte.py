@@ -113,17 +113,17 @@ def format_race(race: str, type_raw: str) -> str:
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔧 Helper pour fetch banlist exacte
 # ────────────────────────────────────────────────────────────────────────────────
-async def fetch_exact_banlist(card_name: str) -> dict:
+async def fetch_exact_banlist(card_name: str, session: aiohttp.ClientSession) -> dict:
     """Récupère la banlist exacte d'une carte par son nom exact (comme banlist_check)."""
     url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params={"name": card_name}) as resp:
-            if resp.status != 200:
-                return {}
-            data = await resp.json()
-            if "data" not in data or not data["data"]:
-                return {}
-            return data["data"][0].get("banlist_info", {})
+    async with session.get(url, params={"name": card_name}) as resp:
+        if resp.status != 200:
+            return {}
+        data = await resp.json()
+        if "data" not in data or not data["data"]:
+            return {}
+        return data["data"][0].get("banlist_info", {})
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -167,7 +167,9 @@ class Carte(commands.Cog):
         genesys_points = carte.get("genesys_points")
 
         # Limites (banlist exacte par nom)
-        banlist_info = await fetch_exact_banlist(card_name)
+        # Limites (banlist exacte par nom)
+        banlist_info = await fetch_exact_banlist(card_name, self.bot.aiohttp_session)
+
         def format_limit(val):
             if val is None:
                 return "Autorisé"
