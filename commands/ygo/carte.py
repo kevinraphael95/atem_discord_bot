@@ -165,19 +165,19 @@ class Carte(commands.Cog):
             if not carte:
                 await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
                 return
-
+    
         # --- Choix des noms selon la langue ---
         card_name_display = (
             carte.get(f"name_{langue.lower()}")
             or carte.get("name_fr")
             or carte.get("name")
         )
-
+    
         card_id = carte.get("id")
         card_name_en = await fetch_english_name_by_id(card_id, self.bot.aiohttp_session)
         if not card_name_en:
             card_name_en = carte.get("name")
-
+    
         # --- Infos carte ---
         type_raw = carte.get("type", "")
         race = carte.get("race", "")
@@ -190,21 +190,27 @@ class Carte(commands.Cog):
         desc = carte.get(f"desc_{langue.lower()}") or carte.get("desc") or "Pas de description disponible."
         archetype = carte.get("archetype")
         genesys_points = carte.get("genesys_points")
-
-        # --- Banlist exacte ---
+        md_rarity = carte.get("md_rarity", "Inconnue")  # Master Duel rareté
+    
+        # --- Banlist exacte et infos supplémentaires ---
         banlist_info = await fetch_exact_banlist(card_name_en, self.bot.aiohttp_session)
         tcg_limit = banlist_info.get("ban_tcg", "Autorisé")
         ocg_limit = banlist_info.get("ban_ocg", "Autorisé")
         goat_limit = banlist_info.get("ban_goat", "Autorisé")
-
+        edison_limit = banlist_info.get("ban_edison", "Autorisé")  # Edison / Speed Duel
+    
         # --- Header ---
         header_lines = []
         if archetype:
             header_lines.append(f"**Archétype** : 🧬 {archetype}")
-        header_lines.append(f"**Limites** : TCG {tcg_limit} / OCG {ocg_limit} / GOAT {goat_limit}")
+        header_lines.append(
+            f"**Limites** : TCG {tcg_limit} / OCG {ocg_limit} / GOAT {goat_limit} / Edison {edison_limit}"
+        )
+        if md_rarity:
+            header_lines.append(f"**Rareté Master Duel** : 🏆 {md_rarity}")
         if genesys_points is not None:
             header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
-
+    
         # --- Détails ---
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
@@ -222,24 +228,25 @@ class Carte(commands.Cog):
         if atk is not None or defe is not None:
             lines.append(f"**ATK/DEF** : ⚔️ {atk or '?'} / 🛡️ {defe or '?'}")
         lines.append(f"**Description**\n{desc}")
-
+    
         # --- Embed ---
         embed = discord.Embed(
             title=f"**{card_name_display}**",
             description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
-
+    
         if "card_images" in carte and carte["card_images"]:
             thumb = carte["card_images"][0].get("image_url_cropped")
             if thumb:
                 embed.set_thumbnail(url=thumb)
-
+    
         embed.set_footer(text=f"Nom anglais : {card_name_en}")
-
+    
         # --- Vue favoris ---
         view = CarteFavoriteButton(card_name_en, user or channel)
         await safe_send(channel, embed=embed, view=view)
+
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
