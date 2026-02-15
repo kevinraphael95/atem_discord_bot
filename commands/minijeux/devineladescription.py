@@ -1,5 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 devineladescription.py — Commande interactive !devineladescription
+# 📌 ygodescription.py — Commande interactive /ygodescription / !ygodescription
 # Objectif : Deviner une carte Yu-Gi-Oh à partir de sa description
 # Catégorie : Minijeux
 # Accès : Public
@@ -10,15 +10,16 @@
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import random
 import re
+import sqlite3
 from difflib import SequenceMatcher
 
-from utils.supabase_client import supabase
-from utils.discord_utils import safe_send, safe_reply, safe_edit  
-from utils.vaact_utils import add_exp_for_streak
+from utils.discord_utils import safe_send, safe_reply, safe_edit
+from utils.vaact_utils import add_exp_for_streak, DB_PATH
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔒 Empêcher l'utilisation en MP
@@ -65,59 +66,34 @@ def censor_card_name(desc, name):
     return re.sub(re.escape(name), "[cette carte]", desc, flags=re.IGNORECASE)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔗 Requêtes API YGO
+# 🔄 Mise à jour des streaks et EXP (SQLite)
 # ────────────────────────────────────────────────────────────────────────────────
-async def fetch_cards(session, limit=100):
-    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
-    async with session.get(url) as resp:
-        if resp.status != 200:
-            return []
-        data = await resp.json()
-        return random.sample(data.get("data", []), min(limit, len(data.get("data", []))))
-
-async def fetch_archetype_cards(session, archetype):
-    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype={archetype}&language=fr"
-    async with session.get(url) as resp:
-        if resp.status != 200:
-            return []
-        data = await resp.json()
-        return data.get("data", [])
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔄 Mise à jour des streaks et EXP
-# ────────────────────────────────────────────────────────────────────────────────
-async def update_streak(user_id: str, correct: bool, bot=None):
-    username = f"ID {user_id}"
-    if bot:
-        try:
-            user = await bot.fetch_user(int(user_id))
-            username = user.name if user else username
-        except:
-            pass
-
-    row = supabase.table("profil").select("*").eq("user_id", user_id).execute().data
-    current = row[0]["current_streak"] if row else 0
-    best    = row[0].get("best_streak",0) if row else 0
+async def update_streak(user_id: str, correct: bool):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT current_streak, best_streak FROM profil WHERE user_id=?", (user_id,))
+    row = cursor.fetchone()
+    current = row[0] if row else 0
+    best = row[1] if row else 0
     new_streak = current + 1 if correct else 0
-    new_best   = max(best, new_streak)
+    new_best = max(best, new_streak)
 
-    payload = {
-        "user_id": user_id,
-        "username": username,
-        "cartefav": row[0].get("cartefav","Non défini") if row else "Non défini",
-        "vaact_name": row[0].get("vaact_name","Non défini") if row else "Non défini",
-        "fav_decks_vaact": row[0].get("fav_decks_vaact","Non défini") if row else "Non défini",
-        "current_streak": new_streak,
-        "best_streak": new_best
-    }
-    supabase.table("profil").upsert(payload).execute()
+    if row:
+        cursor.execute("UPDATE profil SET current_streak=?, best_streak=? WHERE user_id=?",
+                       (new_streak, new_best, user_id))
+    else:
+        cursor.execute("INSERT INTO profil (user_id, username, cartefav, vaact_name, fav_decks_vaact, current_streak, best_streak) VALUES (?,?,?,?,?,?,?)",
+                       (user_id, f"ID {user_id}", "Non défini", "Non défini", "Non défini", new_streak, new_best))
+    conn.commit()
+    conn.close()
+
     if new_best > best:
         await add_exp_for_streak(user_id, new_best)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class DevineLaDescription(commands.Cog):
+class YGODescription(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_sessions = {}  # guild_id → quiz en cours
@@ -133,12 +109,12 @@ class DevineLaDescription(commands.Cog):
             self.main_name = main_name
             self.answers = {}
             for idx, name in enumerate(choices):
-                self.add_item(DevineLaDescription.QuizButton(label=name, idx=idx, parent_view=self))
+                self.add_item(YGODescription.QuizButton(label=name, idx=idx, parent_view=self))
 
         async def on_timeout(self):
             for child in self.children:
                 child.disabled = True
-            if hasattr(self,"message"):
+            if hasattr(self, "message"):
                 await safe_edit(self.message, view=self)
 
     class QuizButton(Button):
@@ -152,8 +128,7 @@ class DevineLaDescription(commands.Cog):
                 self.parent_view.answers[interaction.user.id] = self.idx
                 await update_streak(
                     str(interaction.user.id),
-                    self.parent_view.choices[self.idx] == self.parent_view.main_name,
-                    bot=self.parent_view.bot
+                    self.parent_view.choices[self.idx] == self.parent_view.main_name
                 )
             await interaction.response.send_message(
                 f"✅ Réponse enregistrée : **{self.label}**",
@@ -161,28 +136,25 @@ class DevineLaDescription(commands.Cog):
             )
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 💬 Commande principale
+    # 🔹 Fonction commune pour quiz
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.group(
-        name="devineladescription",
-        aliases=["dld","description","d","devinedescription","dd"],
-        invoke_without_command=True
-    )
-    @no_dm()
-    @commands.cooldown(1, 8, commands.BucketType.user)
-    async def devineladescription(self, ctx: commands.Context):
-        guild_id = ctx.guild.id
+    async def _start_quiz(self, ctx_or_inter, interaction=False):
+        guild_id = ctx_or_inter.guild.id
         if self.active_sessions.get(guild_id):
-            return await safe_reply(ctx,"⚠️ Un quiz est déjà en cours.",mention_author=False)
+            return await safe_reply(ctx_or_inter,"⚠️ Un quiz est déjà en cours.", mention_author=False)
         self.active_sessions[guild_id] = True
 
         try:
-            session = self.bot.aiohttp_session
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
+                async with session.get(url) as resp:
+                    data = await resp.json()
+                    cards = random.sample(data.get("data", []), min(100, len(data.get("data", []))))
 
-            cards = await fetch_cards(session)
             main_card = next((c for c in cards if "desc" in c and is_clean_card(c)), None)
             if not main_card:
-                return await safe_send(ctx,"❌ Aucune carte valide trouvée.")
+                return await safe_send(ctx_or_inter,"❌ Aucune carte valide trouvée.")
 
             main_name = main_card["name"]
             main_desc = censor_card_name(main_card["desc"], main_name)
@@ -191,24 +163,13 @@ class DevineLaDescription(commands.Cog):
             type_group = get_type_group(main_type)
 
             if archetype:
-                group = await fetch_archetype_cards(session, archetype)
-                group = [c for c in group if c.get("name") != main_name and "desc" in c]
+                group = [c for c in cards if c.get("name") != main_name and "desc" in c]
             else:
-                group = [
-                    c for c in cards
-                    if c.get("name") != main_name
-                    and "desc" in c
-                    and get_type_group(c.get("type","")) == type_group
-                    and is_clean_card(c)
-                ]
-                group.sort(
-                    key=lambda c: common_word_score(main_name,c["name"])
-                    + similarity_ratio(main_name,c["name"]),
-                    reverse=True
-                )
+                group = [c for c in cards if c.get("name") != main_name and "desc" in c and get_type_group(c.get("type",""))==type_group and is_clean_card(c)]
+                group.sort(key=lambda c: common_word_score(main_name,c["name"])+similarity_ratio(main_name,c["name"]), reverse=True)
 
             if len(group) < 3:
-                return await safe_send(ctx,"❌ Pas assez de fausses cartes valides.")
+                return await safe_send(ctx_or_inter,"❌ Pas assez de fausses cartes valides.")
 
             wrongs = random.sample(group,3)
             choices = [main_name]+[c["name"] for c in wrongs]
@@ -220,107 +181,167 @@ class DevineLaDescription(commands.Cog):
                 color=discord.Color.purple()
             )
             embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
-
             if main_type.lower().startswith("monstre"):
                 embed.add_field(name="💥 ATK", value=str(main_card.get("atk","—")), inline=True)
                 embed.add_field(name="🛡️ DEF", value=str(main_card.get("def","—")), inline=True)
                 embed.add_field(name="⚙️ Niveau", value=str(main_card.get("level","—")), inline=True)
 
-            view = self.QuizView(self.bot,choices,main_name)
-            view.message = await safe_send(ctx,embed=embed,view=view)
+            view = self.QuizView(self.bot, choices, main_name)
+            if interaction:
+                view.message = await safe_send(ctx_or_inter.channel, embed=embed, view=view)
+            else:
+                view.message = await safe_send(ctx_or_inter, embed=embed, view=view)
             await view.wait()
 
-            winners = [
-                self.bot.get_user(uid)
-                for uid,idx in view.answers.items()
-                if choices[idx]==main_name
-            ]
-
+            winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if choices[idx]==main_name]
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
-                description=(
-                    f"✅ Réponse : **{main_name}**\n"
-                    + (
-                        f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}"
-                        if winners else "😢 Personne n'a trouvé..."
-                    )
-                ),
+                description=(f"✅ Réponse : **{main_name}**\n"
+                             + (f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}" if winners else "😢 Personne n'a trouvé...")),
                 color=discord.Color.green() if winners else discord.Color.red()
             )
-            await safe_send(ctx,embed=result_embed)
+            await safe_send(ctx_or_inter, embed=result_embed)
 
         except Exception as e:
-            await safe_send(ctx,f"❌ Erreur : `{e}`")
+            await safe_send(ctx_or_inter, f"❌ Erreur : `{e}`")
         finally:
             self.active_sessions[guild_id] = None
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Score et top
+    # 🔹 Commande PREFIX /ygodescription
     # ────────────────────────────────────────────────────────────────────────────
-    @devineladescription.command(name="score",aliases=["streak","s"])
-    async def devineladescription_score(self,ctx:commands.Context):
+    @commands.group(
+        name="ygodescription",
+        aliases=["ygodesc","yd"],
+        invoke_without_command=True
+    )
+    @no_dm()
+    @commands.cooldown(1, 8, commands.BucketType.user)
+    async def prefix_ygodescription(self, ctx):
+        await self._start_quiz(ctx)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Sous-commandes PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @prefix_ygodescription.command(name="score", aliases=["streak","s"])
+    async def prefix_score(self, ctx):
         user_id = str(ctx.author.id)
-        try:
-            resp = supabase.table("profil").select("current_streak,best_streak").eq("user_id",user_id).execute()
-            if resp.data:
-                cur = resp.data[0].get("current_streak",0)
-                best = resp.data[0].get("best_streak",0)
-                embed = discord.Embed(
-                    title=f"🔥 Série de {ctx.author.display_name}",
-                    color=discord.Color.blurple()
-                )
-                embed.add_field(name="Série actuelle", value=f"**{cur}**", inline=False)
-                embed.add_field(name="Record absolu", value=f"**{best}**", inline=False)
-                await safe_send(ctx,embed=embed)
-            else:
-                await safe_send(
-                    ctx,
-                    embed=discord.Embed(
-                        title="📉 Pas encore de série",
-                        description="Lance `!devineladescription` pour démarrer ta série !",
-                        color=discord.Color.red()
-                    )
-                )
-        except Exception:
-            await safe_send(ctx,"🚨 Erreur lors de la récupération de ta série.")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT current_streak, best_streak FROM profil WHERE user_id=?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
 
-    @devineladescription.command(name="top",aliases=["t"])
-    async def devineladescription_top(self,ctx:commands.Context):
-        try:
-            resp = supabase.table("profil") \
-                .select("user_id,best_streak") \
-                .gt("best_streak",0) \
-                .order("best_streak",desc=True) \
-                .limit(10) \
-                .execute()
+        cur = row[0] if row else 0
+        best = row[1] if row else 0
 
-            data = resp.data
-            if not data:
-                return await safe_send(ctx,"📉 Aucun streak enregistré.")
+        embed = discord.Embed(
+            title=f"🔥 Série de {ctx.author.display_name}",
+            color=discord.Color.blurple()
+        )
+        embed.add_field(name="Série actuelle", value=f"**{cur}**", inline=False)
+        embed.add_field(name="Record absolu", value=f"**{best}**", inline=False)
+        await safe_send(ctx, embed=embed)
 
-            lines=[]
-            for i,row in enumerate(data,start=1):
-                uid=row.get("user_id")
-                best=row.get("best_streak",0)
-                user = await self.bot.fetch_user(int(uid)) if uid else None
+    @prefix_ygodescription.command(name="top", aliases=["t"])
+    async def prefix_top(self, ctx):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, best_streak FROM profil WHERE best_streak>0 ORDER BY best_streak DESC LIMIT 10")
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            return await safe_send(ctx,"📉 Aucun streak enregistré.")
+
+        lines=[]
+        for i, row in enumerate(rows, start=1):
+            uid, best = row
+            try:
+                user = await self.bot.fetch_user(int(uid))
                 name = user.name if user else f"ID {uid}"
-                medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i,f"`#{i}`")
-                lines.append(f"{medal} **{name}** – 🔥 {best}")
+            except:
+                name = f"ID {uid}"
+            medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i,f"`#{i}`")
+            lines.append(f"{medal} **{name}** – 🔥 {best}")
 
-            embed=discord.Embed(
-                title="🏆 Top 10 Séries",
-                description="\n".join(lines),
-                color=discord.Color.gold()
-            )
-            await safe_send(ctx,embed=embed)
-        except Exception:
-            await safe_send(ctx,"🚨 Erreur lors du classement.")
+        embed = discord.Embed(
+            title="🏆 Top 10 Séries",
+            description="\n".join(lines),
+            color=discord.Color.gold()
+        )
+        await safe_send(ctx, embed=embed)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="ygodescription",
+        description="Devine une carte Yu-Gi-Oh à partir de sa description"
+    )
+    @app_commands.checks.cooldown(rate=1, per=8.0, key=lambda i: i.user.id)
+    async def slash_ygodescription(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self._start_quiz(interaction, interaction=True)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Sous-commandes SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @slash_ygodescription.subcommand(name="score", description="Afficher votre série actuelle")
+    async def slash_score(self, interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT current_streak, best_streak FROM profil WHERE user_id=?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        cur = row[0] if row else 0
+        best = row[1] if row else 0
+
+        embed = discord.Embed(
+            title=f"🔥 Série de {interaction.user.display_name}",
+            color=discord.Color.blurple()
+        )
+        embed.add_field(name="Série actuelle", value=f"**{cur}**", inline=False)
+        embed.add_field(name="Record absolu", value=f"**{best}**", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @slash_ygodescription.subcommand(name="top", description="Afficher le top 10 des séries")
+    async def slash_top(self, interaction: discord.Interaction):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, best_streak FROM profil WHERE best_streak>0 ORDER BY best_streak DESC LIMIT 10")
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            return await interaction.response.send_message("📉 Aucun streak enregistré.", ephemeral=True)
+
+        lines=[]
+        for i, row in enumerate(rows, start=1):
+            uid, best = row
+            try:
+                user = await self.bot.fetch_user(int(uid))
+                name = user.name if user else f"ID {uid}"
+            except:
+                name = f"ID {uid}"
+            medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i,f"`#{i}`")
+            lines.append(f"{medal} **{name}** – 🔥 {best}")
+
+        embed = discord.Embed(
+            title="🏆 Top 10 Séries",
+            description="\n".join(lines),
+            color=discord.Color.gold()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
-async def setup(bot:commands.Bot):
-    cog = DevineLaDescription(bot)
+async def setup(bot: commands.Bot):
+    cog = YGODescription(bot)
     for command in cog.get_commands():
         command.category = "Minijeux"
     await bot.add_cog(cog)
