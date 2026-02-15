@@ -15,7 +15,9 @@ from discord.ext import commands
 from discord.ui import View, Select, Button
 import json
 import os
+import sqlite3
 
+from utils.vaact_utils import DB_PATH, get_or_create_profile
 from utils.discord_utils import safe_send, safe_respond
 from utils.supabase_client import supabase
 
@@ -34,7 +36,7 @@ def load_data():
         return {}
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🏆 Bouton — Sauvegarde du deck favori
+# 🏆 Bouton — Sauvegarde du deck favori (SQLite local via vaact_utils)
 # ────────────────────────────────────────────────────────────────────────────────
 class DeckFavoriteButton(Button):
     def __init__(self, parent_view):
@@ -43,24 +45,41 @@ class DeckFavoriteButton(Button):
 
     async def callback(self, interaction: discord.Interaction):
         if not self.parent_view.user or interaction.user.id != self.parent_view.user.id:
-            return await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ Ce bouton n’est pas pour toi.", ephemeral=True
+            )
 
         duelliste = self.parent_view.duelliste
         if not duelliste:
-            return await interaction.response.send_message("❌ Aucun deck sélectionné.", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ Aucun deck sélectionné.", ephemeral=True
+            )
+
+        # S'assurer que le profil existe
+        await get_or_create_profile(interaction.user.id, interaction.user.name)
 
         try:
-            supabase.table("profil").upsert({
-                "user_id": str(interaction.user.id),
-                "username": interaction.user.name,
-                "fav_decks_vaact": duelliste
-            }, on_conflict="user_id").execute()
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
 
-            return await interaction.response.send_message(
-                f"✅ **{duelliste}** est maintenant ton deck favori !", ephemeral=True)
+            # Mise à jour du deck favori
+            cursor.execute("""
+                UPDATE profil SET fav_decks_vaact = ? WHERE user_id = ?
+            """, (duelliste, str(interaction.user.id)))
+
+            conn.commit()
+            conn.close()
+
+            await interaction.response.send_message(
+                f"✅ **{duelliste}** est maintenant ton deck favori !", ephemeral=True
+            )
+
         except Exception as e:
-            print(f"[ERREUR Supabase] {e}")
-            return await interaction.response.send_message("❌ Erreur Supabase.", ephemeral=True)
+            print(f"[ERREUR SQLite DeckFavoriteButton] {e}")
+            await interaction.response.send_message(
+                "❌ Erreur lors de l'enregistrement du deck favori.", ephemeral=True
+            )
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ View — Sélection Saison + Duelliste + Favori
