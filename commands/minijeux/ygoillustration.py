@@ -159,7 +159,7 @@ class YGOIllustration(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="ygoillu", aliases=["ygoillustration","illu","i"], help="Devine une carte Yu-Gi-Oh! à partir de son illustration")
+    @commands.command(name="ygoillustration", aliases=["ygoillu","yi"], help="Devine une carte Yu-Gi-Oh! à partir de son illustration")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @no_dm()
     async def prefix_ygoillu(self, ctx):
