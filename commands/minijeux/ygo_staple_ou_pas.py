@@ -132,7 +132,7 @@ class StapleOuPas(commands.Cog):
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────
     @commands.command(
-        name="ygo_taple_ou_pas", 
+        name="ygo_staple_ou_pas", 
         aliases=["ygosop", "ysop"], 
         help="Devine si la carte tirée est une staple ou pas !"
     )
