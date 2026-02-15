@@ -1,5 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 ygodescription.py — Commande interactive /ygodescription / !ygodescription
+# 📌 ygodescription.py
 # Objectif : Deviner une carte Yu-Gi-Oh à partir de sa description
 # Catégorie : Minijeux
 # Accès : Public
@@ -135,12 +135,15 @@ class QuizButton(Button):
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class YGODescription(commands.Cog):
+    """
+    Commande /ygodescription et !ygodescription — Devine une carte Yu-Gi-Oh à partir de sa description
+    """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.active_sessions = {}  # guild_id → quiz en cours
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction commune pour lancer le quiz
+    # 🔹 Fonction interne commune
     # ────────────────────────────────────────────────────────────────────────────
     async def _start_quiz(self, ctx_or_inter, interaction=False):
         guild_id = ctx_or_inter.guild.id
@@ -219,114 +222,6 @@ class YGODescription(commands.Cog):
     async def prefix_ygodescription(self, ctx):
         await self._start_quiz(ctx)
 
-    @prefix_ygodescription.command(name="score", aliases=["streak","s"])
-    async def prefix_score(self, ctx):
-        user_id = str(ctx.author.id)
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT current_streak, best_streak FROM profil WHERE user_id=?", (user_id,))
-        row = cursor.fetchone()
-        conn.close()
-
-        cur = row[0] if row else 0
-        best = row[1] if row else 0
-
-        embed = discord.Embed(
-            title=f"🔥 Série de {ctx.author.display_name}",
-            color=discord.Color.blurple()
-        )
-        embed.add_field(name="Série actuelle", value=f"**{cur}**", inline=False)
-        embed.add_field(name="Record absolu", value=f"**{best}**", inline=False)
-        await safe_send(ctx, embed=embed)
-
-    @prefix_ygodescription.command(name="top", aliases=["t"])
-    async def prefix_top(self, ctx):
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id, best_streak FROM profil WHERE best_streak>0 ORDER BY best_streak DESC LIMIT 10")
-        rows = cursor.fetchall()
-        conn.close()
-
-        if not rows:
-            return await safe_send(ctx,"📉 Aucun streak enregistré.")
-
-        lines=[]
-        for i, row in enumerate(rows, start=1):
-            uid, best = row
-            try:
-                user = await self.bot.fetch_user(int(uid))
-                name = user.name if user else f"ID {uid}"
-            except:
-                name = f"ID {uid}"
-            medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i,f"`#{i}`")
-            lines.append(f"{medal} **{name}** – 🔥 {best}")
-
-        embed = discord.Embed(
-            title="🏆 Top 10 Séries",
-            description="\n".join(lines),
-            color=discord.Color.gold()
-        )
-        await safe_send(ctx, embed=embed)
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH via Group
-    # ────────────────────────────────────────────────────────────────────────────
-    ygodesc_group = app_commands.Group(name="ygodescription", description="Devine une carte Yu-Gi-Oh à partir de sa description")
-
-    @ygodesc_group.command(name="play", description="Lancer un quiz")
-    async def slash_play(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        await self._start_quiz(interaction, interaction=True)
-        await interaction.delete_original_response()
-
-    @ygodesc_group.command(name="score", description="Voir votre série actuelle")
-    async def slash_score(self, interaction: discord.Interaction):
-        user_id = str(interaction.user.id)
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT current_streak, best_streak FROM profil WHERE user_id=?", (user_id,))
-        row = cursor.fetchone()
-        conn.close()
-        cur = row[0] if row else 0
-        best = row[1] if row else 0
-
-        embed = discord.Embed(
-            title=f"🔥 Série de {interaction.user.display_name}",
-            color=discord.Color.blurple()
-        )
-        embed.add_field(name="Série actuelle", value=f"**{cur}**", inline=False)
-        embed.add_field(name="Record absolu", value=f"**{best}**", inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @ygodesc_group.command(name="top", description="Voir le top 10 des séries")
-    async def slash_top(self, interaction: discord.Interaction):
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id, best_streak FROM profil WHERE best_streak>0 ORDER BY best_streak DESC LIMIT 10")
-        rows = cursor.fetchall()
-        conn.close()
-
-        if not rows:
-            return await interaction.response.send_message("📉 Aucun streak enregistré.", ephemeral=True)
-
-        lines=[]
-        for i, row in enumerate(rows, start=1):
-            uid, best = row
-            try:
-                user = await self.bot.fetch_user(int(uid))
-                name = user.name if user else f"ID {uid}"
-            except:
-                name = f"ID {uid}"
-            medal = {1:"🥇",2:"🥈",3:"🥉"}.get(i,f"`#{i}`")
-            lines.append(f"{medal} **{name}** – 🔥 {best}")
-
-        embed = discord.Embed(
-            title="🏆 Top 10 Séries",
-            description="\n".join(lines),
-            color=discord.Color.gold()
-        )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
 # ────────────────────────────────────────────────────────────────────────────────
@@ -336,5 +231,3 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "Minijeux"
     await bot.add_cog(cog)
-    # Ajout du group slash
-    bot.tree.add_command(cog.ygodesc_group)
