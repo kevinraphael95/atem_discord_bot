@@ -184,4 +184,3 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "Minijeux"
     await bot.add_cog(cog)
-    bot.tree.add_command(cog.slash_ygoillu)
