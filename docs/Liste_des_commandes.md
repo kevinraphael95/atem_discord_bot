@@ -1,7 +1,8 @@
 Liste des Commandes
 
 ### 📂 Admin
-- **commandslist :** Génère un .md avec toutes les commandes et les envoie en fichier.
+- **commandslist :** (Admin) Génère un .md avec toutes les commandes et les envoie en fichier.
+- **editprofile :** Ouvre une interface visuelle pour modifier un profil
 - **sync :** Commande préfixe pour synchroniser les commandes (guild ou global).
 - **tournoidate :** (Admin) 🛠️ Gérer la date du tournoi VAACT.
 
@@ -21,16 +22,21 @@ Liste des Commandes
 
 ### 📂 Minijeux
 - **bannisougarde :** Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.
-- **devineladescription :** Pas de description.
-- **devinelillustration :** Pas de description.
-- **pendu :** Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.
-- **quizzvocabulaire :** Fais un quiz interactif sur le vocabulaire Yu-Gi-Oh!
-- **staple_ou_pas :** Pas de description.
+- **roulette :** Jouer au Blackjack avec des cartes Yu-Gi-Oh!.
 - **topcarte :** Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l’aveugle.
+- **ygo_taple_ou_pas :** Devine si la carte tirée est une staple ou pas !
+- **ygoblackjack :** Jouer au Blackjack avec des cartes Yu-Gi-Oh!
+- **ygodescription :** Devine une carte Yu-Gi-Oh à partir de sa description
+- **ygoillustration :** Devine une carte Yu-Gi-Oh! à partir de son illustration
+- **ygopendu :** Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.
+- **ygoquizzvocabulaire :** Pas de description.
 
 ### 📂 OnePieceTCG
 - **opcarte :** Affiche une carte One Piece TCG (aléatoire si aucun nom)
 - **optuto :** Tutoriel interactif pour apprendre à jouer au One Piece TCG
+
+### 📂 PokemonTCG
+- **pcarte :** Afficher une carte Pokémon TCG (ou random).
 
 ### 📂 VAACT
 - **deck :** Choisis une saison et un duelliste pour voir ses decks
@@ -38,7 +44,7 @@ Liste des Commandes
 - **randeck :** Tire un deck custom aléatoire à jouer.
 - **tournoi :** Affiche la date et le lieu du prochain tournoi VAACT.
 - **vaact :** Présentation rapide du tournoi animé Yu-Gi-Oh! VAACT.
-- **vaact_pseudo :** Commande préfixe interactive pour choisir son pseudo VAACT
+- **vaact_pseudo :** Pas de description.
 
 ### 📂 🃏 Yu-Gi-Oh!
 - **art :** 🎨 Affiche les illustrations d’une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT).
@@ -48,7 +54,7 @@ Liste des Commandes
 - **classement :** 🏆 Affiche le classement du tournoi avec pagination interactive.
 - **packopening :** !packopening <nom du set> [nombre de cartes]
 Exemple : !packopening Legend of Blue Eyes White Dragon 5
-- **prix :** Pas de description.
+- **prix :** Affiche le prix d'une carte Yu-Gi-Oh!
 - **sets :** 📦 Affiche tous les sets d’une carte avec rareté, prix et date TCG.
 - **staples :** Pas de description.
 - **vocabulaire :** 📘 Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive.
