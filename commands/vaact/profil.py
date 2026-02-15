@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 profil.py
-# Objectif : Affiche le profil d’un utilisateur (SQLite)
+# Objectif : Affiche le profil d’un utilisateur (SQLite via vaact_utils)
 # Catégorie : VAACT
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
@@ -9,57 +9,11 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
-import os
-import sqlite3
 import discord
 from discord import app_commands
 from discord.ext import commands
 from utils.discord_utils import safe_send, safe_respond
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🗄️ Configuration SQLite
-# ────────────────────────────────────────────────────────────────────────────────
-DB_PATH = "database/profil.db"
-os.makedirs("database", exist_ok=True)
-
-def get_db():
-    return sqlite3.connect(DB_PATH)
-
-def get_or_create_profile(user_id: str, username: str) -> dict:
-    """Récupère ou crée un profil vide pour un utilisateur."""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS profil (
-            user_id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            cartefav TEXT DEFAULT 'Non défini',
-            vaact_name TEXT DEFAULT 'Non défini',
-            fav_decks_vaact TEXT DEFAULT 'Non défini',
-            current_streak INTEGER DEFAULT 0 NOT NULL,
-            best_streak INTEGER DEFAULT 0,
-            illu_streak INTEGER DEFAULT 0,
-            best_illustreak INTEGER DEFAULT 0,
-            niveau INTEGER DEFAULT 1,
-            exp INTEGER DEFAULT 0
-        )
-    """)
-    cursor.execute("SELECT * FROM profil WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    if not row:
-        cursor.execute(
-            "INSERT INTO profil (user_id, username) VALUES (?, ?)",
-            (user_id, username)
-        )
-        conn.commit()
-        cursor.execute("SELECT * FROM profil WHERE user_id = ?", (user_id,))
-        row = cursor.fetchone()
-    conn.close()
-
-    keys = ["user_id", "username", "cartefav", "vaact_name", "fav_decks_vaact",
-            "current_streak", "best_streak", "illu_streak", "best_illustreak",
-            "niveau", "exp"]
-    return dict(zip(keys, row))
+from utils.vaact_utils import get_or_create_profile  # <-- Utilisation directe de vaact_utils
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
@@ -81,7 +35,7 @@ class Profil(commands.Cog):
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_profil(self, interaction: discord.Interaction, membre: discord.Member = None):
         membre = membre or interaction.user
-        profil_data = get_or_create_profile(str(membre.id), membre.name)
+        profil_data = await get_or_create_profile(str(membre.id), membre.name)  # <-- await
         embed = self.build_embed(profil_data, membre)
         await safe_respond(interaction, embed=embed)
 
@@ -92,7 +46,7 @@ class Profil(commands.Cog):
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_profil(self, ctx: commands.Context, membre: discord.Member = None):
         membre = membre or ctx.author
-        profil_data = get_or_create_profile(str(membre.id), membre.name)
+        profil_data = await get_or_create_profile(str(membre.id), membre.name)  # <-- await
         embed = self.build_embed(profil_data, membre)
         await safe_send(ctx.channel, embed=embed)
 
