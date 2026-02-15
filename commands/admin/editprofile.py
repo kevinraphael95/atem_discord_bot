@@ -12,7 +12,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Button, Modal, InputText
+from discord.ui import View, Button, Modal, TextInput
 import sqlite3
 
 from utils.vaact_utils import get_or_create_profile, DB_PATH
@@ -26,7 +26,8 @@ class ProfileFieldModal(Modal):
         super().__init__(title=f"Modifier {field_name}")
         self.field_name = field_name
         self.callback_fn = callback
-        self.add_item(InputText(label=f"Nouvelle valeur pour {field_name}", value=str(current_value) or ""))
+        # Utiliser TextInput au lieu de InputText
+        self.add_item(TextInput(label=f"Nouvelle valeur pour {field_name}", value=str(current_value) or ""))
 
     async def on_submit(self, interaction: discord.Interaction):
         new_value = self.children[0].value
