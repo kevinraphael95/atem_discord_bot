@@ -174,7 +174,7 @@ class Pendu(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(name="pendu", description="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
+    @app_commands.command(name="ygopendu", description="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
     async def slash_pendu(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self._start_game(interaction.channel, interaction.user)
@@ -183,7 +183,7 @@ class Pendu(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="pendu", help="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
+    @commands.command(name="ygopendu", help="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_pendu(self, ctx: commands.Context):
         await self._start_game(ctx.channel, ctx.author)
