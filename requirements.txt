@@ -6,7 +6,3 @@ aiohttp
 pandas
 BeautifulSoup4
 psutil
-
-
-
-
