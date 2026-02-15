@@ -19,7 +19,6 @@ import sqlite3
 
 from utils.vaact_utils import DB_PATH, get_or_create_profile
 from utils.discord_utils import safe_send, safe_respond
-from utils.supabase_client import supabase
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Chargement du fichier JSON deck_data.json
@@ -79,7 +78,6 @@ class DeckFavoriteButton(Button):
             await interaction.response.send_message(
                 "❌ Erreur lors de l'enregistrement du deck favori.", ephemeral=True
             )
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ View — Sélection Saison + Duelliste + Favori
@@ -175,7 +173,6 @@ class DuellisteSelect(Select):
             color=discord.Color.gold()
         )
 
-        # embed.set_thumbnail(url="https://i.imgur.com/u7CEp4p.png")
         embed.add_field(name="📘 Deck(s)", value=deck_text, inline=False)
 
         await interaction.response.edit_message(
