@@ -107,7 +107,7 @@ class QuizzVocabulaire(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="quizzvocabulaire", aliases=["qv"])
+    @commands.command(name="ygoquizzvocabulaire", aliases=["yqv"])
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_quizzvocabulaire(self, ctx: commands.Context):
         await self._start_quiz(ctx.channel)
@@ -115,7 +115,7 @@ class QuizzVocabulaire(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(name="quizzvocabulaire", description="Fais un quiz interactif sur le vocabulaire Yu-Gi-Oh!")
+    @app_commands.command(name="ygoquizzvocabulaire", description="Fais un quiz interactif sur le vocabulaire Yu-Gi-Oh!")
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_quizzvocabulaire(self, interaction: discord.Interaction):
         await interaction.response.defer()
