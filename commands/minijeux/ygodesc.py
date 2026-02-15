@@ -214,9 +214,26 @@ class YGODescription(commands.Cog):
             self.active_sessions[guild_id] = None
 
     # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="ygodescription",
+        description="Devine une carte Yu-Gi-Oh à partir de sa description"
+    )
+    @app_commands.checks.cooldown(rate=1, per=8.0, key=lambda i: i.user.id)
+    async def slash_ygodescription(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self._start_quiz(interaction, interaction=True)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.group(name="ygodescription", aliases=["ygodesc","yd"], invoke_without_command=True)
+    @commands.command(
+        name="ygodescription",
+        aliases=["ygodesc","yd"],
+        help="Devine une carte Yu-Gi-Oh à partir de sa description"
+    )
     @no_dm()
     @commands.cooldown(1, 8, commands.BucketType.user)
     async def prefix_ygodescription(self, ctx):
