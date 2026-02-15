@@ -9,43 +9,14 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
-import os
 from datetime import datetime
-import sqlite3
-
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button, Modal, TextInput
 
-from utils.discord_utils import safe_send, safe_edit
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🗄️ Configuration SQLite
-# ────────────────────────────────────────────────────────────────────────────────
-DB_PATH = "database/tournoi.db"
-os.makedirs("database", exist_ok=True)
-
-def get_db():
-    return sqlite3.connect(DB_PATH)
-
-def init_db():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tournoi_info (
-            id INTEGER PRIMARY KEY,
-            prochaine_date TEXT,
-            lieu TEXT
-        )
-    """)
-    cursor.execute("SELECT COUNT(*) FROM tournoi_info")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute(
-            "INSERT INTO tournoi_info (id, prochaine_date, lieu) VALUES (1, NULL, NULL)"
-        )
-    conn.commit()
-    conn.close()
+from utils.discord_utils import safe_send
+from utils.init_db import get_conn  # <-- DB centralisée
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📝 UI — Modal Date + Lieu
@@ -62,7 +33,7 @@ class TournoiDateModal(Modal, title="📅 Modifier le tournoi"):
                 "❌ Format invalide.\nUtilise **JJ/MM/AAAA HH:MM**",
                 ephemeral=True
             )
-        conn = get_db()
+        conn = get_conn("tournoi")
         cursor = conn.cursor()
         cursor.execute(
             "UPDATE tournoi_info SET prochaine_date = ?, lieu = ? WHERE id = 1",
@@ -85,7 +56,7 @@ class DeleteDateButton(Button):
     def __init__(self):
         super().__init__(label="Supprimer", style=discord.ButtonStyle.danger, emoji="🗑️")
     async def callback(self, interaction: discord.Interaction):
-        conn = get_db()
+        conn = get_conn("tournoi")
         cursor = conn.cursor()
         cursor.execute("UPDATE tournoi_info SET prochaine_date = NULL, lieu = NULL WHERE id = 1")
         conn.commit()
@@ -107,13 +78,12 @@ class TournoiDate(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        init_db()
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne commune
     # ────────────────────────────────────────────────────────────────────────────
     async def _send_tournoi_date(self, channel: discord.abc.Messageable):
-        conn = get_db()
+        conn = get_conn("tournoi")
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM tournoi_info WHERE id = 1")
         row = cursor.fetchone()
