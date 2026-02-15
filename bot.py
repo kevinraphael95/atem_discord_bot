@@ -65,7 +65,6 @@ intents.dm_reactions = True
 
 bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=None)
 bot.INSTANCE_ID = INSTANCE_ID
-bot.supabase = supabase
 bot.aiohttp_session = None  # sera initialisée plus tard
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -175,5 +174,3 @@ if __name__ == "__main__":
         await bot.start(TOKEN)
 
     asyncio.run(start())
-
-
