@@ -168,7 +168,7 @@ class YGOIllustration(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(name="ygoillu", description="Devine une carte Yu-Gi-Oh! à partir de son illustration")
+    @app_commands.command(name="ygoillustration", description="Devine une carte Yu-Gi-Oh! à partir de son illustration")
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_ygoillu(self, interaction: discord.Interaction):
         await interaction.response.defer()
