@@ -14,7 +14,6 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import random
-import asyncio
 import traceback
 
 from utils.discord_utils import safe_send, safe_edit
@@ -64,15 +63,9 @@ class YGOIllustration(commands.Cog):
         archetype = true_card.get("archetype")
         card_type = true_card.get("type", "")
         if archetype:
-            group = [
-                c for c in all_cards
-                if c.get("archetype") == archetype and c["name"] != true_card["name"]
-            ]
+            group = [c for c in all_cards if c.get("archetype") == archetype and c["name"] != true_card["name"]]
         else:
-            group = [
-                c for c in all_cards
-                if c.get("type") == card_type and c["name"] != true_card["name"]
-            ]
+            group = [c for c in all_cards if c.get("type") == card_type and c["name"] != true_card["name"]]
         return random.sample(group, k=min(3, len(group))) if group else []
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -166,20 +159,18 @@ class YGOIllustration(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.group(name="ygoillustration", aliases=["ygoillu","illu","i"], invoke_without_command=True)
+    @commands.command(name="ygoillu", aliases=["ygoillustration","illu","i"], help="Devine une carte Yu-Gi-Oh! à partir de son illustration")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @no_dm()
     async def prefix_ygoillu(self, ctx):
-        """Devine une carte Yu-Gi-Oh! à partir de son illustration"""
         await self.start_quiz(ctx.channel)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
-    ygoillu_group = app_commands.Group(name="ygoillustration", description="Devine une carte Yu-Gi-Oh! à partir de son illustration")
-    
-    @ygoillu_group.command(name="play", description="Lancer un quiz YGO Illustration")
-    async def slash_play(self, interaction: discord.Interaction):
+    @app_commands.command(name="ygoillu", description="Devine une carte Yu-Gi-Oh! à partir de son illustration")
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
+    async def slash_ygoillu(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self.start_quiz(interaction.channel)
         await interaction.delete_original_response()
@@ -193,3 +184,4 @@ async def setup(bot: commands.Bot):
         if not hasattr(command, "category"):
             command.category = "Minijeux"
     await bot.add_cog(cog)
+    bot.tree.add_command(cog.slash_ygoillu)
