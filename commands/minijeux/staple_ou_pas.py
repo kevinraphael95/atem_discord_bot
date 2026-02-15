@@ -120,7 +120,7 @@ class StapleOuPas(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="staple_ou_pas",
+        name="ygo_staple_ou_pas",
         description="Devine si la carte tirée est une staple ou pas !"
     )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
@@ -132,8 +132,8 @@ class StapleOuPas(commands.Cog):
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────
     @commands.command(
-        name="staple_ou_pas", 
-        aliases=["sop"], 
+        name="ygo_taple_ou_pas", 
+        aliases=["ygosop", "ysop"], 
         help="Devine si la carte tirée est une staple ou pas !"
     )
     @commands.cooldown(1, 5.0, commands.BucketType.user)
