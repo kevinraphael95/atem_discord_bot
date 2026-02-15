@@ -26,7 +26,6 @@ class ProfileFieldModal(Modal):
         super().__init__(title=f"Modifier {field_name}")
         self.field_name = field_name
         self.callback_fn = callback
-        # Utiliser TextInput au lieu de InputText
         self.add_item(TextInput(label=f"Nouvelle valeur pour {field_name}", value=str(current_value) or ""))
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -81,6 +80,12 @@ class ProfileEditView(View):
         except Exception as e:
             await interaction.response.send_message(f"❌ Erreur : {e}", ephemeral=True)
 
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.embed_message:
+            await self.embed_message.edit(view=self)
+
     # ─────────── Buttons ───────────
     @discord.ui.button(label="💰 EXP", style=discord.ButtonStyle.primary)
     async def exp_button(self, interaction: discord.Interaction, button: Button):
@@ -125,11 +130,10 @@ class ProfileEditView(View):
     @discord.ui.button(label="📝 Nom VAACT", style=discord.ButtonStyle.secondary)
     async def vaact_name_button(self, interaction: discord.Interaction, button: Button):
         modal = ProfileFieldModal("vaact_name", self.profile['vaact_name'], self.modify_field)
-
         await interaction.response.send_modal(modal)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
+# 🧠 Cog principal avec méthode commune pour slash & prefix
 # ────────────────────────────────────────────────────────────────────────────────
 class AdminEditProfile(commands.Cog):
     """
@@ -139,15 +143,31 @@ class AdminEditProfile(commands.Cog):
         self.bot = bot
 
     # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _send_menu(self, user: discord.User, channel: discord.abc.Messageable):
+        view = ProfileEditView(user.id, user)
+        await view.load_profile()
+        embed = view.build_embed()
+        view.embed_message = await safe_send(channel, embed=embed, view=view)
+
+    # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="editprofile", help="Ouvre une interface visuelle pour modifier un profil")
     @commands.has_permissions(administrator=True)
     async def editprofile(self, ctx: commands.Context, member: discord.Member):
-        view = ProfileEditView(member.id, ctx.author)
-        await view.load_profile()
-        embed = view.build_embed()
-        view.embed_message = await safe_send(ctx.channel, embed=embed, view=view)
+        await self._send_menu(member, ctx.channel)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(name="editprofile", description="Ouvre une interface visuelle pour modifier un profil")
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
+    async def slash_editprofile(self, interaction: discord.Interaction, member: discord.Member):
+        await interaction.response.defer(ephemeral=True)
+        await self._send_menu(member, interaction.channel)
+        await interaction.delete_original_response()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
