@@ -17,6 +17,7 @@ import random
 import re
 import sqlite3
 from difflib import SequenceMatcher
+import aiohttp
 
 from utils.discord_utils import safe_send, safe_reply, safe_edit
 from utils.vaact_utils import add_exp_for_streak, DB_PATH
@@ -82,8 +83,10 @@ async def update_streak(user_id: str, correct: bool):
         cursor.execute("UPDATE profil SET current_streak=?, best_streak=? WHERE user_id=?",
                        (new_streak, new_best, user_id))
     else:
-        cursor.execute("INSERT INTO profil (user_id, username, cartefav, vaact_name, fav_decks_vaact, current_streak, best_streak) VALUES (?,?,?,?,?,?,?)",
-                       (user_id, f"ID {user_id}", "Non défini", "Non défini", "Non défini", new_streak, new_best))
+        cursor.execute(
+            "INSERT INTO profil (user_id, username, cartefav, vaact_name, fav_decks_vaact, current_streak, best_streak) VALUES (?,?,?,?,?,?,?)",
+            (user_id, f"ID {user_id}", "Non défini", "Non défini", "Non défini", new_streak, new_best)
+        )
     conn.commit()
     conn.close()
 
@@ -91,52 +94,53 @@ async def update_streak(user_id: str, correct: bool):
         await add_exp_for_streak(user_id, new_best)
 
 # ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ View et boutons du quiz
+# ────────────────────────────────────────────────────────────────────────────────
+class QuizView(View):
+    def __init__(self, bot, choices, main_name):
+        super().__init__(timeout=60)
+        self.bot = bot
+        self.choices = choices
+        self.main_name = main_name
+        self.answers = {}
+        for idx, name in enumerate(choices):
+            self.add_item(QuizButton(label=name, idx=idx, parent_view=self))
+        self.message = None
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            await safe_edit(self.message, view=self)
+
+class QuizButton(Button):
+    def __init__(self, label, idx, parent_view):
+        super().__init__(label=label, style=discord.ButtonStyle.primary)
+        self.parent_view = parent_view
+        self.idx = idx
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id not in self.parent_view.answers:
+            self.parent_view.answers[interaction.user.id] = self.idx
+            await update_streak(
+                str(interaction.user.id),
+                self.parent_view.choices[self.idx] == self.parent_view.main_name
+            )
+        await interaction.response.send_message(
+            f"✅ Réponse enregistrée : **{self.label}**",
+            ephemeral=True
+        )
+
+# ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class YGODescription(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.active_sessions = {}  # guild_id → quiz en cours
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 View & Buttons
-    # ────────────────────────────────────────────────────────────────────────────
-    class QuizView(View):
-        def __init__(self, bot, choices, main_name):
-            super().__init__(timeout=60)
-            self.bot = bot
-            self.choices = choices
-            self.main_name = main_name
-            self.answers = {}
-            for idx, name in enumerate(choices):
-                self.add_item(YGODescription.QuizButton(label=name, idx=idx, parent_view=self))
-
-        async def on_timeout(self):
-            for child in self.children:
-                child.disabled = True
-            if hasattr(self, "message"):
-                await safe_edit(self.message, view=self)
-
-    class QuizButton(Button):
-        def __init__(self, label, idx, parent_view):
-            super().__init__(label=label, style=discord.ButtonStyle.primary)
-            self.parent_view = parent_view
-            self.idx = idx
-
-        async def callback(self, interaction: discord.Interaction):
-            if interaction.user.id not in self.parent_view.answers:
-                self.parent_view.answers[interaction.user.id] = self.idx
-                await update_streak(
-                    str(interaction.user.id),
-                    self.parent_view.choices[self.idx] == self.parent_view.main_name
-                )
-            await interaction.response.send_message(
-                f"✅ Réponse enregistrée : **{self.label}**",
-                ephemeral=True
-            )
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction commune pour quiz
+    # 🔹 Fonction commune pour lancer le quiz
     # ────────────────────────────────────────────────────────────────────────────
     async def _start_quiz(self, ctx_or_inter, interaction=False):
         guild_id = ctx_or_inter.guild.id
@@ -145,7 +149,6 @@ class YGODescription(commands.Cog):
         self.active_sessions[guild_id] = True
 
         try:
-            import aiohttp
             async with aiohttp.ClientSession() as session:
                 url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
                 async with session.get(url) as resp:
@@ -186,7 +189,7 @@ class YGODescription(commands.Cog):
                 embed.add_field(name="🛡️ DEF", value=str(main_card.get("def","—")), inline=True)
                 embed.add_field(name="⚙️ Niveau", value=str(main_card.get("level","—")), inline=True)
 
-            view = self.QuizView(self.bot, choices, main_name)
+            view = QuizView(self.bot, choices, main_name)
             if interaction:
                 view.message = await safe_send(ctx_or_inter.channel, embed=embed, view=view)
             else:
@@ -208,21 +211,14 @@ class YGODescription(commands.Cog):
             self.active_sessions[guild_id] = None
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande PREFIX /ygodescription
+    # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.group(
-        name="ygodescription",
-        aliases=["ygodesc","yd"],
-        invoke_without_command=True
-    )
+    @commands.group(name="ygodescription", aliases=["ygodesc","yd"], invoke_without_command=True)
     @no_dm()
     @commands.cooldown(1, 8, commands.BucketType.user)
     async def prefix_ygodescription(self, ctx):
         await self._start_quiz(ctx)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Sous-commandes PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
     @prefix_ygodescription.command(name="score", aliases=["streak","s"])
     async def prefix_score(self, ctx):
         user_id = str(ctx.author.id)
@@ -273,22 +269,17 @@ class YGODescription(commands.Cog):
         await safe_send(ctx, embed=embed)
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
+    # 🔹 Commande SLASH via Group
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="ygodescription",
-        description="Devine une carte Yu-Gi-Oh à partir de sa description"
-    )
-    @app_commands.checks.cooldown(rate=1, per=8.0, key=lambda i: i.user.id)
-    async def slash_ygodescription(self, interaction: discord.Interaction):
+    ygodesc_group = app_commands.Group(name="ygodescription", description="Devine une carte Yu-Gi-Oh à partir de sa description")
+
+    @ygodesc_group.command(name="play", description="Lancer un quiz")
+    async def slash_play(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self._start_quiz(interaction, interaction=True)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Sous-commandes SLASH
-    # ────────────────────────────────────────────────────────────────────────────
-    @slash_ygodescription.subcommand(name="score", description="Afficher votre série actuelle")
+    @ygodesc_group.command(name="score", description="Voir votre série actuelle")
     async def slash_score(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         conn = sqlite3.connect(DB_PATH)
@@ -296,7 +287,6 @@ class YGODescription(commands.Cog):
         cursor.execute("SELECT current_streak, best_streak FROM profil WHERE user_id=?", (user_id,))
         row = cursor.fetchone()
         conn.close()
-
         cur = row[0] if row else 0
         best = row[1] if row else 0
 
@@ -308,7 +298,7 @@ class YGODescription(commands.Cog):
         embed.add_field(name="Record absolu", value=f"**{best}**", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @slash_ygodescription.subcommand(name="top", description="Afficher le top 10 des séries")
+    @ygodesc_group.command(name="top", description="Voir le top 10 des séries")
     async def slash_top(self, interaction: discord.Interaction):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -343,5 +333,8 @@ class YGODescription(commands.Cog):
 async def setup(bot: commands.Bot):
     cog = YGODescription(bot)
     for command in cog.get_commands():
-        command.category = "Minijeux"
+        if not hasattr(command, "category"):
+            command.category = "Minijeux"
     await bot.add_cog(cog)
+    # Ajout du group slash
+    bot.tree.add_command(cog.ygodesc_group)
