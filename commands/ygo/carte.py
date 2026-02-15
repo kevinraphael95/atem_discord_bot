@@ -19,10 +19,11 @@ from discord.ui import View, Button
 import json
 from pathlib import Path
 import aiohttp
+import sqlite3
 
 from utils.discord_utils import safe_send
-from utils.supabase_client import supabase
 from utils.card_utils import search_card, fetch_random_card
+from utils.vaact_utils import DB_PATH, get_or_create_profile
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎨 Chargement décorations et couleurs
@@ -49,7 +50,7 @@ for key, hex_code in CARDINFO.get("TYPE_COLOR", {}).items():
 TYPE_COLOR.setdefault("default", discord.Color.dark_grey())
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View — Carte favorite
+# 🎛️ View — Carte favorite (SQLite local)
 # ────────────────────────────────────────────────────────────────────────────────
 class CarteFavoriteButton(View):
     def __init__(self, carte_name: str, user: discord.User):
@@ -60,20 +61,31 @@ class CarteFavoriteButton(View):
     @discord.ui.button(label="Carte favorite", style=discord.ButtonStyle.primary, emoji="⭐")
     async def add_favorite(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.user.id:
-            await interaction.response.send_message("❌ Ce bouton n’est pas pour toi.", ephemeral=True)
+            await interaction.response.send_message(
+                "❌ Ce bouton n’est pas pour toi.", ephemeral=True
+            )
             return
+
+        # S'assurer que le profil existe
+        await get_or_create_profile(interaction.user.id, interaction.user.name)
+
         try:
-            supabase.table("profil").upsert({
-                "user_id": str(interaction.user.id),
-                "username": interaction.user.name,
-                "cartefav": self.carte_name
-            }, on_conflict="user_id").execute()
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE profil SET cartefav = ? WHERE user_id = ?",
+                (self.carte_name, str(interaction.user.id))
+            )
+            conn.commit()
+            conn.close()
             await interaction.response.send_message(
                 f"✅ **{self.carte_name}** ajoutée à tes cartes favorites !", ephemeral=True
             )
         except Exception as e:
-            print(f"[ERREUR Supabase] {e}")
-            await interaction.response.send_message("❌ Erreur lors de l’ajout à Supabase.", ephemeral=True)
+            print(f"[ERREUR SQLite CarteFavoriteButton] {e}")
+            await interaction.response.send_message(
+                "❌ Erreur lors de l’enregistrement de la carte favorite.", ephemeral=True
+            )
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔧 Helpers pour formatage
@@ -127,7 +139,6 @@ async def fetch_english_name_by_id(card_id: int, session: aiohttp.ClientSession)
 # 🔧 Helper pour fetch banlist exacte (identique à banlist_check)
 # ────────────────────────────────────────────────────────────────────────────────
 async def fetch_exact_banlist(card_name: str, session: aiohttp.ClientSession) -> dict:
-    """Récupère la banlist exacte d'une carte par son nom exact, comme banlist_check."""
     url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
     async with session.get(url, params={"name": card_name}) as resp:
         if resp.status != 200:
@@ -157,7 +168,6 @@ class Carte(commands.Cog):
                 await safe_send(channel, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
                 return
         else:
-            # Recherche carte
             carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
             if message:
                 await safe_send(channel, message)
@@ -166,19 +176,16 @@ class Carte(commands.Cog):
                 await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
                 return
 
-        # --- Choix des noms selon la langue ---
         card_name_display = (
             carte.get(f"name_{langue.lower()}")
             or carte.get("name_fr")
             or carte.get("name")
         )
-
         card_id = carte.get("id")
         card_name_en = await fetch_english_name_by_id(card_id, self.bot.aiohttp_session)
         if not card_name_en:
             card_name_en = carte.get("name")
 
-        # --- Infos carte ---
         type_raw = carte.get("type", "")
         race = carte.get("race", "")
         attr = carte.get("attribute", "")
@@ -191,13 +198,11 @@ class Carte(commands.Cog):
         archetype = carte.get("archetype")
         genesys_points = carte.get("genesys_points")
 
-        # --- Banlist exacte ---
         banlist_info = await fetch_exact_banlist(card_name_en, self.bot.aiohttp_session)
         tcg_limit = banlist_info.get("ban_tcg", "Autorisé")
         ocg_limit = banlist_info.get("ban_ocg", "Autorisé")
         goat_limit = banlist_info.get("ban_goat", "Autorisé")
 
-        # --- Header ---
         header_lines = []
         if archetype:
             header_lines.append(f"**Archétype** : 🧬 {archetype}")
@@ -205,7 +210,6 @@ class Carte(commands.Cog):
         if genesys_points is not None:
             header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
 
-        # --- Détails ---
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
         lines = [f"**Type de carte** : {card_type_fr}"]
@@ -223,7 +227,6 @@ class Carte(commands.Cog):
             lines.append(f"**ATK/DEF** : ⚔️ {atk or '?'} / 🛡️ {defe or '?'}")
         lines.append(f"**Description**\n{desc}")
 
-        # --- Embed ---
         embed = discord.Embed(
             title=f"**{card_name_display}**",
             description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
@@ -237,7 +240,6 @@ class Carte(commands.Cog):
 
         embed.set_footer(text=f"Nom anglais : {card_name_en}")
 
-        # --- Vue favoris ---
         view = CarteFavoriteButton(card_name_en, user or channel)
         await safe_send(channel, embed=embed, view=view)
 
