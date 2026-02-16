@@ -118,7 +118,7 @@ class Sets(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="sets",
+        name="ygosets",
         description="📦 Affiche tous les sets d’une carte avec rareté, prix et date TCG."
     )
     @app_commands.describe(nom="Nom de la carte")
@@ -131,7 +131,7 @@ class Sets(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="sets")
+    @commands.command(name="ygosets")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_sets(self, ctx: commands.Context, *, nom: str):
         await self._send_sets(ctx.channel, nom)
