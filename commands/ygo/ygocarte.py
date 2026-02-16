@@ -247,7 +247,7 @@ class Carte(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="carte",
+        name="ygocarte",
         description="Rechercher ou tirer une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT)."
     )
     @app_commands.describe(nom="Nom de la carte ou 'random'")
@@ -261,8 +261,8 @@ class Carte(commands.Cog):
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
-        name="carte",
-        aliases=["card"],
+        name="ygocarte",
+        aliases=["ycarte", "ygocard", "ycard"],
         help="🔍 Rechercher une carte ou tirer une carte aléatoire avec !carte random."
     )
     @commands.cooldown(1, 3.0, commands.BucketType.user)
