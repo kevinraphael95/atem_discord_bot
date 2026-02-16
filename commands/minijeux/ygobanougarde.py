@@ -144,7 +144,7 @@ class BannisOuGarde(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="bannisougarde",
+        name="ygobannisougarde",
         description="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter."
     )
     @app_commands.checks.cooldown(rate=1, per=30.0, key=lambda i: i.user.id)
@@ -163,7 +163,7 @@ class BannisOuGarde(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="bannisougarde", aliases=["bog"], help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.")
+    @commands.command(name="ygobannisougarde", aliases=["ybog"], help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.")
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def prefix_bannisougarde(self, ctx: commands.Context):
         try:
