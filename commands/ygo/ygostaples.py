@@ -123,7 +123,7 @@ class Staples(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="staples",
+        name="ygostaples",
         description="Affiche une liste de cartes considérées comme staples (20 par page)."
     )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
@@ -153,7 +153,7 @@ class Staples(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="staples")
+    @commands.command(name="ygostaples")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_staples(self, ctx: commands.Context):
         msg = await safe_send(ctx.channel, "🔄 Récupération des cartes staples…")
