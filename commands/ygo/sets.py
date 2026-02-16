@@ -1,25 +1,24 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 sets.py — Commande interactive !sets
-# Objectif :
-#   - Afficher tous les sets d’une carte Yu-Gi-Oh!
-#   - Navigation interactive entre les sets
-#   - Utilise utils/card_utils pour toutes les requêtes API
+# 📌 sets.py
+# Objectif : Afficher tous les sets d’une carte Yu-Gi-Oh! avec pagination interactive
 # Catégorie : 🃏 Yu-Gi-Oh!
-# Accès : Public
+# Accès : Tous
+# Cooldown : 1 utilisation / 5 secondes par utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_edit, safe_respond
 from utils.card_utils import search_card
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View — Pagination interactive des sets
+# 🎛️ UI — Pagination interactive des sets
 # ────────────────────────────────────────────────────────────────────────────────
 class SetsPagination(View):
     """Navigation interactive entre les sets d’une carte."""
@@ -29,6 +28,13 @@ class SetsPagination(View):
         self.sets = sets
         self.index = 0
         self.card_name = card_name
+        self.message = None
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            await safe_edit(self.message, view=self)
 
     async def update_embed(self, interaction: discord.Interaction):
         s = self.sets[self.index]
@@ -45,6 +51,7 @@ class SetsPagination(View):
             value=f"Rareté : {rarity}\nPrix : €{prix_cm}\nDate TCG : {date}",
             inline=False
         )
+
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="⬅️", style=discord.ButtonStyle.secondary)
@@ -57,32 +64,35 @@ class SetsPagination(View):
         self.index = (self.index + 1) % len(self.sets)
         await self.update_embed(interaction)
 
+
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal
+# 🧠 Cog principal avec cooldown centralisé
 # ────────────────────────────────────────────────────────────────────────────────
 class Sets(commands.Cog):
-    """Commande !sets — Affiche tous les sets d’une carte Yu-Gi-Oh!"""
+    """
+    Commande /sets et !sets — Affiche tous les sets d’une carte Yu-Gi-Oh!
+    """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(
-        name="sets",
-        help="📦 Affiche tous les sets d’une carte avec rareté, prix et date TCG."
-    )
-    async def sets(self, ctx: commands.Context, *, nom: str):
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _send_sets(self, channel: discord.abc.Messageable, nom: str):
         carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
 
         if message:
-            await safe_send(ctx, message)
+            await safe_send(channel, message)
             return
+
         if not carte:
-            await safe_send(ctx, f"❌ Impossible de trouver la carte `{nom}`.")
+            await safe_send(channel, f"❌ Impossible de trouver la carte `{nom}`.")
             return
 
         sets = carte.get("card_sets", [])
         if not sets:
-            await safe_send(ctx, "❌ Aucun set disponible pour cette carte.")
+            await safe_send(channel, "❌ Aucun set disponible pour cette carte.")
             return
 
         # Premier embed
@@ -101,7 +111,31 @@ class Sets(commands.Cog):
             inline=False
         )
 
-        await safe_send(ctx, embed=embed, view=SetsPagination(sets, carte.get('name')))
+        view = SetsPagination(sets, carte.get("name"))
+        view.message = await safe_send(channel, embed=embed, view=view)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="sets",
+        description="📦 Affiche tous les sets d’une carte avec rareté, prix et date TCG."
+    )
+    @app_commands.describe(nom="Nom de la carte")
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
+    async def slash_sets(self, interaction: discord.Interaction, nom: str):
+        await interaction.response.defer()
+        await self._send_sets(interaction.channel, nom)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
+    @commands.command(name="sets")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_sets(self, ctx: commands.Context, *, nom: str):
+        await self._send_sets(ctx.channel, nom)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
