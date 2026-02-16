@@ -112,7 +112,7 @@ class VocabulaireCommand(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="vocabulaire",
+        name="ygovocabulaire",
         description="Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive."
     )
     @app_commands.describe(mot_cle="Mot-clé à rechercher (optionnel)")
@@ -125,7 +125,7 @@ class VocabulaireCommand(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="vocabulaire", aliases=["voc"], help="📘 Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive.")
+    @commands.command(name="ygovocabulaire", aliases=["ygovoc", "yvoc"], help="📘 Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_vocabulaire(self, ctx: commands.Context, *, mot_cle: str = None):
         await self._show_vocab(ctx.channel, mot_cle)
