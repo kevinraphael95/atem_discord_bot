@@ -98,7 +98,7 @@ class Art(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="art",
+        name="ygoart",
         description="Affiche les illustrations d’une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT)."
     )
     @app_commands.describe(nom="Nom de la carte")
@@ -112,7 +112,8 @@ class Art(commands.Cog):
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
-        name="art",
+        name="ygoart",
+        aliases=["yart"],
         help="🎨 Affiche les illustrations d’une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT).",
         description="Permet de naviguer entre plusieurs illustrations si disponibles."
     )
