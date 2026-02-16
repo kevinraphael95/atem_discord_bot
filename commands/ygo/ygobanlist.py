@@ -108,7 +108,7 @@ class Banlist(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="banlist",
+        name="ygobanlist",
         description="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination."
     )
     @app_commands.describe(banlist="Type de banlist: tcg, ocg, goat")
@@ -129,7 +129,7 @@ class Banlist(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="banlist", aliases=["bl"], help="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination.")
+    @commands.command(name="ygobanlist", aliases=["ybl"], help="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_banlist(self, ctx: commands.Context, banlist: str = "tcg"):
         banlist_type = banlist.lower()
