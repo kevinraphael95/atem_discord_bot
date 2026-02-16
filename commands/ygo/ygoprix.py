@@ -65,7 +65,7 @@ class Prix(commands.Cog):
     
     # ── Commande slash
     @app_commands.command(
-        name="prix",
+        name="ygoprix",
         description="Affiche le prix d'une carte Yu-Gi-Oh!"
     )
     @app_commands.describe(carte="Nom exact de la carte")
@@ -86,7 +86,7 @@ class Prix(commands.Cog):
     
     
     # ── Commande préfixe
-    @commands.command(name="prix", help="Affiche le prix d'une carte Yu-Gi-Oh!")
+    @commands.command(name="ygoprix", aliases=["yprix"], help="Affiche le prix d'une carte Yu-Gi-Oh!")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_prix(self, ctx: commands.Context, *, carte: str):
         msg = await safe_send(ctx.channel, f"🔄 Recherche du prix pour **{carte}**…")
