@@ -51,7 +51,7 @@ class CartesCustom(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="cartes",
+        name="ygocartescustom",
         description="Affiche les projets de cartes custom Yu-Gi-Oh!"
     )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
@@ -74,7 +74,7 @@ class CartesCustom(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="cartes")
+    @commands.command(name="ygocartescustom")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_cartes(self, ctx: commands.Context):
         embed = discord.Embed(
