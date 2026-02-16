@@ -97,7 +97,7 @@ class PackOpening(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="packopening",
+        name="ygopack",
         description="Ouvre un booster de cartes Yu-Gi-Oh! (optionnel : nom du set et nombre de cartes)"
     )
     @app_commands.describe(
@@ -119,7 +119,7 @@ class PackOpening(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="packopening", aliases=["pack"])
+    @commands.command(name="ygopack", aliases=["ypack"])
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_packopening(self, ctx: commands.Context, *, args: str = None):
         """
