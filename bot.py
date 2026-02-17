@@ -129,7 +129,6 @@ async def on_message(message):
         embed = discord.Embed(
             title="Coucou ! 🃏",
             description=(
-                f"⚠ BOT EN TRAVAUX pour ne plus utiliser supabase mais une base de données locale.\n"
                 f"Bonjour ! Je suis **Atem**, un bot discord inspiré du manga Yu-Gi-Oh.\n"
                 f"• Utilise la commande `{prefix}help` pour avoir la liste des commandes du bot "
                 f"ou `{prefix}help + le nom d'une commande` pour en avoir une description."
@@ -175,4 +174,5 @@ if __name__ == "__main__":
         await bot.start(TOKEN)
 
     asyncio.run(start())
+
 
