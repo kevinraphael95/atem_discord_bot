@@ -2,7 +2,7 @@
 # 📌 classement.py — Commande interactive !classement
 # Objectif :
 #   - Afficher le classement paginé du tournoi depuis Google Sheets
-# Catégorie : 🃏 Yu-Gi-Oh!
+# Catégorie : VAACT
 # Accès : Public
 # Cooldown : 1 utilisation / 5 sec / utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
@@ -154,5 +154,5 @@ async def setup(bot: commands.Bot):
     cog = Classement(bot)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
-            command.category = "🃏 Yu-Gi-Oh!"
+            command.category = "VAACT"
     await bot.add_cog(cog)
