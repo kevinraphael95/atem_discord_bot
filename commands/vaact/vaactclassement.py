@@ -140,7 +140,8 @@ class Classement(commands.Cog):
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
-        name="classement",
+        name="vaact_classement",
+        aliases=["vaact_top", "topvaact"],
         help="🏆 Affiche le classement du tournoi avec pagination interactive."
     )
     @commands.cooldown(1, 5.0, commands.BucketType.user)
