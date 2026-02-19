@@ -212,7 +212,7 @@ class Deck(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(name="deck", description="Choisis une saison et un duelliste pour voir ses decks")
+    @app_commands.command(name="vaact_deck", description="Choisis une saison et un duelliste pour voir ses decks")
     @app_commands.checks.cooldown(1, 3.0, key=lambda i: i.user.id)
     async def slash_deck(self, interaction: discord.Interaction):
         deck_data = load_data()
@@ -225,7 +225,7 @@ class Deck(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="deck", help="Choisis une saison et un duelliste pour voir ses decks")
+    @commands.command(name="vaact_deck", aliases=["vaaactdeck"], help="Choisis une saison et un duelliste pour voir ses decks")
     @commands.cooldown(1, 3.0, commands.BucketType.user)
     async def prefix_deck(self, ctx: commands.Context):
         deck_data = load_data()
