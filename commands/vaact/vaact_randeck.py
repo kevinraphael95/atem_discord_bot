@@ -36,8 +36,8 @@ class Randeck(commands.Cog):
         self.bot = bot
 
     @commands.command(
-        name="randeck",
-        aliases=["deckroulette"],
+        name="vaact_randeck",
+        aliases=["vaactrandeck"],
         help="Tire un deck custom aléatoire à jouer.",
         description="Choisit un deck aléatoire et affiche tous les liens disponibles avec des boutons."
     )
