@@ -1,19 +1,23 @@
 # ────────────────────────────────────────────────────────────────────────────────
-# 📌 randeck.py — Commande interactive !randeck
-# Objectif : Tirer un deck custom aléatoire à jouer avec boutons pour tous les liens
+# 📌 vaact_randeck.py
+# Objectif : Tirer un deck custom aléatoire avec boutons interactifs
 # Catégorie : VAACT
-# Accès : Public
+# Accès : Tous
+# Cooldown : 1 utilisation / 5 secondes par utilisateur
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Imports nécessaires
 # ────────────────────────────────────────────────────────────────────────────────
 import discord
+from discord import app_commands
 from discord.ext import commands
+from discord.ui import View, Button
 import json
 import os
 import random
-from utils.discord_utils import safe_send  # ✅ Utilisation des safe_
+
+from utils.discord_utils import safe_send, safe_respond  
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📂 Chargement des données JSON
@@ -21,78 +25,113 @@ from utils.discord_utils import safe_send  # ✅ Utilisation des safe_
 DATA_JSON_PATH = os.path.join("data", "deck_data.json")
 
 def load_data():
-    with open(DATA_JSON_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Charge le fichier JSON contenant les decks."""
+    try:
+        with open(DATA_JSON_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERREUR JSON] Impossible de charger {DATA_JSON_PATH} : {e}")
+        return {}
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 🎛️ View Boutons Deck
+# ────────────────────────────────────────────────────────────────────────────────
+class DeckLinkView(View):
+    def __init__(self, links: dict):
+        super().__init__(timeout=120)
+
+        for name, url in links.items():
+            self.add_item(Button(label=name, url=url))
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
-class Randeck(commands.Cog):
+class VaactRandeck(commands.Cog):
     """
-    Commande !randeck — Tire un deck aléatoire et affiche tous les liens avec des boutons
+    Commande /vaact_randeck et !vaact_randeck — Tire un deck custom aléatoire
     """
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Fonction interne commune
+    # ────────────────────────────────────────────────────────────────────────────
+    async def _send_random_deck(self, channel: discord.abc.Messageable, author: discord.Member):
+        data = load_data()
+        if not data:
+            await safe_send(channel, "❌ Impossible de charger les données.")
+            return
+
+        decks = []
+
+        # Construction liste exploitable
+        for saison, persos in data.items():
+            for duelliste, infos in persos.items():
+                deck_data = infos.get("deck", {})
+                if not isinstance(deck_data, dict):
+                    continue
+
+                for niveau, liens in deck_data.items():
+                    if isinstance(liens, dict) and liens:
+                        decks.append((saison, duelliste, niveau, liens))
+
+        if not decks:
+            await safe_send(channel, "❌ Aucun deck disponible.")
+            return
+
+        # Tirage aléatoire
+        saison, duelliste, niveau, liens_dict = random.choice(decks)
+
+        embed = discord.Embed(
+            title="🎲 Deck Aléatoire Tiré !",
+            color=discord.Color.random()
+        )
+
+        embed.add_field(
+            name="👤 Duelliste",
+            value=f"**{duelliste}** *(Saison : {saison})*",
+            inline=False
+        )
+
+        embed.add_field(
+            name="🎚️ Niveau",
+            value=niveau,
+            inline=False
+        )
+
+        embed.set_footer(
+            text=f"Tiré par {author.display_name}",
+            icon_url=author.display_avatar.url
+        )
+
+        view = DeckLinkView(liens_dict)
+
+        await safe_send(channel, embed=embed, view=view)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande SLASH
+    # ────────────────────────────────────────────────────────────────────────────
+    @app_commands.command(
+        name="vaact_randeck",
+        description="Tire un deck custom aléatoire à jouer."
+    )
+    @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
+    async def slash_vaact_randeck(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=False)
+        await self._send_random_deck(interaction.channel, interaction.user)
+        await interaction.delete_original_response()
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # 🔹 Commande PREFIX
+    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
         name="vaact_randeck",
-        aliases=["vaactrandeck"],
-        help="Tire un deck custom aléatoire à jouer.",
-        description="Choisit un deck aléatoire et affiche tous les liens disponibles avec des boutons."
+        aliases=["vaactrandeck"]
     )
-    async def randeck(self, ctx: commands.Context):
-        try:
-            data = load_data()
-            decks = []
-
-            # Construire une liste de (saison, personnage, niveau, dict liens)
-            for saison, persos in data.items():
-                for duelliste, infos in persos.items():
-                    deck_data = infos.get("deck", {})
-                    if not isinstance(deck_data, dict):
-                        continue
-                    for niveau, liens in deck_data.items():
-                        if isinstance(liens, dict) and liens:
-                            decks.append((saison, duelliste, niveau, liens))
-
-            if not decks:
-                return await safe_send(ctx, "❌ Aucun deck n'est disponible.")
-
-            # Tirage aléatoire
-            saison, duelliste, niveau, liens_dict = random.choice(decks)
-
-            # ─ Embed stylé ─
-            embed = discord.Embed(
-                title="🎲 Deck Aléatoire Tiré !",
-                color=discord.Color.random()
-            )
-            embed.add_field(
-                name="👤 Duelliste",
-                value=f"**{duelliste}** *(Saison : {saison})*",
-                inline=False
-            )
-            embed.add_field(
-                name="🎚️ Niveau",
-                value=niveau,
-                inline=False
-            )
-
-            # ── Création des boutons pour tous les liens ──
-            view = discord.ui.View()
-            for nom, url in liens_dict.items():
-                view.add_item(discord.ui.Button(label=nom, url=url))
-
-            embed.set_footer(
-                text=f"Tiré par {ctx.author.display_name}",
-                icon_url=ctx.author.display_avatar.url
-            )
-
-            await safe_send(ctx.channel, embed=embed, view=view)
-
-        except Exception as e:
-            print(f"[ERREUR randeck] {e}")
-            await safe_send(ctx.channel, "❌ Une erreur est survenue lors du tirage du deck.")
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    async def prefix_vaact_randeck(self, ctx: commands.Context):
+        await self._send_random_deck(ctx.channel, ctx.author)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
