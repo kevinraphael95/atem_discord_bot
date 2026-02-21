@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YGO Price Duel</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;700&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── ROOT ──────────────────────────────────────────────────────── */
+:root {
+  --bg:     #0d0d0d;
+  --panel:  #141414;
+  --border: rgba(255,255,255,0.07);
+  --gold:   #e8b84b;
+  --gold2:  #ffd166;
+  --green:  #06d6a0;
+  --red:    #ef233c;
+  --text:   #f0ece4;
+  --muted:  #6b6b6b;
+  --card-w: min(340px, 88vw);
+  --card-h: calc(var(--card-w) * 614 / 421);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Barlow', sans-serif;
+  overflow: hidden;
+}
+
+/* ── TOP BAR ───────────────────────────────────────────────────── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  background: rgba(13,13,13,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  z-index: 50;
+}
+.brand {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+  background: linear-gradient(90deg, var(--gold), var(--gold2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.stats {
+  display: flex;
+  gap: 1.8rem;
+  align-items: center;
+}
+.stat {
+  text-align: center;
+  line-height: 1;
+}
+.stat-val {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--gold2);
+}
+.stat-lbl {
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.hearts {
+  display: flex;
+  gap: 4px;
+}
+.heart { font-size: 1rem; transition: all 0.3s; }
+.heart.dead { opacity: 0.15; transform: scale(0.8); filter: grayscale(1); }
+
+/* ── MAIN STAGE ────────────────────────────────────────────────── */
+.stage {
+  position: fixed;
+  inset: 56px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* ── CARD ARENA — stacked like moreorless ─────────────────────── */
+/*
+  Layout:
+    [TOP HALF]  → fixed card A (always visible, price shown)
+    [DIVIDER]   → question strip with buttons
+    [BOT HALF]  → card B slides in from bottom, price hidden → revealed
+*/
+.arena {
+  position: relative;
+  width: var(--card-w);
+  /* total height = 2 cards + divider */
+  height: calc(var(--card-h) * 2 + 52px);
+  max-height: calc(100vh - 56px - 32px);
+}
+
+/* Each card occupies exactly half the arena */
+.card-half {
+  position: absolute;
+  left: 0; right: 0;
+  height: calc(50% - 26px); /* 26px = half of divider */
+  overflow: hidden;
+  border-radius: 0;
+}
+.card-half.top { top: 0; border-radius: 16px 16px 0 0; }
+.card-half.bot { bottom: 0; border-radius: 0 0 16px 16px; }
+
+/* The actual YGO card image fills the half */
+.card-panel {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #111;
+  overflow: hidden;
+}
+.card-panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  transition: transform 0.4s ease;
+}
+.card-half.bot .card-panel img {
+  object-position: center bottom;
+}
+
+/* Gradient overlay on each half */
+.card-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.card-half.top .card-panel::after {
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,0.75) 100%);
+}
+.card-half.bot .card-panel::after {
+  background: linear-gradient(to top, rgba(0,0,0,0) 40%, rgba(0,0,0,0.75) 100%);
+}
+
+/* Shimmer for loading */
+.shimmer-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #1a1a1a, #242424, #1a1a1a);
+  background-size: 200% 100%;
+  animation: shim 1.3s ease infinite;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: #333;
+}
+.shimmer-overlay.hidden { display: none; }
+@keyframes shim { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.shimmer-icon { font-size: 2.5rem; opacity: 0.3; }
+
+/* Card name label */
+.card-label {
+  position: absolute;
+  z-index: 10;
+  left: 0; right: 0;
+  padding: 0.6rem 1rem;
+  pointer-events: none;
+}
+.card-half.top .card-label { bottom: 0; text-align: left; }
+.card-half.bot .card-label { top: 0; text-align: left; }
+
+.card-name-text {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: clamp(0.85rem, 3vw, 1.1rem);
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+  line-height: 1.2;
+}
+.card-badge {
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  font-family: 'Barlow', sans-serif;
+  font-weight: 500;
+  margin-bottom: 2px;
+  display: block;
+}
+
+/* Price chip */
+.price-chip {
+  position: absolute;
+  z-index: 10;
+  right: 1rem;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+.card-half.top .price-chip { bottom: 0.7rem; }
+.card-half.bot .price-chip { top: 0.7rem; }
+
+.price-lbl {
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: block;
+}
+.price-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--gold2);
+  line-height: 1.1;
+}
+.price-num.hidden {
+  color: rgba(255,255,255,0.2);
+  letter-spacing: 0.3em;
+  font-size: 1rem;
+}
+
+/* ── DIVIDER STRIP ─────────────────────────────────────────────── */
+.divider {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 0; right: 0;
+  height: 52px;
+  background: var(--bg);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  gap: 0.5rem;
+}
+.divider-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: var(--border);
+}
+.divider-line.top-line { top: 0; }
+.divider-line.bot-line { bottom: 0; }
+
+.question-text {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-row {
+  display: flex;
+  gap: 0.45rem;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.btn-pick {
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-pick:hover:not(:disabled) {
+  background: rgba(232,184,75,0.12);
+  border-color: var(--gold);
+  color: var(--gold2);
+}
+.btn-pick:disabled { opacity: 0.25; cursor: not-allowed; }
+.btn-pick.correct {
+  background: rgba(6,214,160,0.15);
+  border-color: var(--green);
+  color: var(--green);
+}
+.btn-pick.wrong {
+  background: rgba(239,35,60,0.12);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ── SLIDE ANIMATION for card B ────────────────────────────────── */
+.card-half.bot {
+  transform: translateY(100%);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.card-half.bot.visible {
+  transform: translateY(0);
+}
+
+/* ── RESULT FLASH ──────────────────────────────────────────────── */
+.result-flash {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: rgba(20,20,20,0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 0.55rem 1.4rem;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.result-flash.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.result-flash.ok { color: var(--green); border-color: rgba(6,214,160,0.3); }
+.result-flash.ko { color: var(--red); border-color: rgba(239,35,60,0.3); }
+
+/* ── NEXT BTN ──────────────────────────────────────────────────── */
+.btn-next-wrap {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 60;
+}
+.btn-next-wrap.show {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(-50%) translateY(0);
+}
+.btn-next {
+  padding: 0.75rem 2.5rem;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  color: #0d0d0d;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(232,184,75,0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn-next:hover { transform: scale(1.04); box-shadow: 0 6px 28px rgba(232,184,75,0.5); }
+
+/* ── GAME OVER SCREEN ──────────────────────────────────────────── */
+.gameover {
+  position: fixed;
+  inset: 0;
+  background: rgba(13,13,13,0.96);
+  backdrop-filter: blur(16px);
+  z-index: 200;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6rem;
+  text-align: center;
+  padding: 2rem;
+}
+.gameover.show { display: flex; animation: fadeUp 0.4s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+.go-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(3rem, 10vw, 6rem);
+  letter-spacing: 0.06em;
+  color: var(--red);
+  filter: drop-shadow(0 0 30px rgba(239,35,60,0.5));
+  line-height: 1;
+}
+.go-subtitle {
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: -0.8rem;
+}
+.go-stats {
+  display: flex;
+  gap: 2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.2rem 2rem;
+}
+.go-stat { text-align: center; }
+.go-stat-val {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--gold2);
+  line-height: 1;
+}
+.go-stat-lbl {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.btn-play-again {
+  padding: 0.85rem 2.8rem;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  color: #0d0d0d;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.1em;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(232,184,75,0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn-play-again:hover { transform: scale(1.05); box-shadow: 0 7px 32px rgba(232,184,75,0.6); }
+
+/* ── ERROR TOAST ───────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: #1e1e1e;
+  border: 1px solid rgba(239,35,60,0.4);
+  color: var(--red);
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-family: 'Barlow', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s;
+  text-align: center;
+  max-width: 90vw;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">⚡ YGO Price Duel</div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val" id="scoreVal">0</div>
+      <div class="stat-lbl">Score</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="streakVal" style="color:#f59e0b">0🔥</div>
+      <div class="stat-lbl">Série</div>
+    </div>
+    <div class="hearts" id="heartsEl"></div>
+  </div>
+</div>
+
+<!-- STAGE -->
+<div class="stage">
+  <div class="arena" id="arena">
+
+    <!-- TOP CARD (A) — fixed -->
+    <div class="card-half top" id="halfA">
+      <div class="card-panel" id="panelA">
+        <div class="shimmer-overlay" id="shimA"><div class="shimmer-icon">🃏</div></div>
+        <img id="imgA" src="" alt="" style="display:none">
+      </div>
+      <div class="card-label">
+        <span class="card-badge">CARTE A — Prix connu</span>
+        <div class="card-name-text" id="nameA">Chargement…</div>
+      </div>
+      <div class="price-chip">
+        <span class="price-lbl">Cardmarket</span>
+        <div class="price-num" id="priceA">—</div>
+      </div>
+    </div>
+
+    <!-- DIVIDER -->
+    <div class="divider">
+      <div class="divider-line top-line"></div>
+      <div class="question-text">Laquelle est plus chère ?</div>
+      <div class="btn-row">
+        <button class="btn-pick" id="btnA" onclick="guess('A')">▲ Carte A</button>
+        <button class="btn-pick" id="btnB" onclick="guess('B')">▼ Carte B</button>
+      </div>
+      <div class="divider-line bot-line"></div>
+    </div>
+
+    <!-- BOT CARD (B) — slides up -->
+    <div class="card-half bot" id="halfB">
+      <div class="card-panel" id="panelB">
+        <div class="shimmer-overlay" id="shimB"><div class="shimmer-icon">🃏</div></div>
+        <img id="imgB" src="" alt="" style="display:none">
+      </div>
+      <div class="card-label">
+        <span class="card-badge">CARTE B — Devinez le prix</span>
+        <div class="card-name-text" id="nameB">Chargement…</div>
+      </div>
+      <div class="price-chip">
+        <span class="price-lbl">Cardmarket</span>
+        <div class="price-num hidden" id="priceB">?</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- RESULT FLASH -->
+<div class="result-flash" id="flash"></div>
+
+<!-- NEXT BUTTON -->
+<div class="btn-next-wrap" id="nextWrap">
+  <button class="btn-next" id="btnNext" onclick="nextRound()">CARTE SUIVANTE →</button>
+</div>
+
+<!-- GAME OVER -->
+<div class="gameover" id="gameoverEl">
+  <div class="go-title">DÉFAITE</div>
+  <div class="go-subtitle">Tu as épuisé tes vies</div>
+  <div class="go-stats">
+    <div class="go-stat">
+      <div class="go-stat-val" id="goScore">0</div>
+      <div class="go-stat-lbl">Score final</div>
+    </div>
+    <div class="go-stat">
+      <div class="go-stat-val" id="goBest">0</div>
+      <div class="go-stat-lbl">Record</div>
+    </div>
+  </div>
+  <button class="btn-play-again" onclick="restart()">↩ REJOUER</button>
+</div>
+
+<!-- ERROR TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  CONFIGURATION & CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const MAX_LIVES   = 5;
+const API_BASE    = 'https://db.ygoprodeck.com/api/v7/randomcard.php';
+const FETCH_TIMEOUT = 7000; // ms per attempt
+
+// Proxies CORS — essayés dans l'ordre
+// Note: l'API YGOPRODeck bloque les requêtes browser directes (pas de CORS headers)
+const PROXY_FNS = [
+  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+  url => url, // tentative directe en dernier (peut fonctionner selon l'env)
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let G = {
+  score:    0,
+  streak:   0,
+  best:     +localStorage.getItem('ygo_v3_best') || 0,
+  lives:    MAX_LIVES,
+  cardA:    null,
+  cardB:    null,
+  answered: false,
+  loading:  false,
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  API — fetch avec fallback proxies + retry
+// ═══════════════════════════════════════════════════════════════
+async function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    return r;
+  } catch(e) {
+    clearTimeout(tid);
+    throw e;
+  }
+}
+
+async function fetchRandomCard() {
+  for (const makeProxy of PROXY_FNS) {
+    const proxyUrl = makeProxy(API_BASE);
+    try {
+      const r = await fetchWithTimeout(proxyUrl, FETCH_TIMEOUT);
+      if (!r.ok) continue;
+      const d = await r.json();
+      // Valider la réponse
+      if (d && typeof d.id === 'number' && d.name && d.card_images && d.card_prices) {
+        return d;
+      }
+    } catch(e) {
+      // Proxy suivant
+      continue;
+    }
+  }
+  return null; // Tous les proxies ont échoué
+}
+
+function getPrice(card) {
+  if (!card?.card_prices?.length) return 0;
+  const p = parseFloat(card.card_prices[0].cardmarket_price);
+  return isNaN(p) ? 0 : p;
+}
+
+function getImgUrl(card) {
+  return card?.card_images?.[0]?.image_url_small || '';
+}
+
+// Récupère une carte valide (prix > 0)
+async function fetchValidCard(excludeId = null, maxAttempts = 8) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const card = await fetchRandomCard();
+    if (!card) continue;
+    if (getPrice(card) <= 0) continue;
+    if (excludeId && card.id === excludeId) continue;
+    return card;
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function renderHearts() {
+  const el = document.getElementById('heartsEl');
+  el.innerHTML = '';
+  for (let i = 0; i < MAX_LIVES; i++) {
+    const h = document.createElement('span');
+    h.className = 'heart' + (i >= G.lives ? ' dead' : '');
+    h.textContent = '♥';
+    el.appendChild(h);
+  }
+}
+
+function renderTopBar() {
+  document.getElementById('scoreVal').textContent  = G.score;
+  document.getElementById('streakVal').textContent = G.streak > 0 ? `${G.streak}🔥` : '0';
+  renderHearts();
+}
+
+function setButtons(disabled, resetClass = false) {
+  ['btnA','btnB'].forEach(id => {
+    const b = document.getElementById(id);
+    b.disabled = disabled;
+    if (resetClass) b.className = 'btn-pick';
+  });
+}
+
+// Charge une image dans un slot (top ou bot)
+function loadCardImage(slot, card, showPrice) {
+  const shimId   = slot === 'A' ? 'shimA' : 'shimB';
+  const imgId    = slot === 'A' ? 'imgA'  : 'imgB';
+  const nameId   = slot === 'A' ? 'nameA' : 'nameB';
+  const priceId  = slot === 'A' ? 'priceA': 'priceB';
+
+  const shim     = document.getElementById(shimId);
+  const imgEl    = document.getElementById(imgId);
+  const nameEl   = document.getElementById(nameId);
+  const priceEl  = document.getElementById(priceId);
+
+  nameEl.textContent = card.name;
+
+  if (showPrice) {
+    priceEl.className   = 'price-num';
+    priceEl.textContent = `€${getPrice(card).toFixed(2)}`;
+  } else {
+    priceEl.className   = 'price-num hidden';
+    priceEl.textContent = '?';
+  }
+
+  const url = getImgUrl(card);
+  if (!url) {
+    shim.innerHTML = '<div class="shimmer-icon" style="opacity:0.2">🃏</div><span style="font-size:0.6rem;opacity:0.3;letter-spacing:0.1em">PAS D\'IMAGE</span>';
+    shim.classList.remove('hidden');
+    imgEl.style.display = 'none';
+    return;
+  }
+
+  imgEl.style.display = 'none';
+  shim.classList.remove('hidden');
+
+  const tmp = new Image();
+  tmp.onload = () => {
+    imgEl.src = url;
+    imgEl.alt = card.name;
+    imgEl.style.display = 'block';
+    shim.classList.add('hidden');
+  };
+  tmp.onerror = () => {
+    shim.innerHTML = '<div class="shimmer-icon" style="opacity:0.2">🃏</div>';
+  };
+  tmp.src = url;
+}
+
+function showFlash(msg, type) {
+  const el = document.getElementById('flash');
+  el.textContent = msg;
+  el.className = `result-flash show ${type}`;
+  clearTimeout(el._tid);
+  el._tid = setTimeout(() => { el.className = 'result-flash'; }, 2800);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+function showNext() {
+  document.getElementById('nextWrap').classList.add('show');
+}
+function hideNext() {
+  document.getElementById('nextWrap').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GAME FLOW
+// ═══════════════════════════════════════════════════════════════
+async function nextRound() {
+  if (G.loading) return;
+  G.loading  = true;
+  G.answered = false;
+  hideNext();
+  setButtons(true, true);
+
+  // Reset card B: hide it (slide down) + shimmer
+  const halfB = document.getElementById('halfB');
+  halfB.classList.remove('visible');
+  document.getElementById('shimB').classList.remove('hidden');
+  document.getElementById('imgB').style.display = 'none';
+  document.getElementById('nameB').textContent  = 'Chargement…';
+  document.getElementById('priceB').className   = 'price-num hidden';
+  document.getElementById('priceB').textContent = '?';
+  document.getElementById('cardA').className    = '';
+  document.getElementById('cardB').className    = '';
+
+  // Reset card glows
+  document.getElementById('halfA').style.boxShadow = '';
+  halfB.style.boxShadow = '';
+
+  // Fetch card A (new round always gets a fresh A)
+  const shimA = document.getElementById('shimA');
+  shimA.classList.remove('hidden');
+  document.getElementById('imgA').style.display = 'none';
+
+  G.cardA = await fetchValidCard();
+  if (!G.cardA) {
+    showToast('⚠ Impossible de charger les cartes — vérifiez votre connexion internet.');
+    G.loading = false;
+    setButtons(false);
+    return;
+  }
+  loadCardImage('A', G.cardA, true);
+
+  // Fetch card B (different card)
+  G.cardB = await fetchValidCard(G.cardA.id);
+  if (!G.cardB) {
+    showToast('⚠ Impossible de charger la carte B.');
+    G.loading = false;
+    setButtons(false);
+    return;
+  }
+  loadCardImage('B', G.cardB, false);
+
+  // Slide card B in
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      halfB.classList.add('visible');
+    });
+  });
+
+  setButtons(false);
+  G.loading = false;
+}
+
+function guess(choice) {
+  if (G.answered || G.loading) return;
+  G.answered = true;
+  setButtons(true);
+
+  const pA = getPrice(G.cardA);
+  const pB = getPrice(G.cardB);
+
+  // Determine correct answer
+  // Si prix identiques → les deux sont corrects (très rare)
+  let correctChoice;
+  if (pA === pB) correctChoice = choice; // les deux sont corrects
+  else correctChoice = pA > pB ? 'A' : 'B';
+
+  const isCorrect = (choice === correctChoice) || (pA === pB);
+
+  // Reveal price B
+  const priceEl = document.getElementById('priceB');
+  priceEl.className   = 'price-num';
+  priceEl.textContent = `€${pB.toFixed(2)}`;
+
+  // Visual result on buttons
+  document.getElementById(`btn${choice}`).classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    document.getElementById(`btn${correctChoice}`).classList.add('correct');
+  }
+
+  if (isCorrect) {
+    G.score++;
+    G.streak++;
+    if (G.score > G.best) {
+      G.best = G.score;
+      localStorage.setItem('ygo_v3_best', G.best);
+    }
+    const diff = Math.abs(pA - pB).toFixed(2);
+    const extra = G.streak >= 3 ? ` | 🔥 Série ×${G.streak}` : '';
+    showFlash(`✓ EXACT ! Diff : €${diff}${extra}`, 'ok');
+  } else {
+    G.streak = 0;
+    G.lives--;
+    const winner = correctChoice === 'A' ? G.cardA.name : G.cardB.name;
+    showFlash(`✗ Raté ! "${winner}" valait €${Math.max(pA,pB).toFixed(2)}`, 'ko');
+  }
+
+  renderTopBar();
+
+  if (G.lives <= 0) {
+    setTimeout(triggerGameOver, 1600);
+    return;
+  }
+
+  setTimeout(showNext, 600);
+}
+
+function triggerGameOver() {
+  document.getElementById('goScore').textContent = G.score;
+  document.getElementById('goBest').textContent  = G.best;
+  document.getElementById('gameoverEl').classList.add('show');
+}
+
+function restart() {
+  G.score    = 0;
+  G.streak   = 0;
+  G.lives    = MAX_LIVES;
+  G.answered = false;
+  G.loading  = false;
+  document.getElementById('gameoverEl').classList.remove('show');
+  renderTopBar();
+  nextRound();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+renderTopBar();
+nextRound();
+</script>
+</body>
+</html>
