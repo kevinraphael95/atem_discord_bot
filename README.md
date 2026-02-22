@@ -2,6 +2,7 @@
 
 **Atem** est un bot Discord orienté Yu-Gi-Oh! et mini-jeux.  
 Il permet de jouer à des mini-jeux, consulter des cartes.
+[Test](https://kevinraphael95.github.io/atem_discord_bot/index.html)
 
 # Fonctionnalités principales
 
