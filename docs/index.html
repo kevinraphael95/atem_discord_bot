@@ -2,178 +2,41 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atem — Discord Bot Yu-Gi-Oh!</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{
-  font-family:'Nunito',sans-serif;
-  background:#0d0d14;
-  color:#fff;
-  line-height:1.6;
-}
-header{
-  padding:80px 20px;
-  text-align:center;
-  background:linear-gradient(135deg,#111122,#1c1c38);
-}
-header h1{
-  font-size:3rem;
-  font-weight:900;
-}
-header h1 em{color:#ffd166;font-style:normal}
-header p{
-  margin-top:15px;
-  font-size:1.1rem;
-  color:rgba(255,255,255,0.6);
-}
-.btn{
-  display:inline-block;
-  margin-top:25px;
-  padding:14px 32px;
-  border-radius:999px;
-  font-weight:800;
-  text-transform:uppercase;
-  letter-spacing:.05em;
-  text-decoration:none;
-  transition:.2s;
-}
-.btn-primary{
-  background:linear-gradient(135deg,#e8b84b,#ffd166);
-  color:#111;
-}
-.btn-primary:hover{transform:scale(1.05)}
-section{
-  padding:70px 20px;
-  max-width:1100px;
-  margin:auto;
-}
-h2{
-  font-size:2rem;
-  margin-bottom:30px;
-  font-weight:900;
-  text-align:center;
-}
-.features{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-  gap:30px;
-}
-.card{
-  background:#141427;
-  padding:30px;
-  border-radius:18px;
-  border:1px solid rgba(255,255,255,0.08);
-  transition:.2s;
-}
-.card:hover{
-  transform:translateY(-6px);
-  border-color:#ffd166;
-}
-.card h3{
-  margin-bottom:10px;
-  font-weight:800;
-}
-.commands{
-  background:#111122;
-  border-radius:18px;
-  padding:30px;
-  border:1px solid rgba(255,255,255,0.08);
-}
-.commands ul{
-  list-style:none;
-}
-.commands li{
-  padding:6px 0;
-  border-bottom:1px solid rgba(255,255,255,0.05);
-  font-size:.95rem;
-}
-.install pre{
-  background:#141427;
-  padding:20px;
-  border-radius:12px;
-  overflow:auto;
-}
-footer{
-  text-align:center;
-  padding:40px 20px;
-  background:#0b0b12;
-  font-size:.85rem;
-  color:rgba(255,255,255,0.4);
-}
-</style>
+<title>Atem - Accueil</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header>
-  <h1>⚡ <em>Atem</em></h1>
-  <p>Bot Discord Yu-Gi-Oh! — Mini-jeux, Cartes & Tournois</p>
-  <a href="#" class="btn btn-primary">Inviter le bot</a>
-</header>
-
-<section>
-  <h2>🎴 Présentation</h2>
-  <p style="text-align:center;max-width:800px;margin:auto;color:rgba(255,255,255,0.7)">
-    Atem est un bot Discord dédié à l’univers Yu-Gi-Oh!.
-    Il permet de consulter des cartes, jouer à des mini-jeux,
-    et gérer des tournois comme le VAACT.
-  </p>
-</section>
-
-<section>
-  <h2>🚀 Fonctionnalités</h2>
-  <div class="features">
-    <div class="card">
-      <h3>🛠️ Administration</h3>
-      <p>Configuration du bot et gestion serveur.</p>
+<nav>
+    <div><strong>⚡ Atem</strong></div>
+    <div>
+        <a href="index.html">Accueil</a>
+        <a href="commandes.html">Commandes</a>
+        <a href="installation.html">Installation</a>
+        <a href="vaact.html">VAACT</a>
     </div>
-    <div class="card">
-      <h3>🎮 Mini-jeux</h3>
-      <p>Jeux interactifs directement dans Discord.</p>
-    </div>
-    <div class="card">
-      <h3>🏆 VAACT</h3>
-      <p>Commandes dédiées au tournoi VAACT.</p>
-    </div>
-    <div class="card">
-      <h3>🎴 Yu-Gi-Oh!</h3>
-      <p>Recherche et consultation rapide des cartes.</p>
-    </div>
-  </div>
-</section>
+</nav>
 
-<section>
-  <h2>📜 Commandes principales</h2>
-  <div class="commands">
-    <ul>
-      <li><b>/card</b> — Affiche les informations d’une carte</li>
-      <li><b>/deck</b> — Voir les decks par saison</li>
-      <li><b>/vaact</b> — Commandes du tournoi</li>
-      <li><b>/minigame</b> — Lancer un mini-jeu</li>
-      <li><b>/admin</b> — Configuration du bot</li>
-    </ul>
-  </div>
-</section>
+<div class="container">
+    <h1>Atem — Discord Bot</h1>
+    <p>
+        Bot Discord orienté jeux de cartes : Yu-Gi-Oh!, Magic, Pokémon,
+        One Piece et Lorcana.
+    </p>
 
-<section class="install">
-  <h2>⚙️ Installation</h2>
-  <p>Prérequis : Python 3.10+ et un bot Discord.</p>
-  <pre>
-pip install -r requirements.txt
-python bot.py
-  </pre>
-</section>
-
-<section>
-  <h2>🌐 Liens</h2>
-  <p style="text-align:center">
-    🔗 <a href="https://github.com/kevinraphael95/atem_discord_bot" style="color:#ffd166">GitHub</a>
-  </p>
-</section>
+    <div class="card">
+        <h3>🎮 Fonctionnalités principales</h3>
+        <ul>
+            <li>Recherche de cartes multi-TCG</li>
+            <li>Mini-jeux interactifs</li>
+            <li>Gestion du tournoi VAACT</li>
+            <li>Commandes administratives</li>
+        </ul>
+    </div>
+</div>
 
 <footer>
-  © 2025 kevinraphael95 — Licence CC BY-NC-SA 4.0
+© 2025 kevinraphael95 — Atem
 </footer>
 
 </body>
