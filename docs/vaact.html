@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAACT — Atem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #06050a;
+    --ink: #131119;
+    --gold: #d4a843;
+    --gold-light: #f0c860;
+    --silver: #8a8fa8;
+    --white: #f0ecf5;
+    --mystic: #7a3a8a;
+    --mystic-light: #b06acc;
+    --eye: #c44020;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Crimson Pro', serif;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 20%, rgba(196,64,32,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(212,168,67,0.07) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+
+  nav {
+    position: fixed; top: 0; width: 100%; z-index: 100;
+    padding: 1.2rem 3rem;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(212,168,67,0.1);
+    backdrop-filter: blur(4px);
+  }
+
+  .nav-logo {
+    font-family: 'Cinzel', serif; font-weight: 900; font-size: 1.1rem;
+    color: var(--gold); text-decoration: none; letter-spacing: 0.2em;
+  }
+
+  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+
+  .nav-links a {
+    font-family: 'Cinzel', serif; font-size: 0.75rem; color: var(--silver);
+    text-decoration: none; letter-spacing: 0.2em; text-transform: uppercase;
+    transition: color 0.3s; position: relative;
+  }
+
+  .nav-links a::after {
+    content: ''; position: absolute; bottom: -4px; left: 0;
+    width: 0; height: 1px; background: var(--gold); transition: width 0.3s;
+  }
+
+  .nav-links a:hover { color: var(--gold); }
+  .nav-links a:hover::after { width: 100%; }
+  .nav-links a.active { color: var(--gold-light); }
+
+  .page-header {
+    position: relative; z-index: 1;
+    padding: 10rem 3rem 5rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(196,64,32,0.2);
+  }
+
+  .header-emblem {
+    font-size: 3.5rem; display: block; margin-bottom: 1.5rem;
+    filter: drop-shadow(0 0 20px rgba(212,168,67,0.7));
+    animation: glow 3s ease-in-out infinite;
+  }
+
+  @keyframes glow {
+    0%, 100% { filter: drop-shadow(0 0 20px rgba(212,168,67,0.7)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 40px rgba(212,168,67,1)); transform: scale(1.04); }
+  }
+
+  .page-header-eyebrow {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.45em;
+    color: var(--eye); text-transform: uppercase; margin-bottom: 1rem;
+  }
+
+  .page-header-title {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: clamp(2.5rem, 6vw, 5rem); color: var(--white); margin-bottom: 1.2rem;
+    letter-spacing: 0.1em;
+  }
+
+  .page-header-sub {
+    color: var(--silver); font-style: italic; font-size: 1.15rem;
+    max-width: 560px; margin: 0 auto; line-height: 1.7;
+  }
+
+  .content {
+    position: relative; z-index: 1;
+    max-width: 1000px; margin: 0 auto;
+    padding: 5rem 3rem 7rem;
+  }
+
+  .section-label {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.4em;
+    color: var(--gold); text-transform: uppercase;
+    margin-bottom: 2rem; padding-bottom: 0.8rem;
+    border-bottom: 1px solid rgba(212,168,67,0.15);
+  }
+
+  /* What is VAACT */
+  .intro-block {
+    background: var(--ink);
+    border: 1px solid rgba(196,64,32,0.15);
+    border-left: 3px solid var(--eye);
+    padding: 2.5rem;
+    margin-bottom: 4rem;
+  }
+
+  .intro-block p {
+    font-size: 1.15rem; color: var(--silver); line-height: 1.8;
+    margin-bottom: 1rem;
+  }
+
+  .intro-block p:last-child { margin-bottom: 0; }
+
+  /* Features cards */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1px;
+    border: 1px solid rgba(212,168,67,0.1);
+    margin-bottom: 4rem;
+  }
+
+  .feat-card {
+    background: var(--ink); padding: 2rem 1.8rem;
+    border: 1px solid rgba(212,168,67,0.05);
+    transition: all 0.3s;
+  }
+
+  .feat-card:hover {
+    background: rgba(196,64,32,0.07);
+    border-color: rgba(212,168,67,0.18);
+  }
+
+  .feat-icon { font-size: 1.6rem; margin-bottom: 0.8rem; display: block; }
+  .feat-name {
+    font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.15em;
+    color: var(--gold-light); text-transform: uppercase; margin-bottom: 0.6rem;
+  }
+  .feat-desc { font-size: 0.95rem; color: var(--silver); line-height: 1.6; }
+
+  /* Commands */
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .cmd-item {
+    background: rgba(212,168,67,0.05);
+    border: 1px solid rgba(212,168,67,0.1);
+    padding: 1rem 1.2rem;
+    transition: all 0.2s;
+  }
+
+  .cmd-item:hover { border-color: rgba(212,168,67,0.25); }
+
+  .cmd-name {
+    font-family: 'Cinzel', serif; font-size: 0.75rem;
+    color: var(--gold-light); letter-spacing: 0.1em; display: block; margin-bottom: 0.3rem;
+  }
+
+  .cmd-desc { font-size: 0.9rem; color: var(--silver); }
+
+  footer {
+    position: relative; z-index: 1;
+    border-top: 1px solid rgba(212,168,67,0.1);
+    padding: 2.5rem 3rem;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 1rem;
+  }
+
+  .footer-copy { font-size: 0.85rem; color: rgba(138,143,168,0.5); }
+  .footer-links { display: flex; gap: 2rem; list-style: none; }
+  .footer-links a {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.2em;
+    color: rgba(138,143,168,0.5); text-decoration: none; text-transform: uppercase;
+    transition: color 0.3s;
+  }
+  .footer-links a:hover { color: var(--gold); }
+
+  @media (max-width: 640px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.2rem; }
+    .page-header { padding: 8rem 1.5rem 4rem; }
+    .content { padding: 3rem 1.5rem 5rem; }
+    footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">𓂀 ATEM</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Accueil</a></li>
+    <li><a href="commandes.html">Commandes</a></li>
+    <li><a href="vaact.html" class="active">VAACT</a></li>
+    <li><a href="install.html">Installation</a></li>
+  </ul>
+</nav>
+
+<header class="page-header">
+  <span class="header-emblem">🏆</span>
+  <p class="page-header-eyebrow">Tournoi animé Yu-Gi-Oh!</p>
+  <h1 class="page-header-title">VAACT</h1>
+  <p class="page-header-sub">
+    Le tournoi animé Yu-Gi-Oh! — duellistes, decks, classements et événements, directement sur Discord.
+  </p>
+</header>
+
+<div class="content">
+
+  <p class="section-label">Qu'est-ce que le VAACT ?</p>
+  <div class="intro-block">
+    <p>
+      Le <strong>VAACT</strong> est un tournoi animé autour de Yu-Gi-Oh!, avec des duellistes, des saisons, des decks personnalisés et un classement suivi sur le serveur Discord.
+    </p>
+    <p>
+      Le bot Atem intègre toutes les fonctionnalités nécessaires pour suivre l'événement : consulter les profils des participants, explorer les decks joués par saison, voir le classement en temps réel et rester informé de la prochaine date du tournoi.
+    </p>
+  </div>
+
+  <p class="section-label">Ce que le bot apporte au tournoi</p>
+  <div class="features-grid">
+    <div class="feat-card">
+      <span class="feat-icon">👤</span>
+      <p class="feat-name">Profils</p>
+      <p class="feat-desc">Chaque duelliste dispose d'un profil consultable directement sur Discord via <strong>!profil</strong>.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🃏</span>
+      <p class="feat-name">Decks par saison</p>
+      <p class="feat-desc">Consulte les decks joués par chaque participant pour chaque saison avec <strong>!deck</strong>.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🏅</span>
+      <p class="feat-name">Classement</p>
+      <p class="feat-desc">Suis le classement avec pagination interactive via <strong>!classement</strong>.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">📅</span>
+      <p class="feat-name">Prochain tournoi</p>
+      <p class="feat-desc">Date et lieu du prochain événement disponibles avec <strong>!tournoi</strong>.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🎲</span>
+      <p class="feat-name">Deck aléatoire</p>
+      <p class="feat-desc">Tire un deck custom au hasard pour t'amuser ou t'entraîner avec <strong>!randeck</strong>.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">📖</span>
+      <p class="feat-name">Présentation</p>
+      <p class="feat-desc">Découvre le concept du tournoi et ses règles avec <strong>!vaact</strong>.</p>
+    </div>
+  </div>
+
+  <p class="section-label">Commandes VAACT</p>
+  <div class="cmd-grid">
+    <div class="cmd-item">
+      <span class="cmd-name">!vaact</span>
+      <span class="cmd-desc">Présentation rapide du tournoi.</span>
+    </div>
+    <div class="cmd-item">
+      <span class="cmd-name">!tournoi</span>
+      <span class="cmd-desc">Date et lieu du prochain événement.</span>
+    </div>
+    <div class="cmd-item">
+      <span class="cmd-name">!profil</span>
+      <span class="cmd-desc">Afficher le profil d'un duelliste.</span>
+    </div>
+    <div class="cmd-item">
+      <span class="cmd-name">!deck</span>
+      <span class="cmd-desc">Voir les decks d'un joueur par saison.</span>
+    </div>
+    <div class="cmd-item">
+      <span class="cmd-name">!classement</span>
+      <span class="cmd-desc">Classement interactif du tournoi.</span>
+    </div>
+    <div class="cmd-item">
+      <span class="cmd-name">!randeck</span>
+      <span class="cmd-desc">Deck custom aléatoire à jouer.</span>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p class="footer-copy">© kevinraphael95 · CC BY-NC-SA 4.0</p>
+  <ul class="footer-links">
+    <li><a href="index.html">Accueil</a></li>
+    <li><a href="commandes.html">Commandes</a></li>
+    <li><a href="install.html">Installation</a></li>
+    <li><a href="https://github.com/kevinraphael95" target="_blank">GitHub</a></li>
+  </ul>
+</footer>
+
+</body>
+</html>

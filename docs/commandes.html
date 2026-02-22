@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commandes — Atem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #06050a;
+    --ink: #131119;
+    --gold: #d4a843;
+    --gold-light: #f0c860;
+    --silver: #8a8fa8;
+    --white: #f0ecf5;
+    --mystic: #7a3a8a;
+    --mystic-light: #b06acc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Crimson Pro', serif;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 50% 40% at 20% 20%, rgba(122,58,138,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(212,168,67,0.06) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: fixed; top: 0; width: 100%; z-index: 100;
+    padding: 1.2rem 3rem;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(212,168,67,0.1);
+    backdrop-filter: blur(4px);
+  }
+
+  .nav-logo {
+    font-family: 'Cinzel', serif; font-weight: 900; font-size: 1.1rem;
+    color: var(--gold); text-decoration: none; letter-spacing: 0.2em;
+  }
+
+  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+
+  .nav-links a {
+    font-family: 'Cinzel', serif; font-size: 0.75rem; color: var(--silver);
+    text-decoration: none; letter-spacing: 0.2em; text-transform: uppercase;
+    transition: color 0.3s; position: relative;
+  }
+
+  .nav-links a::after {
+    content: ''; position: absolute; bottom: -4px; left: 0;
+    width: 0; height: 1px; background: var(--gold); transition: width 0.3s;
+  }
+
+  .nav-links a:hover { color: var(--gold); }
+  .nav-links a:hover::after { width: 100%; }
+  .nav-links a.active { color: var(--gold-light); }
+
+  .page-header {
+    position: relative; z-index: 1;
+    padding: 10rem 3rem 4rem;
+    border-bottom: 1px solid rgba(212,168,67,0.1);
+  }
+
+  .page-header-eyebrow {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.4em;
+    color: var(--gold); text-transform: uppercase; margin-bottom: 1rem;
+  }
+
+  .page-header-title {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: clamp(2.5rem, 5vw, 4rem); line-height: 1; color: var(--white);
+  }
+
+  .page-header-sub {
+    margin-top: 1rem; color: var(--silver); font-style: italic; font-size: 1.1rem;
+  }
+
+  .filters {
+    position: relative; z-index: 1;
+    padding: 2.5rem 3rem 0;
+    display: flex; gap: 0.5rem; flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.2em;
+    text-transform: uppercase; padding: 0.6rem 1.4rem;
+    background: transparent; color: var(--silver);
+    border: 1px solid rgba(138,143,168,0.2); cursor: pointer; transition: all 0.2s;
+  }
+
+  .filter-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .filter-btn.active { background: var(--gold); color: var(--black); border-color: var(--gold); }
+
+  .commands-container {
+    position: relative; z-index: 1;
+    padding: 2rem 3rem 6rem; max-width: 1100px;
+  }
+
+  .category-section { margin-bottom: 3rem; }
+
+  .category-header {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 1.2rem; padding-bottom: 0.8rem;
+    border-bottom: 1px solid rgba(212,168,67,0.15);
+  }
+
+  .category-icon { font-size: 1.2rem; }
+
+  .category-name {
+    font-family: 'Cinzel', serif; font-size: 0.8rem;
+    letter-spacing: 0.3em; color: var(--gold); text-transform: uppercase;
+  }
+
+  .category-count {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    color: rgba(138,143,168,0.4); margin-left: auto;
+  }
+
+  .command-item {
+    display: grid; grid-template-columns: 220px 1fr;
+    gap: 1.5rem; padding: 1.2rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.2s; align-items: start;
+  }
+
+  .command-item:hover {
+    background: rgba(212,168,67,0.03);
+    margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem;
+  }
+
+  .command-name {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    color: var(--gold-light); display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  .command-prefix { color: rgba(212,168,67,0.4); font-size: 0.75rem; }
+
+  .command-desc { font-size: 1rem; color: var(--silver); line-height: 1.5; }
+
+  .command-usage {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    color: rgba(122,58,138,0.9); margin-top: 0.4rem;
+    padding: 0.3rem 0.7rem; background: rgba(122,58,138,0.1);
+    border-left: 2px solid rgba(122,58,138,0.4); display: inline-block;
+  }
+
+  .badge-admin {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+    color: #e05050; border: 1px solid rgba(224,80,80,0.4);
+    padding: 0.1rem 0.4rem; letter-spacing: 0.1em; vertical-align: middle;
+  }
+
+  footer {
+    position: relative; z-index: 1;
+    border-top: 1px solid rgba(212,168,67,0.1);
+    padding: 2.5rem 3rem;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 1rem;
+  }
+
+  .footer-copy { font-size: 0.85rem; color: rgba(138,143,168,0.5); }
+  .footer-links { display: flex; gap: 2rem; list-style: none; }
+  .footer-links a {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.2em;
+    color: rgba(138,143,168,0.5); text-decoration: none; text-transform: uppercase;
+    transition: color 0.3s;
+  }
+  .footer-links a:hover { color: var(--gold); }
+
+  @media (max-width: 640px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.2rem; }
+    .page-header { padding: 8rem 1.5rem 3rem; }
+    .filters { padding: 2rem 1.5rem 0; }
+    .commands-container { padding: 1.5rem 1.5rem 5rem; }
+    .command-item { grid-template-columns: 1fr; gap: 0.4rem; }
+    footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">𓂀 ATEM</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Accueil</a></li>
+    <li><a href="commandes.html" class="active">Commandes</a></li>
+    <li><a href="vaact.html">VAACT</a></li>
+    <li><a href="install.html">Installation</a></li>
+  </ul>
+</nav>
+
+<header class="page-header">
+  <p class="page-header-eyebrow">Documentation complète</p>
+  <h1 class="page-header-title">Liste des Commandes</h1>
+  <p class="page-header-sub">Toutes les commandes disponibles, organisées par catégorie.</p>
+</header>
+
+<div class="filters">
+  <button class="filter-btn active" onclick="filterCategory('all', this)">Tout</button>
+  <button class="filter-btn" onclick="filterCategory('admin', this)">Admin</button>
+  <button class="filter-btn" onclick="filterCategory('general', this)">Général</button>
+  <button class="filter-btn" onclick="filterCategory('ygo', this)">Yu-Gi-Oh!</button>
+  <button class="filter-btn" onclick="filterCategory('minijeux', this)">Mini-jeux</button>
+  <button class="filter-btn" onclick="filterCategory('vaact', this)">VAACT</button>
+  <button class="filter-btn" onclick="filterCategory('autrestcg', this)">Autres TCG</button>
+</div>
+
+<div class="commands-container">
+
+  <div class="category-section" data-cat="admin">
+    <div class="category-header">
+      <span class="category-icon">⚙️</span>
+      <span class="category-name">Admin</span>
+      <span class="category-count">4 commandes</span>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>commandslist <span class="badge-admin">ADMIN</span></div>
+      <div><div class="command-desc">Génère un .md avec toutes les commandes et l'envoie en fichier.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>editprofile</div>
+      <div><div class="command-desc">Ouvre une interface visuelle pour modifier un profil.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>sync</div>
+      <div><div class="command-desc">Synchronise les commandes slash (serveur ou global).</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>tournoidate <span class="badge-admin">ADMIN</span></div>
+      <div><div class="command-desc">🛠️ Gérer la date du prochain tournoi VAACT.</div></div>
+    </div>
+  </div>
+
+  <div class="category-section" data-cat="general">
+    <div class="category-header">
+      <span class="category-icon">📋</span>
+      <span class="category-name">Général</span>
+      <span class="category-count">4 commandes</span>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>code</div>
+      <div><div class="command-desc">Affiche un lien vers le code source du bot.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>help</div>
+      <div><div class="command-desc">Affiche l'aide du bot.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>ping</div>
+      <div><div class="command-desc">Affiche la latence actuelle du bot.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>say</div>
+      <div>
+        <div class="command-desc">Fait répéter un message par le bot. Options : *embed / *e, *as_me / *am.</div>
+        <div class="command-usage">!say *e *am Bonjour !</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="category-section" data-cat="ygo">
+    <div class="category-header">
+      <span class="category-icon">🃏</span>
+      <span class="category-name">Yu-Gi-Oh!</span>
+      <span class="category-count">11 commandes</span>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>art</div>
+      <div><div class="command-desc">🎨 Affiche les illustrations d'une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT).</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>banlist</div>
+      <div><div class="command-desc">Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>carte</div>
+      <div><div class="command-desc">🔍 Rechercher une carte ou tirer une carte aléatoire avec <code>!carte random</code>.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>classement</div>
+      <div><div class="command-desc">🏆 Affiche le classement du tournoi avec pagination interactive.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>packopening</div>
+      <div>
+        <div class="command-desc">Ouvre un pack de cartes depuis un set.</div>
+        <div class="command-usage">!packopening Legend of Blue Eyes White Dragon 5</div>
+      </div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>prix</div>
+      <div><div class="command-desc">Affiche le prix d'une carte Yu-Gi-Oh!</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>sets</div>
+      <div><div class="command-desc">📦 Affiche tous les sets d'une carte avec rareté, prix et date TCG.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>staples</div>
+      <div><div class="command-desc">Affiche des cartes considérées comme des staples.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>vocabulaire</div>
+      <div><div class="command-desc">📘 Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>ygotuto</div>
+      <div><div class="command-desc">Tutoriel interactif pour apprendre à jouer à Yu-Gi-Oh!</div></div>
+    </div>
+  </div>
+
+  <div class="category-section" data-cat="minijeux">
+    <div class="category-header">
+      <span class="category-icon">🕹️</span>
+      <span class="category-name">Mini-jeux</span>
+      <span class="category-count">9 commandes</span>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>bannisougarde</div>
+      <div><div class="command-desc">Pour 3 cartes tirées, choisis : bannir, garder ou limiter.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>roulette</div>
+      <div><div class="command-desc">Roulette avec des cartes Yu-Gi-Oh!</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>topcarte</div>
+      <div><div class="command-desc">Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l'aveugle.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>ygo_taple_ou_pas</div>
+      <div><div class="command-desc">Devine si la carte tirée est une staple ou pas !</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>ygoblackjack</div>
+      <div><div class="command-desc">Jouer au Blackjack avec des cartes Yu-Gi-Oh!</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>ygodescription</div>
+      <div><div class="command-desc">Devine une carte Yu-Gi-Oh! à partir de sa description.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>ygoillustration</div>
+      <div><div class="command-desc">Devine une carte Yu-Gi-Oh! à partir de son illustration.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>ygopendu</div>
+      <div><div class="command-desc">Jeu du pendu avec des cartes Yu-Gi-Oh! françaises.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>ygoquizzvocabulaire</div>
+      <div><div class="command-desc">Quiz sur le vocabulaire Yu-Gi-Oh!</div></div>
+    </div>
+  </div>
+
+  <div class="category-section" data-cat="vaact">
+    <div class="category-header">
+      <span class="category-icon">🏆</span>
+      <span class="category-name">VAACT</span>
+      <span class="category-count">6 commandes</span>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>deck</div>
+      <div><div class="command-desc">Choisis une saison et un duelliste pour voir ses decks.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>profil</div>
+      <div><div class="command-desc">Affiche le profil d'un utilisateur.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>randeck</div>
+      <div><div class="command-desc">Tire un deck custom aléatoire à jouer.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>tournoi</div>
+      <div><div class="command-desc">Affiche la date et le lieu du prochain tournoi VAACT.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>vaact</div>
+      <div><div class="command-desc">Présentation rapide du tournoi animé Yu-Gi-Oh! VAACT.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>vaact_pseudo</div>
+      <div><div class="command-desc">Gestion du pseudo VAACT.</div></div>
+    </div>
+  </div>
+
+  <div class="category-section" data-cat="autrestcg">
+    <div class="category-header">
+      <span class="category-icon">🎴</span>
+      <span class="category-name">Autres TCG</span>
+      <span class="category-count">7 commandes</span>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>lorcarte</div>
+      <div><div class="command-desc">Affiche une carte Disney Lorcana (aléatoire si aucun nom).</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>lortuto</div>
+      <div><div class="command-desc">Tutoriel interactif pour apprendre à jouer à Disney Lorcana.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>mtgcarte</div>
+      <div><div class="command-desc">Affiche une carte Magic: The Gathering (aléatoire si aucun nom).</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>mtgtuto</div>
+      <div><div class="command-desc">Tutoriel pour apprendre à jouer à Magic: The Gathering.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>opcarte</div>
+      <div><div class="command-desc">Affiche une carte One Piece TCG (aléatoire si aucun nom).</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>optuto</div>
+      <div><div class="command-desc">Tutoriel interactif pour apprendre à jouer au One Piece TCG.</div></div>
+    </div>
+    <div class="command-item">
+      <div class="command-name"><span class="command-prefix">!</span>pcarte</div>
+      <div><div class="command-desc">Affiche une carte Pokémon TCG (ou random).</div></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p class="footer-copy">© kevinraphael95 · CC BY-NC-SA 4.0</p>
+  <ul class="footer-links">
+    <li><a href="index.html">Accueil</a></li>
+    <li><a href="vaact.html">VAACT</a></li>
+    <li><a href="install.html">Installation</a></li>
+    <li><a href="https://github.com/kevinraphael95" target="_blank">GitHub</a></li>
+  </ul>
+</footer>
+
+<script>
+function filterCategory(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.category-section').forEach(s => {
+    s.style.display = (cat === 'all' || s.dataset.cat === cat) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>
