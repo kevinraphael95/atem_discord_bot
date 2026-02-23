@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackjack YGO — Atem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #06050a; --ink: #131119;
+    --gold: #d4a843; --gold-light: #f0c860;
+    --silver: #8a8fa8; --white: #f0ecf5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--black); color: var(--white); font-family: 'Crimson Pro', serif; min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(122,58,138,0.15) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  nav {
+    position: fixed; top: 0; width: 100%; z-index: 100;
+    padding: 1.2rem 3rem; display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(212,168,67,0.1); backdrop-filter: blur(4px);
+  }
+  .nav-logo { font-family:'Cinzel',serif; font-weight:900; font-size:1.1rem; color:var(--gold); text-decoration:none; letter-spacing:0.2em; }
+  .nav-back { font-family:'Cinzel',serif; font-size:0.7rem; color:var(--silver); text-decoration:none; letter-spacing:0.2em; text-transform:uppercase; transition:color 0.3s; }
+  .nav-back:hover { color:var(--gold); }
+
+  main {
+    position: relative; z-index: 1; max-width: 700px; margin: 0 auto;
+    padding: 8rem 2rem 5rem; display: flex; flex-direction: column; align-items: center; gap: 1.8rem;
+  }
+  .game-title { font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.4em; color:var(--gold); text-transform:uppercase; }
+
+  /* Tableau de jeu */
+  .board { width: 100%; display: flex; flex-direction: column; gap: 1.2rem; }
+
+  .hand-section {
+    background: var(--ink); border: 1px solid rgba(212,168,67,0.12); padding: 1.5rem;
+  }
+  .hand-label {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--silver); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;
+  }
+  .hand-total {
+    font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--gold-light); letter-spacing: 0.1em;
+  }
+  .hand-total.bust { color: #c44020; }
+  .hand-total.blackjack { color: #6fc87d; }
+
+  .cards-list { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+
+  .card-chip {
+    background: rgba(212,168,67,0.07); border: 1px solid rgba(212,168,67,0.2);
+    padding: 0.4rem 0.8rem; font-size: 0.85rem; color: var(--white);
+    display: flex; align-items: center; gap: 0.5rem;
+    animation: fadeUp 0.2s forwards;
+  }
+  .card-chip .level-badge {
+    font-family: 'Cinzel', serif; font-size: 0.75rem; color: var(--gold);
+    background: rgba(212,168,67,0.1); padding: 0.1rem 0.4rem;
+    border: 1px solid rgba(212,168,67,0.2);
+  }
+  .card-chip.hidden {
+    background: rgba(122,58,138,0.1); border-color: rgba(122,58,138,0.2); color: var(--silver);
+    font-style: italic;
+  }
+
+  /* Boutons action */
+  .action-btns { display: flex; gap: 1rem; width: 100%; }
+  .action-btn {
+    flex: 1; padding: 1rem; font-family: 'Cinzel', serif; font-size: 0.85rem;
+    letter-spacing: 0.2em; text-transform: uppercase; border: 1px solid; cursor: pointer; transition: all 0.25s;
+  }
+  .action-btn.hit { background: rgba(58,138,74,0.1); color: #6fc87d; border-color: rgba(58,138,74,0.3); }
+  .action-btn.hit:hover { background: rgba(58,138,74,0.2); transform: translateY(-2px); box-shadow: 0 0 20px rgba(58,138,74,0.15); }
+  .action-btn.stand { background: rgba(196,64,32,0.1); color: #e07060; border-color: rgba(196,64,32,0.3); }
+  .action-btn.stand:hover { background: rgba(196,64,32,0.2); transform: translateY(-2px); }
+  .action-btn:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
+
+  /* Résultat */
+  .result-banner {
+    font-family: 'Cinzel', serif; font-size: 1.1rem; letter-spacing: 0.1em;
+    padding: 1rem 2rem; border: 1px solid; text-align: center; width: 100%;
+    animation: fadeUp 0.4s forwards;
+  }
+  .result-banner.win { background: rgba(58,138,74,0.1); border-color: rgba(58,138,74,0.4); color: #6fc87d; }
+  .result-banner.lose { background: rgba(138,58,58,0.1); border-color: rgba(138,58,58,0.4); color: #c44020; }
+  .result-banner.draw { background: rgba(212,168,67,0.07); border-color: rgba(212,168,67,0.3); color: var(--gold); }
+
+  .btn { font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.25em; text-transform:uppercase; padding:0.9rem 2.2rem; border:1px solid; cursor:pointer; transition:all 0.3s; background:var(--gold); color:var(--black); border-color:var(--gold); text-decoration:none; display:inline-block; }
+  .btn:hover { background:var(--gold-light); box-shadow:0 0 30px rgba(212,168,67,0.35); transform:translateY(-2px); }
+  .btn-ghost { background:transparent; color:var(--silver); border-color:rgba(138,143,168,0.3); }
+  .btn-ghost:hover { color:var(--white); border-color:var(--white); }
+
+  .score-bar { display:flex; gap:2rem; font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.2em; color:var(--silver); }
+  .score-bar span { color:var(--gold-light); font-size:1.1rem; }
+
+  .loading { font-style:italic; color:var(--silver); letter-spacing:0.15em; font-size:0.9rem; }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  @media (max-width:500px) { nav{padding:1rem 1.5rem;} main{padding:6rem 1rem 3rem;} }
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="../index.html">𓂀 ATEM</a>
+  <a class="nav-back" href="../minijeux.html">← Mini-jeux</a>
+</nav>
+
+<main>
+  <p class="game-title">🃏 Blackjack YGO</p>
+  <p style="font-style:italic;color:var(--silver);font-size:0.9rem;text-align:center">Valeur = niveau du monstre · Dépasse 21 → Bust</p>
+
+  <div class="score-bar">
+    <div>🏆 Victoires : <span id="wins">0</span></div>
+    <div>💀 Défaites : <span id="losses">0</span></div>
+  </div>
+
+  <div id="loading" class="loading">Chargement des cartes…</div>
+
+  <div id="board" class="board" style="display:none">
+    <div class="hand-section" id="dealer-section">
+      <div class="hand-label">
+        <span>Dealer</span>
+        <span class="hand-total" id="dealer-total">?</span>
+      </div>
+      <div class="cards-list" id="dealer-cards"></div>
+    </div>
+
+    <div class="hand-section" id="player-section">
+      <div class="hand-label">
+        <span>Toi</span>
+        <span class="hand-total" id="player-total">0</span>
+      </div>
+      <div class="cards-list" id="player-cards"></div>
+    </div>
+  </div>
+
+  <div id="action-btns" class="action-btns" style="display:none">
+    <button class="action-btn hit" id="btn-hit" onclick="hit()">🃏 Tirer</button>
+    <button class="action-btn stand" id="btn-stand" onclick="stand()">✋ Rester</button>
+  </div>
+
+  <div id="result-banner" style="display:none"></div>
+
+  <div id="new-game-btn" style="display:none">
+    <button class="btn" onclick="startGame()">Nouvelle partie</button>
+  </div>
+
+  <a class="btn btn-ghost" href="../minijeux.html">← Retour</a>
+</main>
+
+<script>
+let deck = [];
+let playerCards = [], dealerCards = [];
+let gameOver = false;
+let score = { wins: 0, losses: 0 };
+
+async function fetchDeck() {
+  const url = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr';
+  const res = await fetch(url);
+  const data = await res.json();
+  const monsters = (data.data || []).filter(c => c.type && c.type.includes('Monster') && c.level >= 1);
+  // shuffle
+  for (let i = monsters.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [monsters[i], monsters[j]] = [monsters[j], monsters[i]];
+  }
+  return monsters.slice(0, 50);
+}
+
+function cardVal(card) { return card.level || 1; }
+
+function totalOf(cards) { return cards.reduce((s, c) => s + cardVal(c), 0); }
+
+function renderCard(card, hidden = false) {
+  const div = document.createElement('div');
+  if (hidden) {
+    div.className = 'card-chip hidden';
+    div.textContent = '🂠 Carte cachée';
+  } else {
+    div.className = 'card-chip';
+    div.innerHTML = `${card.name} <span class="level-badge">Niv.${card.level}</span>`;
+  }
+  return div;
+}
+
+function updateDisplay(showDealer = false) {
+  // player
+  const pc = document.getElementById('player-cards');
+  pc.innerHTML = '';
+  playerCards.forEach(c => pc.appendChild(renderCard(c)));
+  const pt = totalOf(playerCards);
+  const ptEl = document.getElementById('player-total');
+  ptEl.textContent = pt;
+  ptEl.className = 'hand-total' + (pt > 21 ? ' bust' : pt === 21 ? ' blackjack' : '');
+
+  // dealer
+  const dc = document.getElementById('dealer-cards');
+  dc.innerHTML = '';
+  if (showDealer) {
+    dealerCards.forEach(c => dc.appendChild(renderCard(c)));
+    const dt = totalOf(dealerCards);
+    const dtEl = document.getElementById('dealer-total');
+    dtEl.textContent = dt;
+    dtEl.className = 'hand-total' + (dt > 21 ? ' bust' : dt === 21 ? ' blackjack' : '');
+  } else {
+    dc.appendChild(renderCard(dealerCards[0]));
+    dc.appendChild(renderCard(null, true));
+    document.getElementById('dealer-total').textContent = '?';
+  }
+}
+
+function endGame(msg, type) {
+  gameOver = true;
+  document.getElementById('btn-hit').disabled = true;
+  document.getElementById('btn-stand').disabled = true;
+
+  const banner = document.getElementById('result-banner');
+  banner.className = 'result-banner ' + type;
+  banner.textContent = msg;
+  banner.style.display = 'block';
+  document.getElementById('new-game-btn').style.display = 'block';
+
+  if (type === 'win') score.wins++;
+  else if (type === 'lose') score.losses++;
+  document.getElementById('wins').textContent = score.wins;
+  document.getElementById('losses').textContent = score.losses;
+
+  updateDisplay(true);
+}
+
+function hit() {
+  if (gameOver || !deck.length) return;
+  playerCards.push(deck.pop());
+  updateDisplay();
+  const pt = totalOf(playerCards);
+  if (pt > 21) endGame('💀 Bust ! Tu as dépassé 21.', 'lose');
+}
+
+function stand() {
+  if (gameOver) return;
+  // dealer draws until ≥ 17
+  while (totalOf(dealerCards) < 17 && deck.length) {
+    dealerCards.push(deck.pop());
+  }
+  const pt = totalOf(playerCards);
+  const dt = totalOf(dealerCards);
+  if (dt > 21 || pt > dt) endGame('🏆 Tu gagnes !', 'win');
+  else if (pt < dt) endGame('😢 Le dealer gagne…', 'lose');
+  else endGame('⚖️ Égalité !', 'draw');
+}
+
+async function startGame() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('board').style.display = 'none';
+  document.getElementById('action-btns').style.display = 'none';
+  document.getElementById('result-banner').style.display = 'none';
+  document.getElementById('new-game-btn').style.display = 'none';
+  gameOver = false;
+
+  try {
+    if (!deck.length) deck = await fetchDeck();
+    if (deck.length < 10) deck = await fetchDeck();
+
+    playerCards = [deck.pop(), deck.pop()];
+    dealerCards = [deck.pop()];
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('board').style.display = 'flex';
+    document.getElementById('action-btns').style.display = 'flex';
+    document.getElementById('btn-hit').disabled = false;
+    document.getElementById('btn-stand').disabled = false;
+
+    updateDisplay(false);
+
+    if (totalOf(playerCards) === 21) {
+      endGame('🎰 Blackjack ! Victoire instantanée !', 'win');
+    }
+  } catch(e) {
+    document.getElementById('loading').textContent = '❌ Erreur de chargement. Réessaie.';
+  }
+}
+
+startGame();
+</script>
+</body>
+</html>

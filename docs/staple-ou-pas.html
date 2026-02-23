@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staple ou Pas — Atem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #06050a; --ink: #131119;
+    --gold: #d4a843; --gold-light: #f0c860;
+    --silver: #8a8fa8; --white: #f0ecf5;
+    --mystic: #7a3a8a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--black); color: var(--white);
+    font-family: 'Crimson Pro', serif;
+    min-height: 100vh; overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(122,58,138,0.15) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  nav {
+    position: fixed; top: 0; width: 100%; z-index: 100;
+    padding: 1.2rem 3rem; display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(212,168,67,0.1); backdrop-filter: blur(4px);
+  }
+  .nav-logo { font-family: 'Cinzel', serif; font-weight: 900; font-size: 1.1rem; color: var(--gold); text-decoration: none; letter-spacing: 0.2em; }
+  .nav-back { font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--silver); text-decoration: none; letter-spacing: 0.2em; text-transform: uppercase; transition: color 0.3s; }
+  .nav-back:hover { color: var(--gold); }
+
+  main {
+    position: relative; z-index: 1;
+    max-width: 620px; margin: 0 auto;
+    padding: 8rem 2rem 5rem;
+    display: flex; flex-direction: column; align-items: center; gap: 2rem;
+  }
+
+  .game-title { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.4em; color: var(--gold); text-transform: uppercase; }
+
+  /* Score */
+  .score-bar {
+    display: flex; gap: 2rem; justify-content: center;
+    font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.2em;
+    color: var(--silver);
+  }
+  .score-item span { color: var(--gold-light); font-size: 1.1rem; }
+
+  /* Card display */
+  .card-box {
+    background: var(--ink);
+    border: 1px solid rgba(212,168,67,0.15);
+    padding: 2rem;
+    width: 100%;
+    display: flex; gap: 1.5rem;
+    align-items: flex-start;
+    min-height: 180px;
+    transition: border-color 0.3s;
+  }
+  .card-box.correct { border-color: rgba(58,138,74,0.5); background: rgba(58,138,74,0.05); }
+  .card-box.wrong { border-color: rgba(196,64,32,0.5); background: rgba(196,64,32,0.05); }
+
+  .card-thumb {
+    width: 80px; min-width: 80px; height: 116px;
+    object-fit: cover; border: 1px solid rgba(212,168,67,0.2);
+    background: var(--black);
+  }
+  .card-thumb-placeholder {
+    width: 80px; min-width: 80px; height: 116px;
+    background: rgba(212,168,67,0.05);
+    border: 1px solid rgba(212,168,67,0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+  }
+
+  .card-info { flex: 1; display: flex; flex-direction: column; gap: 0.6rem; }
+  .card-name { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--gold-light); letter-spacing: 0.08em; }
+  .card-type { font-size: 0.82rem; color: var(--silver); font-style: italic; }
+  .card-desc { font-size: 0.9rem; color: rgba(240,236,245,0.75); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* Buttons */
+  .guess-btns { display: flex; gap: 1rem; width: 100%; }
+  .guess-btn {
+    flex: 1; padding: 1rem; font-family: 'Cinzel', serif;
+    font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase;
+    border: 1px solid; cursor: pointer; transition: all 0.25s;
+  }
+  .guess-btn.staple {
+    background: rgba(58,138,74,0.1); color: #6fc87d; border-color: rgba(58,138,74,0.3);
+  }
+  .guess-btn.staple:hover { background: rgba(58,138,74,0.2); box-shadow: 0 0 20px rgba(58,138,74,0.2); transform: translateY(-2px); }
+  .guess-btn.not-staple {
+    background: rgba(196,64,32,0.1); color: #e07060; border-color: rgba(196,64,32,0.3);
+  }
+  .guess-btn.not-staple:hover { background: rgba(196,64,32,0.2); box-shadow: 0 0 20px rgba(196,64,32,0.15); transform: translateY(-2px); }
+  .guess-btn:disabled { cursor: default; opacity: 0.5; transform: none; box-shadow: none; }
+
+  /* Result */
+  .result-msg {
+    font-family: 'Cinzel', serif; font-size: 1rem; letter-spacing: 0.1em;
+    text-align: center; padding: 0.8rem 1.5rem;
+    animation: fadeUp 0.3s forwards;
+    min-height: 2.5rem;
+  }
+  .result-msg.correct { color: #6fc87d; }
+  .result-msg.wrong { color: #e07060; }
+
+  .btn {
+    font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.25em; text-transform: uppercase;
+    padding: 0.9rem 2.2rem; border: 1px solid; cursor: pointer; transition: all 0.3s;
+    background: var(--gold); color: var(--black); border-color: var(--gold); text-decoration: none; display: inline-block;
+  }
+  .btn:hover { background: var(--gold-light); box-shadow: 0 0 30px rgba(212,168,67,0.35); transform: translateY(-2px); }
+  .btn-ghost { background: transparent; color: var(--silver); border-color: rgba(138,143,168,0.3); }
+  .btn-ghost:hover { color: var(--white); border-color: var(--white); }
+
+  .loading { font-style: italic; color: var(--silver); letter-spacing: 0.15em; font-size: 0.9rem; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  @media (max-width: 500px) {
+    nav { padding: 1rem 1.5rem; }
+    main { padding: 6rem 1rem 3rem; }
+    .card-box { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="../index.html">𓂀 ATEM</a>
+  <a class="nav-back" href="../minijeux.html">← Mini-jeux</a>
+</nav>
+
+<main>
+  <p class="game-title">💎 Staple ou Pas ?</p>
+
+  <div class="score-bar">
+    <div class="score-item">✅ Bonnes : <span id="good">0</span></div>
+    <div class="score-item">❌ Mauvaises : <span id="bad">0</span></div>
+    <div class="score-item">🔥 Streak : <span id="streak">0</span></div>
+  </div>
+
+  <div id="loading" class="loading">Tirage d'une carte…</div>
+
+  <div id="card-box" class="card-box" style="display:none">
+    <div id="card-thumb-placeholder" class="card-thumb-placeholder">🃏</div>
+    <img id="card-thumb" class="card-thumb" style="display:none" alt="">
+    <div class="card-info">
+      <p id="card-name" class="card-name"></p>
+      <p id="card-type" class="card-type"></p>
+      <p id="card-desc" class="card-desc"></p>
+    </div>
+  </div>
+
+  <div id="result-msg" class="result-msg" style="display:none"></div>
+
+  <div id="guess-btns" class="guess-btns" style="display:none">
+    <button class="guess-btn staple" id="btn-staple" onclick="guess(true)">💎 Staple</button>
+    <button class="guess-btn not-staple" id="btn-not" onclick="guess(false)">🪨 Pas Staple</button>
+  </div>
+
+  <div id="next-area" style="display:none; margin-top:0.5rem;">
+    <button class="btn" onclick="nextCard()">Carte suivante →</button>
+  </div>
+
+  <a class="btn btn-ghost" href="../minijeux.html">← Retour</a>
+</main>
+
+<script>
+let score = { good: 0, bad: 0, streak: 0 };
+let isStaple = false;
+
+async function nextCard() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('card-box').style.display = 'none';
+  document.getElementById('guess-btns').style.display = 'none';
+  document.getElementById('result-msg').style.display = 'none';
+  document.getElementById('next-area').style.display = 'none';
+
+  try {
+    // 50% chance staple, 50% random
+    isStaple = Math.random() < 0.5;
+    let url = isStaple
+      ? 'https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr'
+      : 'https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr';
+
+    const res = await fetch(url);
+    const data = await res.json();
+    const cards = data.data || [];
+    const card = cards[Math.floor(Math.random() * cards.length)];
+
+    document.getElementById('card-name').textContent = card.name;
+    document.getElementById('card-type').textContent = card.type || '';
+    document.getElementById('card-desc').textContent = card.desc || '—';
+
+    const img = document.getElementById('card-thumb');
+    const placeholder = document.getElementById('card-thumb-placeholder');
+    const imgUrl = card.card_images?.[0]?.image_url_cropped || card.card_images?.[0]?.image_url;
+    if (imgUrl) {
+      img.src = imgUrl;
+      img.onload = () => { img.style.display = 'block'; placeholder.style.display = 'none'; };
+      img.onerror = () => { img.style.display = 'none'; placeholder.style.display = 'flex'; };
+    } else {
+      img.style.display = 'none';
+      placeholder.style.display = 'flex';
+    }
+
+    const box = document.getElementById('card-box');
+    box.className = 'card-box';
+    document.getElementById('btn-staple').disabled = false;
+    document.getElementById('btn-not').disabled = false;
+
+    document.getElementById('loading').style.display = 'none';
+    box.style.display = 'flex';
+    document.getElementById('guess-btns').style.display = 'flex';
+
+  } catch(e) {
+    document.getElementById('loading').textContent = '❌ Erreur de chargement. Réessaie.';
+  }
+}
+
+function guess(guessStaple) {
+  document.getElementById('btn-staple').disabled = true;
+  document.getElementById('btn-not').disabled = true;
+
+  const correct = guessStaple === isStaple;
+  const box = document.getElementById('card-box');
+  const msg = document.getElementById('result-msg');
+
+  if (correct) {
+    score.good++; score.streak++;
+    box.className = 'card-box correct';
+    msg.className = 'result-msg correct';
+    msg.textContent = '✅ Bonne réponse ! ' + (isStaple ? 'C\'est bien une staple.' : 'Pas une staple en effet.');
+  } else {
+    score.bad++; score.streak = 0;
+    box.className = 'card-box wrong';
+    msg.className = 'result-msg wrong';
+    msg.textContent = '❌ Raté ! ' + (isStaple ? 'C\'était une staple !' : 'Ce n\'est pas une staple.');
+  }
+
+  document.getElementById('good').textContent = score.good;
+  document.getElementById('bad').textContent = score.bad;
+  document.getElementById('streak').textContent = score.streak;
+
+  msg.style.display = 'block';
+  document.getElementById('next-area').style.display = 'block';
+}
+
+nextCard();
+</script>
+</body>
+</html>
