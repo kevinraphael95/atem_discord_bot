@@ -263,6 +263,29 @@
     border-color: rgba(212,168,67,0.2);
   }
 
+  /* Mini-jeux card cliquable */
+  .feature-card.clickable {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    cursor: pointer;
+  }
+  .feature-card.clickable:hover {
+    background: rgba(122,58,138,0.15);
+    border-color: rgba(212,168,67,0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+  .feature-card.clickable .feature-name::after {
+    content: ' →';
+    opacity: 0;
+    transition: opacity 0.3s;
+    color: var(--gold);
+  }
+  .feature-card.clickable:hover .feature-name::after {
+    opacity: 1;
+  }
+
   .feature-icon { font-size: 1.8rem; margin-bottom: 1rem; display: block; }
 
   .feature-name {
@@ -323,6 +346,7 @@
     <li><a href="index.html" class="active">Accueil</a></li>
     <li><a href="commandes.html">Commandes</a></li>
     <li><a href="vaact.html">VAACT</a></li>
+    <li><a href="minijeux.html">Mini-jeux</a></li>
     <li><a href="install.html">Installation</a></li>
   </ul>
 </nav>
@@ -358,11 +382,11 @@
       <p class="feature-name">VAACT</p>
       <p class="feature-desc">Tournoi animé Yu-Gi-Oh! : profils, decks, classement, date du prochain événement.</p>
     </div>
-    <div class="feature-card">
+    <a class="feature-card clickable" href="minijeux.html">
       <span class="feature-icon">🕹️</span>
       <p class="feature-name">Mini-jeux</p>
-      <p class="feature-desc">Pendu YGO, devine la carte, blackjack, top 5, staple ou pas, et plus encore.</p>
-    </div>
+      <p class="feature-desc">Pendu YGO, devine la carte, blackjack, top 5, staple ou pas — jouables directement depuis le site.</p>
+    </a>
     <div class="feature-card">
       <span class="feature-icon">🎴</span>
       <p class="feature-name">Autres TCG</p>
@@ -386,6 +410,7 @@
   <ul class="footer-links">
     <li><a href="commandes.html">Commandes</a></li>
     <li><a href="vaact.html">VAACT</a></li>
+    <li><a href="minijeux.html">Mini-jeux</a></li>
     <li><a href="install.html">Installation</a></li>
     <li><a href="https://github.com/kevinraphael95" target="_blank">GitHub</a></li>
   </ul>
