@@ -84,7 +84,7 @@ async def load_commands():
         cat_path = os.path.join("commands", category)
         if os.path.isdir(cat_path):
             for filename in os.listdir(cat_path):
-                if filename.endswith(".py"):
+                if filename.endswith(".py") and filename != "__init__.py":
                     path = f"commands.{category}.{filename[:-3]}"
                     try:
                         await bot.load_extension(path)
@@ -97,7 +97,7 @@ async def load_commands():
 # ────────────────────────────────────────────────────────────────────────────────
 async def load_tasks():
     for filename in os.listdir("tasks"):
-        if filename.endswith(".py") and filename != "keep_alive.py":
+        if filename.endswith(".py") and filename != "__init__.py":
             path = f"tasks.{filename[:-3]}"
             try:
                 await bot.load_extension(path)
@@ -174,5 +174,6 @@ if __name__ == "__main__":
         await bot.start(TOKEN)
 
     asyncio.run(start())
+
 
 
