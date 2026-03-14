@@ -3,420 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini-jeux — Atem Bot</title>
+<title>Mini-jeux — Atem</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="nav.js" defer></script>
 <style>
-  :root {
-    --black: #06050a;
-    --void: #0c0b12;
-    --ink: #131119;
-    --gold: #d4a843;
-    --gold-light: #f0c860;
-    --silver: #8a8fa8;
-    --white: #f0ecf5;
-    --mystic: #7a3a8a;
-    --mystic-light: #b06acc;
-    --eye: #c44020;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--black);
-    color: var(--white);
-    font-family: 'Crimson Pro', serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 60% 50% at 50% 0%, rgba(122,58,138,0.18) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 40% at 10% 80%, rgba(196,64,32,0.07) 0%, transparent 60%),
-      radial-gradient(ellipse 30% 30% at 90% 50%, rgba(212,168,67,0.06) 0%, transparent 60%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  body::after {
-    content: '𓂀';
-    position: fixed;
-    right: 3vw;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: clamp(80px, 12vw, 140px);
-    color: rgba(212,168,67,0.04);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  nav {
-    position: fixed;
-    top: 0;
-    width: 100%;
-    z-index: 100;
-    padding: 1.2rem 3rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
-    border-bottom: 1px solid rgba(212,168,67,0.1);
-    backdrop-filter: blur(4px);
-  }
-
-  .nav-logo {
-    font-family: 'Cinzel', serif;
-    font-weight: 900;
-    font-size: 1.1rem;
-    color: var(--gold);
-    text-decoration: none;
-    letter-spacing: 0.2em;
-  }
-
-  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
-
-  .nav-links a {
-    font-family: 'Cinzel', serif;
-    font-size: 0.75rem;
-    color: var(--silver);
-    text-decoration: none;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    transition: color 0.3s;
-    position: relative;
-  }
-
-  .nav-links a::after {
-    content: '';
-    position: absolute;
-    bottom: -4px; left: 0;
-    width: 0; height: 1px;
-    background: var(--gold);
-    transition: width 0.3s;
-  }
-
-  .nav-links a:hover { color: var(--gold); }
-  .nav-links a:hover::after { width: 100%; }
-  .nav-links a.active { color: var(--gold-light); }
-
-  /* Header */
-  .page-header {
-    position: relative;
-    z-index: 1;
-    padding: 9rem 3rem 4rem;
-    text-align: center;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.2s forwards;
-  }
-
-  .page-eyebrow {
-    font-family: 'Cinzel', serif;
-    font-size: 0.7rem;
-    letter-spacing: 0.45em;
-    color: var(--gold);
-    text-transform: uppercase;
-    margin-bottom: 1.2rem;
-  }
-
-  .page-title {
-    font-family: 'Cinzel', serif;
-    font-weight: 900;
-    font-size: clamp(2.5rem, 6vw, 5rem);
-    color: var(--white);
-    letter-spacing: 0.05em;
-    margin-bottom: 1rem;
-  }
-
-  .page-sub {
-    font-style: italic;
-    color: var(--silver);
-    font-size: 1.1rem;
-    max-width: 480px;
-    margin: 0 auto;
-    line-height: 1.7;
-  }
-
-  /* Divider */
-  .divider {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    padding: 0 3rem;
-    margin: 1rem 0 3rem;
-  }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, transparent, rgba(212,168,67,0.3), transparent);
-  }
-  .divider-symbol { color: var(--gold); font-size: 1.2rem; opacity: 0.6; }
-
-  /* Grid mini-jeux */
-  .games-section {
-    position: relative;
-    z-index: 1;
-    padding: 0 3rem 8rem;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .games-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .game-card {
-    background: var(--ink);
-    border: 1px solid rgba(212,168,67,0.1);
-    padding: 2rem;
-    text-decoration: none;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    transition: all 0.35s;
-    position: relative;
-    overflow: hidden;
-    opacity: 0;
-    animation: fadeUp 0.7s forwards;
-  }
-
-  .game-card:nth-child(1) { animation-delay: 0.3s; }
-  .game-card:nth-child(2) { animation-delay: 0.42s; }
-  .game-card:nth-child(3) { animation-delay: 0.54s; }
-  .game-card:nth-child(4) { animation-delay: 0.66s; }
-  .game-card:nth-child(5) { animation-delay: 0.78s; }
-
-  .game-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(122,58,138,0.08) 0%, transparent 60%);
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-
-  .game-card:hover {
-    border-color: rgba(212,168,67,0.35);
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(212,168,67,0.08);
-  }
-
-  .game-card:hover::before { opacity: 1; }
-
-  .card-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .card-icon { font-size: 2.2rem; line-height: 1; }
-
-  .card-badge {
-    font-family: 'Cinzel', serif;
-    font-size: 0.6rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    padding: 0.25rem 0.6rem;
-    border: 1px solid rgba(212,168,67,0.25);
-    color: var(--gold);
-    white-space: nowrap;
-  }
-
-  .card-name {
-    font-family: 'Cinzel', serif;
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: var(--gold-light);
-    text-transform: uppercase;
-  }
-
-  .card-desc {
-    font-size: 0.95rem;
-    color: var(--silver);
-    line-height: 1.6;
-    flex: 1;
-  }
-
-  .card-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-top: 1px solid rgba(212,168,67,0.08);
-    padding-top: 1rem;
-    margin-top: auto;
-  }
-
-  .card-cooldown {
-    font-size: 0.8rem;
-    color: rgba(138,143,168,0.6);
-    font-style: italic;
-  }
-
-  .card-arrow {
-    font-size: 0.8rem;
-    font-family: 'Cinzel', serif;
-    letter-spacing: 0.15em;
-    color: var(--gold);
-    opacity: 0;
-    transform: translateX(-6px);
-    transition: all 0.3s;
-  }
-
-  .game-card:hover .card-arrow {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  /* Footer */
-  footer {
-    position: relative;
-    z-index: 1;
-    border-top: 1px solid rgba(212,168,67,0.1);
-    padding: 2.5rem 3rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .footer-copy { font-size: 0.85rem; color: rgba(138,143,168,0.5); }
-  .footer-links { display: flex; gap: 2rem; list-style: none; }
-  .footer-links a {
-    font-family: 'Cinzel', serif;
-    font-size: 0.65rem;
-    letter-spacing: 0.2em;
-    color: rgba(138,143,168,0.5);
-    text-decoration: none;
-    text-transform: uppercase;
-    transition: color 0.3s;
-  }
-  .footer-links a:hover { color: var(--gold); }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @media (max-width: 640px) {
-    nav { padding: 1rem 1.5rem; }
-    .nav-links { gap: 1.2rem; }
-    .page-header { padding: 7rem 1.5rem 3rem; }
-    .games-section { padding: 0 1.5rem 5rem; }
-    footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
-  }
+.content{max-width:1080px;}
 </style>
 </head>
 <body>
 
-<nav>
-  <a class="nav-logo" href="index.html">𓂀 ATEM</a>
-  <ul class="nav-links">
-    <li><a href="index.html">Accueil</a></li>
-    <li><a href="commandes.html">Commandes</a></li>
-    <li><a href="vaact.html">VAACT</a></li>
-    <li><a href="minijeux.html" class="active">Mini-jeux</a></li>
-    <li><a href="install.html">Installation</a></li>
-  </ul>
-</nav>
+<div class="atmo"></div>
+<div class="top-bar"></div>
 
-<header class="page-header">
-  <p class="page-eyebrow">Joue directement ici</p>
-  <h1 class="page-title">Mini-jeux</h1>
-  <p class="page-sub">Des mini-jeux du bot Discord, jouables directement sur navigateur.</p>
-</header>
+<div class="phdr">
+  <p class="pkana">Joue directement ici · Browser Games</p>
+  <h1 class="pttl">
+    <span class="t1">Mini-jeux</span>
+    <span class="t2">Jouables sur navigateur</span>
+  </h1>
+  <p class="psub">Des mini-jeux du bot Discord, jouables directement ici sans Discord.</p>
+  <div class="orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+</div>
 
-<div class="divider"><span class="divider-symbol">◆</span></div>
-
-<section class="games-section">
+<div class="content">
+  <p class="sec-lbl">Choisir un jeu</p>
   <div class="games-grid">
 
     <a class="game-card" href="minijeux/pendu.html">
-      <div class="card-header">
-        <span class="card-icon">🕹️</span>
-        <span class="card-badge">Solo</span>
+      <div class="game-card-header">
+        <span class="game-icon">🕹️</span>
+        <span class="game-badge">Solo</span>
       </div>
-      <p class="card-name">Le Pendu</p>
-      <p class="card-desc">Retrouve le nom d'une carte Yu-Gi-Oh! française, lettre par lettre. Type, attribut et archétype t'aideront à survivre.</p>
-      <div class="card-footer">
-        <span class="card-cooldown">7 erreurs max</span>
-        <span class="card-arrow">Jouer →</span>
+      <p class="game-name">Le Pendu</p>
+      <p class="game-desc">Retrouve le nom d'une carte Yu-Gi-Oh! française, lettre par lettre. Type, attribut et archétype t'aideront à survivre.</p>
+      <div class="game-footer">
+        <span class="game-meta">7 erreurs max</span>
+        <span class="game-arrow">Jouer →</span>
       </div>
     </a>
 
     <a class="game-card" href="minijeux/staple-ou-pas.html">
-      <div class="card-header">
-        <span class="card-icon">💎</span>
-        <span class="card-badge">Instant</span>
+      <div class="game-card-header">
+        <span class="game-icon">💎</span>
+        <span class="game-badge">Instant</span>
       </div>
-      <p class="card-name">Staple ou Pas ?</p>
-      <p class="card-desc">Une carte s'affiche — est-elle une staple du méta ou pas ?</p>
-      <div class="card-footer">
-        <span class="card-cooldown">Réponse en 1 clic</span>
-        <span class="card-arrow">Jouer →</span>
+      <p class="game-name">Staple ou Pas ?</p>
+      <p class="game-desc">Une carte s'affiche — est-elle une staple du méta ou non ? Teste tes connaissances en un clic.</p>
+      <div class="game-footer">
+        <span class="game-meta">Réponse en 1 clic</span>
+        <span class="game-arrow">Jouer →</span>
       </div>
     </a>
 
     <a class="game-card" href="minijeux/blackjack.html">
-      <div class="card-header">
-        <span class="card-icon">🃏</span>
-        <span class="card-badge">Stratégie</span>
+      <div class="game-card-header">
+        <span class="game-icon">🃏</span>
+        <span class="game-badge">Stratégie</span>
       </div>
-      <p class="card-name">Blackjack YGO</p>
-      <p class="card-desc">Blackjack avec les niveaux des monstres comme valeurs. Atteins 21 sans dépasser — ou le dealer gagne.</p>
-      <div class="card-footer">
-        <span class="card-cooldown">Tirer / Rester</span>
-        <span class="card-arrow">Jouer →</span>
+      <p class="game-name">Blackjack YGO</p>
+      <p class="game-desc">Blackjack avec les niveaux des monstres comme valeurs. Atteins 21 sans dépasser — ou le dealer gagne.</p>
+      <div class="game-footer">
+        <span class="game-meta">Tirer / Rester</span>
+        <span class="game-arrow">Jouer →</span>
       </div>
     </a>
 
     <a class="game-card" href="minijeux/illustration.html">
-      <div class="card-header">
-        <span class="card-icon">🖼️</span>
-        <span class="card-badge">Quiz visuel</span>
+      <div class="game-card-header">
+        <span class="game-icon">🖼️</span>
+        <span class="game-badge">Quiz visuel</span>
       </div>
-      <p class="card-name">Devine l'Illustration</p>
-      <p class="card-desc">L'illustration d'une carte Yu-Gi-Oh! t'es montré — sauras-tu identifier son nom parmi quatre propositions ?</p>
-      <div class="card-footer">
-        <span class="card-cooldown">4 choix · 60 secondes</span>
-        <span class="card-arrow">Jouer →</span>
+      <p class="game-name">Devine l'Illustration</p>
+      <p class="game-desc">L'illustration d'une carte Yu-Gi-Oh! t'est montrée — sauras-tu identifier son nom parmi quatre propositions ?</p>
+      <div class="game-footer">
+        <span class="game-meta">4 choix · 60 secondes</span>
+        <span class="game-arrow">Jouer →</span>
       </div>
     </a>
 
     <a class="game-card" href="minijeux/description.html">
-      <div class="card-header">
-        <span class="card-icon">🧠</span>
-        <span class="card-badge">Quiz</span>
+      <div class="game-card-header">
+        <span class="game-icon">🧠</span>
+        <span class="game-badge">Quiz</span>
       </div>
-      <p class="card-name">Devine la Description</p>
-      <p class="card-desc">La description d'une carte Yu-Gi-Oh! t'es montré — sauras-tu identifier son nom parmi quatre propositions ?</p>
-      <div class="card-footer">
-        <span class="card-cooldown">4 choix · 60 secondes</span>
-        <span class="card-arrow">Jouer →</span>
+      <p class="game-name">Devine la Description</p>
+      <p class="game-desc">La description d'une carte Yu-Gi-Oh! t'est montrée — sauras-tu identifier son nom parmi quatre propositions ?</p>
+      <div class="game-footer">
+        <span class="game-meta">4 choix · 60 secondes</span>
+        <span class="game-arrow">Jouer →</span>
       </div>
     </a>
 
   </div>
-</section>
+</div>
 
 <footer>
-  <p class="footer-copy">© kevinraphael95 · CC BY-NC-SA 4.0</p>
-  <ul class="footer-links">
-    <li><a href="commandes.html">Commandes</a></li>
-    <li><a href="vaact.html">VAACT</a></li>
-    <li><a href="install.html">Installation</a></li>
-    <li><a href="https://github.com/kevinraphael95" target="_blank">GitHub</a></li>
-  </ul>
+  <p class="foot-copy">© kevinraphael95 · CC BY-NC-SA 4.0</p>
 </footer>
 
 </body>
