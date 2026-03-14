@@ -5,6 +5,7 @@
     { href: 'commandes.html', label: 'Commandes' },
     { href: 'vaact.html',     label: 'VAACT' },
     { href: 'minijeux.html',  label: 'Mini-jeux' },
+    { href: 'ygoguesser.html', label: 'YGO Guesser' },
     { href: 'install.html',   label: 'Installation' },
   ];
 
