@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YGO Guesser — Atem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="nav.js" defer></script>
+<style>
+/* ── GUESSER LAYOUT ───────────────────────────────────── */
+.gwrap {
+  position: relative; z-index: 1; width: 100%; max-width: 1150px;
+  margin: 0 auto; padding: .5rem 1.5rem 5rem;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  opacity: 0; animation: rise .7s .5s forwards;
+}
+
+/* Mode switcher */
+.msw { display:flex; overflow:hidden; border:1px solid var(--border); background:var(--panel); }
+.mbtn {
+  font-family:'Cinzel',serif; font-size:.68rem; font-weight:400; letter-spacing:.12em;
+  padding:.65rem 1.8rem; border:none; background:transparent;
+  color:var(--muted); cursor:pointer; transition:all .2s; text-transform:uppercase;
+  position:relative;
+}
+.mbtn.active { color: var(--gold-lt); }
+.mbtn.active::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--gold); }
+.mbtn.surv.active { color: #d9eeff; }
+.mbtn.surv.active::after { background: var(--rei-lt); }
+
+/* Daily bar */
+.dbar {
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
+  font-size:.7rem; font-weight:500; color:var(--muted);
+  font-family:'Cinzel',serif; letter-spacing:.08em;
+}
+.dbar .cnt { color: var(--gold-lt); }
+.dots { display:flex; gap:5px; }
+.dot { width:9px; height:9px; border-radius:50%; background:var(--panel); border:1px solid var(--rim); transition:all .3s; }
+.dot.used { background:rgba(212,168,67,.35); border-color:var(--gold); }
+.dot.win  { background:var(--ok-bd); border-color:var(--ok-tx); box-shadow:0 0 5px rgba(74,222,128,.3); }
+.dot.lose { background:var(--ko-bd); border-color:var(--ko-tx); }
+
+/* Survival bar */
+.sbar {
+  display:none; width:100%; max-width:700px;
+  background:#0b1020; border:1px solid rgba(94,176,255,.35);
+  padding:12px 18px; gap:18px; align-items:center; justify-content:center;
+  flex-wrap:wrap; position:relative; overflow:hidden;
+}
+.sbar::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,rgba(30,127,232,.12) 0%,transparent 70%); pointer-events:none; }
+.sbar.on { display:flex; }
+.sv { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.sv-n { font-family:'Cinzel',serif; font-size:1.4rem; font-weight:900; color:#d9eeff; line-height:1; }
+.sv-l { font-size:.6rem; font-weight:500; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; font-family:'Cinzel',serif; }
+.svdiv { width:1px; height:34px; background:rgba(94,176,255,.2); }
+.sdots-w { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.sdots   { display:flex; gap:4px; }
+.sdot    { width:8px; height:8px; border-radius:50%; background:var(--panel); border:1px solid rgba(30,127,232,.3); transition:all .3s; }
+.sdot.used { background:var(--rei-mid); border-color:var(--rei-lt); box-shadow:0 0 5px var(--rei-glow); }
+.sdot.win  { background:var(--ok-bd); border-color:var(--ok-tx); }
+
+/* Flash */
+.flash { width:100%; max-width:700px; padding:9px 18px; text-align:center; font-size:.78rem; font-weight:600; display:none; font-family:'Cinzel',serif; letter-spacing:.06em; }
+.flash.on  { display:block; animation: flashP .25s ease; }
+.flash.ok  { background:var(--ok-bg); border:1px solid var(--ok-bd); color:var(--ok-tx); }
+.flash.ko  { background:var(--ko-bg); border:1px solid var(--ko-bd); color:var(--ko-tx); }
+@keyframes flashP { from{opacity:0;transform:scale(.97) translateY(-4px);} to{opacity:1;transform:scale(1) translateY(0);} }
+
+/* Help */
+.hbtn { font-size:.65rem; font-weight:500; color:var(--muted); cursor:pointer; background:none; border:none; text-decoration:underline; text-underline-offset:3px; transition:color .2s; font-family:'Cinzel',serif; letter-spacing:.08em; }
+.hbtn:hover { color:var(--gold-lt); }
+.hpanel { max-width:700px; width:100%; background:var(--panel); border:1px solid var(--border); padding:1.1rem 1.3rem; display:none; flex-direction:column; gap:8px; font-size:.9rem; line-height:1.7; color:var(--text); }
+.hpanel.on { display:flex; }
+.hpanel b  { color:var(--gold-lt); font-size:.65rem; font-weight:700; letter-spacing:.1em; font-family:'Cinzel',serif; text-transform:uppercase; }
+.leg       { display:flex; gap:8px; align-items:center; font-size:.88rem; }
+.sw { width:14px; height:14px; flex-shrink:0; border:1px solid; }
+.sw.g { background:var(--ok-bg); border-color:var(--ok-bd); }
+.sw.y { background:var(--yw-bg); border-color:var(--yw-bd); }
+.sw.r { background:var(--ko-bg); border-color:var(--ko-bd); }
+
+/* Loading state */
+.loading-bar {
+  width:100%; max-width:700px; background:var(--panel); border:1px solid var(--border);
+  padding:1rem 1.5rem; text-align:center; font-family:'Cinzel',serif;
+  font-size:.7rem; letter-spacing:.15em; color:var(--muted); text-transform:uppercase;
+}
+.loading-bar.hidden { display:none; }
+
+/* Input */
+.iz { width:100%; max-width:700px; display:flex; border:1px solid var(--border); background:var(--panel); transition:border-color .2s; }
+.iz:focus-within { border-color:var(--gold-line); }
+.survival-mode .iz:focus-within { border-color:rgba(30,127,232,.5); }
+.acw { position:relative; flex:1; }
+.gi  { width:100%; background:transparent; border:none; color:var(--white); font-family:'Crimson Pro',serif; font-size:1rem; font-weight:400; padding:.8rem .9rem; outline:none; }
+.gi::placeholder { color:var(--dim); }
+.gbtn { background:var(--gold); border:none; color:var(--void); font-family:'Cinzel',serif; font-size:.65rem; font-weight:700; padding:0 1.4rem; cursor:pointer; letter-spacing:.15em; transition:all .2s; text-transform:uppercase; white-space:nowrap; min-width:90px; border-left:1px solid rgba(0,0,0,.15); }
+.gbtn:hover    { background:var(--gold-lt); }
+.gbtn:disabled { opacity:.35; cursor:not-allowed; }
+.survival-mode .gbtn { background:var(--rei-mid); color:var(--white); }
+.survival-mode .gbtn:hover { background:var(--rei-lt); color:var(--void); }
+
+/* Autocomplete */
+.acl { position:absolute; top:100%; left:0; right:0; background:var(--surface); border:1px solid var(--border); border-top:none; max-height:220px; overflow-y:auto; z-index:100; }
+.acl:empty { display:none; }
+.aci { padding:8px 13px; cursor:pointer; font-size:.88rem; color:var(--text); transition:background .1s; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:9px; font-family:'Crimson Pro',serif; }
+.aci:hover, .aci.sel { background:var(--gold-pale); color:var(--gold-lt); }
+.survival-mode .aci:hover, .survival-mode .aci.sel { color:#d9eeff; }
+.acb { font-size:.68rem; color:var(--dim); margin-left:auto; white-space:nowrap; font-family:'JetBrains Mono',monospace; }
+
+/* ── TABLE DESKTOP ────────────────────────────────────── */
+.tw { width:100%; overflow-x:auto; }
+
+/* 10 colonnes : Nom + 9 stats */
+.th { display:grid; grid-template-columns:160px repeat(9,1fr); gap:2px; margin-bottom:5px; min-width:860px; padding:0 1px; }
+.th div { font-size:.55rem; font-weight:700; letter-spacing:.1em; color:var(--muted); text-align:center; padding:4px 2px; border-bottom:1px solid rgba(212,168,67,.2); text-transform:uppercase; font-family:'Cinzel',serif; }
+.th div:first-child { text-align:left; padding-left:7px; }
+
+.row { display:grid; grid-template-columns:160px repeat(9,1fr); gap:2px; margin-bottom:2px; min-width:860px; animation:rowIn .35s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes rowIn { from{opacity:0;transform:translateY(-8px);} to{opacity:1;transform:translateY(0);} }
+
+.cell { background:var(--panel); border:1px solid var(--rim); padding:6px 2px; text-align:center; font-size:.6rem; font-weight:500; min-height:44px; display:flex; align-items:center; justify-content:center; line-height:1.3; font-family:'JetBrains Mono',monospace; }
+.cell:first-child { text-align:left; justify-content:flex-start; padding-left:7px; font-size:.65rem; font-family:'Crimson Pro',serif; font-weight:600; }
+.cell.correct { background:var(--ok-bg); border-color:var(--ok-bd); color:var(--ok-tx); }
+.cell.close   { background:var(--yw-bg); border-color:var(--yw-bd); color:var(--yw-tx); }
+.cell.wrong   { background:var(--ko-bg); border-color:var(--ko-bd); color:var(--ko-tx); }
+
+/* ── MOBILE CARDS ─────────────────────────────────────── */
+.cards { display:none; flex-direction:column; gap:9px; width:100%; }
+.card  { background:var(--panel); border:1px solid var(--border); overflow:hidden; animation:rowIn .35s cubic-bezier(.2,.8,.3,1) both; position:relative; }
+.card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; }
+.card.ok::before { background:linear-gradient(to bottom,var(--ok-bd),var(--ok-tx)); }
+.card.ko::before { background:linear-gradient(to bottom,var(--ko-bd),var(--ko-tx)); }
+.ctop  { display:flex; align-items:center; justify-content:space-between; padding:10px 13px 10px 17px; background:rgba(0,0,0,.3); border-bottom:1px solid var(--border); }
+.cname { font-family:'Crimson Pro',serif; font-size:.9rem; font-weight:600; }
+.cname.correct { color:var(--ok-tx); } .cname.wrong { color:var(--ko-tx); }
+.cbadge { font-size:.6rem; color:var(--dim); text-align:right; line-height:1.5; font-family:'JetBrains Mono',monospace; }
+.cgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); }
+.cc    { background:var(--panel); padding:7px 4px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.cc.correct { background:var(--ok-bg); } .cc.close { background:var(--yw-bg); } .cc.wrong { background:var(--ko-bg); }
+.cl { font-size:.48rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; text-align:center; color:var(--dim); font-family:'Cinzel',serif; }
+.cc.correct .cl{color:rgba(74,222,128,.4);} .cc.close .cl{color:rgba(251,191,36,.4);} .cc.wrong .cl{color:rgba(248,113,113,.4);}
+.cv { font-size:.68rem; font-weight:500; text-align:center; line-height:1.3; font-family:'JetBrains Mono',monospace; }
+.cc.correct .cv{color:var(--ok-tx);} .cc.close .cv{color:var(--yw-tx);} .cc.wrong .cv{color:var(--ko-tx);}
+
+/* ── RESULT BANNER ────────────────────────────────────── */
+.rbanner { width:100%; max-width:700px; padding:1.5rem 1.6rem; border:1px solid; text-align:center; display:none; flex-direction:column; gap:11px; animation:rise .45s ease both; }
+.rbanner.on  { display:flex; }
+.rbanner.win { border-color:var(--ok-bd); background:var(--ok-bg); }
+.rbanner.lose{ border-color:var(--ko-bd); background:var(--ko-bg); }
+.rttl  { font-family:'Cinzel',serif; font-size:1rem; font-weight:900; letter-spacing:.1em; }
+.rbanner.win  .rttl { color:var(--ok-tx); } .rbanner.lose .rttl { color:var(--ko-tx); }
+.rchar { font-family:'Cinzel',serif; font-size:.88rem; font-weight:700; color:var(--gold-lt); }
+.rdesc { color:var(--text); font-size:.95rem; line-height:1.65; font-family:'Crimson Pro',serif; font-style:italic; }
+.rimg  { width:80px; height:auto; border:1px solid var(--gold-line); margin:0 auto; }
+.ntmr  { font-size:.65rem; color:var(--muted); font-family:'Cinzel',serif; letter-spacing:.08em; }
+.ntmr span { color:var(--gold-lt); }
+.xbtn  { align-self:center; background:transparent; border:1px solid var(--border); color:var(--gold-lt); font-size:.65rem; font-weight:700; letter-spacing:.12em; padding:.55rem 1.4rem; cursor:pointer; transition:all .2s; text-transform:uppercase; font-family:'Cinzel',serif; }
+.xbtn:hover { background:var(--gold-pale); border-color:var(--gold); }
+
+/* Survival end */
+.send { width:100%; max-width:700px; padding:1.8rem 1.6rem; border:1px solid rgba(94,176,255,.35); background:#0b1020; text-align:center; display:none; flex-direction:column; gap:14px; animation:rise .45s ease both; }
+.send.on { display:flex; }
+.se-t { font-family:'Cinzel',serif; font-size:1.1rem; font-weight:900; letter-spacing:.1em; color:#d9eeff; }
+.se-s { color:var(--text); font-size:.95rem; line-height:1.7; font-family:'Crimson Pro',serif; font-style:italic; }
+.sestats { display:flex; gap:9px; justify-content:center; flex-wrap:wrap; }
+.sestat  { display:flex; flex-direction:column; align-items:center; gap:2px; padding:9px 13px; background:rgba(1,1,8,.6); border:1px solid rgba(30,127,232,.22); }
+.sestat strong { font-family:'Cinzel',serif; font-size:1.2rem; color:#d9eeff; }
+.sestat span   { font-size:.58rem; color:var(--dim); letter-spacing:.1em; text-transform:uppercase; font-family:'Cinzel',serif; }
+.r2btn  { align-self:center; background:transparent; border:1px solid rgba(94,176,255,.4); color:#d9eeff; font-size:.68rem; font-weight:700; padding:.65rem 1.7rem; cursor:pointer; letter-spacing:.12em; transition:all .2s; text-transform:uppercase; font-family:'Cinzel',serif; }
+.r2btn:hover { background:var(--rei-pale); transform:translateY(-1px); }
+.xbtn2  { align-self:center; background:transparent; border:1px solid rgba(94,176,255,.25); color:#d9eeff; font-size:.65rem; font-weight:600; letter-spacing:.12em; padding:.5rem 1.3rem; cursor:pointer; transition:all .2s; text-transform:uppercase; font-family:'Cinzel',serif; }
+.xbtn2:hover { background:var(--rei-pale); }
+
+@media (max-width: 700px) {
+  .gwrap { padding:.5rem .7rem 4rem; gap:9px; }
+  .mbtn  { padding:.6rem 1rem; font-size:.62rem; }
+  .gi    { font-size:.9rem; padding:.75rem .8rem; }
+  .gbtn  { min-width:72px; font-size:.6rem; padding:0 .8rem; }
+  .tw    { display:none; }
+  .cards { display:flex; }
+}
+@media (min-width: 701px) and (max-width: 960px) {
+  .th  { grid-template-columns:120px repeat(9,1fr); min-width:700px; }
+  .row { grid-template-columns:120px repeat(9,1fr); min-width:700px; }
+  .cell { font-size:.52rem; min-height:40px; }
+  .cell:first-child { font-size:.58rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="atmo"></div>
+<div class="top-bar"></div>
+
+<div class="phdr">
+  <h1 class="pttl">
+    <span class="t1">YGO Guesser</span>
+    <span class="t2">Devine la carte du jour</span>
+  </h1>
+  <p class="psub">Devinez la carte Yu-Gi-Oh! du jour — ou enchaînez en mode Survie.</p>
+  <div class="orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+</div>
+
+<div class="gwrap">
+
+  <div class="msw">
+    <button class="mbtn active" id="btnD" onclick="switchMode('daily')">🃏 Quotidien</button>
+    <button class="mbtn surv"   id="btnS" onclick="switchMode('survival')">☠ Survie</button>
+  </div>
+
+  <div class="dbar" id="dbar">
+    <span class="cnt" id="cnt">0/8</span>
+    <div class="dots" id="dots"></div>
+    <button class="hbtn" onclick="toggleHelp()">? Comment jouer</button>
+  </div>
+
+  <div class="sbar" id="sbar">
+    <div class="sv"><div class="sv-n" id="sstreak">0</div><div class="sv-l">🔥 Série</div></div>
+    <div class="svdiv"></div>
+    <div class="sdots-w"><div class="sdots" id="sdots"></div><div class="sv-l">Essais</div></div>
+    <div class="svdiv"></div>
+    <div class="sv"><div class="sv-n" id="sbest">0</div><div class="sv-l">🏆 Record</div></div>
+    <button class="hbtn" onclick="toggleHelp()">? Règles</button>
+  </div>
+
+  <div class="hpanel" id="hpanel">
+    <b id="htitle">Règles — Quotidien</b>
+    <div id="hd">Devinez la carte Yu-Gi-Oh! du jour en max <strong>8 essais</strong>.</div>
+    <div id="hs" style="display:none">Cartes aléatoires à la chaîne — <strong>8 essais par carte</strong>. Raté → <strong>☠ Game Over !</strong></div>
+    <div class="leg"><div class="sw g"></div><span>Correct — même valeur</span></div>
+    <div class="leg"><div class="sw y"></div><span>Proche — ATK/DEF ±500 · Niveau ±1</span></div>
+    <div class="leg"><div class="sw r"></div><span>Incorrect</span></div>
+    <b>Colonnes :</b> Type · Race · Attribut · Niveau · ATK · DEF · Archétype · Banlist · Format
+  </div>
+
+  <div class="loading-bar" id="loadBar">⏳ Chargement des cartes…</div>
+  <div class="flash" id="flash"></div>
+
+  <div class="iz">
+    <div class="acw">
+      <input class="gi" id="gi" type="text" placeholder="Entrez le nom d'une carte…" autocomplete="off" oninput="onIn()" onkeydown="onKD(event)" disabled/>
+      <div class="acl" id="acl"></div>
+    </div>
+    <button class="gbtn" id="gbtn" onclick="sub()" disabled>DEVINER</button>
+  </div>
+
+  <div class="tw">
+    <div class="th">
+      <div>CARTE</div>
+      <div>TYPE</div><div>RACE</div><div>ATTRIBUT</div><div>NIVEAU</div>
+      <div>ATK</div><div>DEF</div><div>ARCHÉTYPE</div><div>BANLIST</div><div>FORMAT</div>
+    </div>
+    <div id="gr"></div>
+  </div>
+  <div class="cards" id="gc"></div>
+
+  <div class="rbanner" id="rb">
+    <div class="rttl" id="rttl"></div>
+    <img class="rimg" id="rimg" src="" alt="">
+    <div class="rchar" id="rchar"></div>
+    <div class="rdesc" id="rdesc"></div>
+    <button class="xbtn" onclick="share()">📋 Copier le résultat</button>
+    <div class="ntmr">Prochain dans : <span id="nt">--:--:--</span></div>
+  </div>
+
+  <div class="send" id="send">
+    <div class="se-t">☠ GAME OVER ☠</div>
+    <div class="se-s" id="sedesc"></div>
+    <div class="sestats">
+      <div class="sestat"><strong id="sek">0</strong><span>Trouvées</span></div>
+      <div class="sestat"><strong id="seb">0</strong><span>Meilleure série</span></div>
+      <div class="sestat"><strong id="ser">0</strong><span>Record absolu</span></div>
+    </div>
+    <button class="r2btn" onclick="sRestart()">🔁 Nouvelle partie</button>
+    <button class="xbtn2" onclick="sShare()">📋 Copier le score</button>
+  </div>
+
+</div>
+
+<footer>
+  <p class="foot-copy">© kevinraphael95 · CC BY-NC-SA 4.0</p>
+</footer>
+
+<script>
+// ── COLONNES ─────────────────────────────────────────────
+const COLS = [
+  {k:'frameType', lb:'TYPE'},
+  {k:'race',      lb:'RACE'},
+  {k:'attribute', lb:'ATTRIBUT'},
+  {k:'level',     lb:'NIVEAU'},
+  {k:'atk',       lb:'ATK'},
+  {k:'def',       lb:'DEF'},
+  {k:'archetype', lb:'ARCHÉTYPE'},
+  {k:'ban',       lb:'BANLIST'},
+  {k:'format',    lb:'FORMAT'},
+];
+const MAX = 8;
+const $ = id => document.getElementById(id);
+
+// ── POOL DE CARTES (staples + cartes connues TCG) ────────
+// On charge ~200 cartes connues depuis l'API au démarrage
+let CARDS = [];
+let loaded = false;
+
+function normFrame(f) {
+  const map = {
+    normal:'Normal', effect:'Effet', ritual:'Rituel',
+    fusion:'Fusion', synchro:'Synchro', xyz:'XYZ',
+    link:'Link', spell:'Magie', trap:'Piège',
+    token:'Jeton', skill:'Skill',
+    normal_pendulum:'Pendule', effect_pendulum:'Pendule',
+    ritual_pendulum:'Pendule', fusion_pendulum:'Pendule',
+    synchro_pendulum:'Pendule', xyz_pendulum:'Pendule',
+  };
+  return map[f] || f || '—';
+}
+
+function normBan(info) {
+  if (!info) return 'Autorisé';
+  return info.ban_tcg || 'Autorisé';
+}
+
+function normFormat(misc) {
+  if (!misc) return 'TCG';
+  const f = misc.formats || [];
+  if (f.includes('tcg')) return 'TCG';
+  if (f.includes('ocg')) return 'OCG';
+  return f[0] || 'TCG';
+}
+
+function normalize(raw) {
+  return {
+    id:        raw.id,
+    name:      raw.name,
+    frameType: normFrame(raw.frameType),
+    race:      raw.race || '—',
+    attribute: raw.attribute || '—',
+    level:     raw.level ?? raw.linkval ?? 0,
+    atk:       raw.atk ?? -1,
+    def:       raw.def ?? -1,
+    archetype: raw.archetype || '—',
+    ban:       normBan(raw.banlist_info),
+    format:    normFormat(raw.misc_info?.[0]),
+    img:       raw.card_images?.[0]?.image_url_small || '',
+  };
+}
+
+async function loadCards() {
+  $('loadBar').classList.remove('hidden');
+  try {
+    // Charge les staples + cartes TCG populaires (~500 cartes connues)
+    const urls = [
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Blue-Eyes&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Dark+Magician&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Elemental+HERO&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Stardust&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Blackwing&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Six+Samurai&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Monarch&misc=yes',
+    ];
+    const results = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
+    const seen = new Set();
+    for (const res of results) {
+      for (const c of (res.data || [])) {
+        if (!seen.has(c.id)) { seen.add(c.id); CARDS.push(normalize(c)); }
+      }
+    }
+    loaded = true;
+    $('loadBar').classList.add('hidden');
+    $('gi').disabled = false;
+    $('gbtn').disabled = false;
+    $('gi').placeholder = 'Entrez le nom d\'une carte…';
+    initGame();
+  } catch(e) {
+    $('loadBar').textContent = '❌ Erreur de chargement. Rechargez la page.';
+  }
+}
+
+// ── SEED / DAILY ─────────────────────────────────────────
+function seededShuffle(arr, seed) {
+  const a = arr.slice(); let s = seed >>> 0;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    const j = s % (i + 1); [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function dayNum() {
+  const s = new Date('2025-01-01'); const t = new Date(); t.setHours(0,0,0,0);
+  return Math.floor((t - s) / 86400000);
+}
+function todayCard() {
+  const d = dayNum();
+  return seededShuffle(CARDS, d ^ 0xA7EM)[d % CARDS.length];
+}
+function todayKey() {
+  const d = new Date();
+  return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+}
+
+// ── COMPARAISON ──────────────────────────────────────────
+function cmp(m, t) {
+  const dAtk = Math.abs((m.atk < 0 ? 0 : m.atk) - (t.atk < 0 ? 0 : t.atk));
+  const dDef = Math.abs((m.def < 0 ? 0 : m.def) - (t.def < 0 ? 0 : t.def));
+  const dLvl = Math.abs(m.level - t.level);
+  return [
+    { v: m.frameType, s: m.frameType === t.frameType ? 'correct' : 'wrong',    a: '' },
+    { v: m.race,      s: m.race      === t.race      ? 'correct' : 'wrong',    a: '' },
+    { v: m.attribute, s: m.attribute === t.attribute ? 'correct' : 'wrong',    a: '' },
+    { v: m.level === 0 ? '—' : m.level,
+                      s: m.level     === t.level     ? 'correct' : dLvl <= 1 ? 'close' : 'wrong',
+                      a: m.level < t.level ? '▲' : m.level > t.level ? '▼' : '' },
+    { v: m.atk < 0 ? '—' : m.atk,
+                      s: m.atk       === t.atk       ? 'correct' : dAtk <= 500 ? 'close' : 'wrong',
+                      a: m.atk < t.atk ? '▲' : m.atk > t.atk ? '▼' : '' },
+    { v: m.def < 0 ? '—' : m.def,
+                      s: m.def       === t.def       ? 'correct' : dDef <= 500 ? 'close' : 'wrong',
+                      a: m.def < t.def ? '▲' : m.def > t.def ? '▼' : '' },
+    { v: m.archetype, s: m.archetype === t.archetype ? 'correct' : 'wrong',    a: '' },
+    { v: m.ban,       s: m.ban       === t.ban       ? 'correct' : 'wrong',    a: '' },
+    { v: m.format,    s: m.format    === t.format    ? 'correct' : 'wrong',    a: '' },
+  ];
+}
+
+// ── DOM HELPERS ──────────────────────────────────────────
+function mkRow(m, f, tgt) {
+  const row = document.createElement('div'); row.className = 'row';
+  const nc = document.createElement('div');
+  nc.className = 'cell ' + (m.name === tgt.name ? 'correct' : 'wrong');
+  nc.textContent = m.name; row.appendChild(nc);
+  f.forEach(x => {
+    const c = document.createElement('div'); c.className = 'cell ' + x.s;
+    c.innerHTML = x.v + (x.a ? '<span style="font-size:7px;margin-left:2px">' + x.a + '</span>' : '');
+    row.appendChild(c);
+  });
+  $('gr').prepend(row);
+}
+
+function mkCard(m, f, tgt) {
+  const win = m.name === tgt.name;
+  const card = document.createElement('div'); card.className = 'card ' + (win ? 'ok' : 'ko');
+  const top = document.createElement('div'); top.className = 'ctop';
+  const nm = document.createElement('div');
+  nm.className = 'cname ' + (win ? 'correct' : 'wrong'); nm.textContent = m.name;
+  const badge = document.createElement('div'); badge.className = 'cbadge';
+  badge.innerHTML = m.frameType + '<br>' + (m.attribute !== '—' ? m.attribute : m.race);
+  top.appendChild(nm); top.appendChild(badge); card.appendChild(top);
+  const g = document.createElement('div'); g.className = 'cgrid';
+  COLS.forEach((col, i) => {
+    const x = f[i];
+    const cc = document.createElement('div'); cc.className = 'cc ' + x.s;
+    const lb = document.createElement('div'); lb.className = 'cl'; lb.textContent = col.lb;
+    const vl = document.createElement('div'); vl.className = 'cv';
+    vl.innerHTML = x.v + (x.a ? '<span style="font-size:.5rem;opacity:.8"> ' + x.a + '</span>' : '');
+    cc.appendChild(lb); cc.appendChild(vl); g.appendChild(cc);
+  });
+  card.appendChild(g); $('gc').prepend(card);
+}
+
+function clr() { $('gr').innerHTML = ''; $('gc').innerHTML = ''; }
+
+// ── STATE ────────────────────────────────────────────────
+let mode = 'daily';
+let tgt, dG = [], dOver = false, dSel = -1;
+let sStr = 0, sBst = 0, sKil = 0;
+let sQ = [], sQi = 0, sCur = null, sG = [], sSel = -1, sOver = false, sRec = 0;
+
+function initGame() {
+  tgt = todayCard();
+  loadD();
+  if (!dOver) foc();
+}
+
+function switchMode(m) {
+  mode = m;
+  $('btnD').classList.toggle('active', m === 'daily');
+  $('btnS').classList.toggle('active', m === 'survival');
+  $('dbar').style.display = m === 'daily' ? 'flex' : 'none';
+  $('sbar').classList.toggle('on', m === 'survival');
+  $('htitle').textContent = m === 'daily' ? 'Règles — Quotidien' : 'Règles — Survie';
+  $('hd').style.display = m === 'daily' ? '' : 'none';
+  $('hs').style.display = m === 'survival' ? '' : 'none';
+  $('flash').classList.remove('on');
+  document.body.classList.toggle('survival-mode', m === 'survival');
+  if (m === 'daily') {
+    $('send').classList.remove('on'); clr();
+    dG.forEach(x => { mkRow(x.m, x.f, tgt); mkCard(x.m, x.f, tgt); });
+    updDots();
+    if (dOver) showDRes(dG.some(x => x.m.name === tgt.name));
+    else $('rb').classList.remove('on');
+    $('gi').disabled = dOver; $('gbtn').disabled = dOver;
+    if (!dOver) foc();
+  } else {
+    $('rb').classList.remove('on');
+    if (sOver) { clr(); showSEnd(); }
+    else {
+      clr();
+      if (!sCur) sInit();
+      else sG.forEach(x => { mkRow(x.m, x.f, sCur); mkCard(x.m, x.f, sCur); });
+      updSUI(); $('gi').disabled = false; $('gbtn').disabled = false; foc();
+    }
+  }
+}
+
+function foc() { setTimeout(() => $('gi').focus(), 60); }
+
+// ── PERSISTENCE ──────────────────────────────────────────
+function saveD(won) {
+  try { localStorage.setItem('ygog_v1', JSON.stringify({ date: todayKey(), guesses: dG.map(x => ({ n: x.m.name })), over: dOver, won })); } catch(e) {}
+}
+function loadD() {
+  try {
+    const s = JSON.parse(localStorage.getItem('ygog_v1'));
+    if (!s || s.date !== todayKey()) return;
+    for (const sv of (s.guesses || [])) {
+      const fr = CARDS.find(x => x.name === sv.n); if (!fr) continue;
+      dG.push({ m: fr, f: cmp(fr, tgt) });
+    }
+    dOver = s.over || false;
+    if (mode === 'daily') {
+      dG.forEach(x => { mkRow(x.m, x.f, tgt); mkCard(x.m, x.f, tgt); });
+      updDots(); if (dOver) showDRes(s.won);
+    }
+  } catch(e) {}
+}
+function updDots() {
+  const r = $('dots'); r.innerHTML = '';
+  for (let i = 0; i < MAX; i++) {
+    const d = document.createElement('div'); d.className = 'dot';
+    if (i < dG.length) { const w = dG[i].m.name === tgt.name; d.classList.add(w ? 'win' : (dOver && i === dG.length-1 ? 'lose' : 'used')); }
+    r.appendChild(d);
+  }
+  $('cnt').textContent = dG.length + '/' + MAX;
+}
+
+function showDRes(won) {
+  const b = $('rb'); b.classList.add('on', won ? 'win' : 'lose');
+  $('rttl').textContent = won ? '🃏 BIEN JOUÉ !' : '☠ ÉCHEC';
+  $('rimg').src = tgt.img;
+  $('rchar').textContent = tgt.name;
+  $('rdesc').textContent = won
+    ? tgt.name + ' trouvé en ' + dG.length + ' essai' + (dG.length > 1 ? 's' : '') + '.'
+    : tgt.name + ' · ' + tgt.frameType + ' · ' + tgt.attribute + ' · Niv.' + tgt.level + ' · ATK ' + (tgt.atk < 0 ? '—' : tgt.atk);
+  $('gi').disabled = true; $('gbtn').disabled = true;
+  tick(); setInterval(tick, 1000);
+}
+
+function tick() {
+  const now = new Date(), tom = new Date(now);
+  tom.setDate(tom.getDate() + 1); tom.setHours(0,0,0,0);
+  const d = tom - now;
+  $('nt').textContent = String(Math.floor(d/3600000)).padStart(2,'0') + ':' + String(Math.floor((d%3600000)/60000)).padStart(2,'0') + ':' + String(Math.floor((d%60000)/1000)).padStart(2,'0');
+}
+
+function share() {
+  let t = 'YGO Guessr ' + todayKey() + '\n' + dG.length + '/' + MAX + '\n\n';
+  dG.forEach(x => {
+    t += (x.m.name === tgt.name ? '🃏 ' : '') + x.m.name + '\n';
+    t += x.f.map(f => f.s === 'correct' ? '🟩' : f.s === 'close' ? '🟨' : '🟥').join('') + '\n';
+  });
+  try { navigator.clipboard.writeText(t); } catch(e) {}
+  const b = document.querySelector('.xbtn'); b.textContent = '✓ Copié !';
+  setTimeout(() => b.textContent = '📋 Copier le résultat', 2000);
+}
+
+// ── SURVIVAL ─────────────────────────────────────────────
+function loadRec() { try { const s = JSON.parse(localStorage.getItem('ygog_surv')); if (s) sRec = s.best || 0; } catch(e) {} }
+function saveRec() { try { localStorage.setItem('ygog_surv', JSON.stringify({ best: sRec })); } catch(e) {} }
+function rndQ() { const a = CARDS.slice(); for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; }
+function sInit() { sStr=0;sBst=0;sKil=0;sQ=rndQ();sQi=0;sOver=false;$('send').classList.remove('on');sNext(); }
+function sNext() { if(sQi>=sQ.length){sQ=rndQ();sQi=0;} sCur=sQ[sQi++];sG=[];clr();$('flash').classList.remove('on');$('gi').disabled=false;$('gbtn').disabled=false;foc();updSUI(); }
+function updSUI() {
+  $('sstreak').textContent = sStr; $('sbest').textContent = sRec;
+  const el = $('sdots'); el.innerHTML = '';
+  for (let i = 0; i < MAX; i++) { const d = document.createElement('div'); d.className = 'sdot'; if (i < sG.length) d.classList.add(sG[i] && sG[i].m.name === sCur.name ? 'win' : 'used'); el.appendChild(d); }
+}
+function showFlash(type, msg) {
+  const f = $('flash'); f.className = 'flash on ' + (type === 'ok' ? 'ok' : 'ko'); f.textContent = msg;
+  clearTimeout(f._t); f._t = setTimeout(() => f.classList.remove('on'), 2500);
+}
+function sGameOver(name) {
+  sOver=true;if(sStr>sRec){sRec=sStr;saveRec();}
+  showFlash('ko','☠ ' + name + ' — Game Over !');
+  $('gi').disabled=true;$('gbtn').disabled=true;
+  setTimeout(()=>showSEnd(),1500);
+}
+function sCorrect() {
+  sKil++;sStr++;if(sStr>sBst)sBst=sStr;if(sStr>sRec){sRec=sStr;saveRec();}
+  showFlash('ok','✓ '+sCur.name+' trouvée'+(sStr>=3?' 🔥 ×'+sStr:''));
+  $('gi').disabled=true;$('gbtn').disabled=true;updSUI();
+  setTimeout(()=>sNext(),1900);
+}
+function showSEnd() {
+  clr();$('send').classList.add('on');
+  $('sedesc').innerHTML = 'Série de <em>'+sStr+'</em> — '+sKil+' carte'+(sKil>1?'s':'')+'.';
+  $('sek').textContent=sKil;$('seb').textContent=sBst;$('ser').textContent=sRec;
+  $('gi').disabled=true;$('gbtn').disabled=true;updSUI();
+}
+function sRestart() { sInit(); }
+function sShare() {
+  const t='YGO Guessr — Survie\nSérie : '+sStr+'\nTrouvées : '+sKil+'\nRecord : '+sRec;
+  try{navigator.clipboard.writeText(t);}catch(e){}
+  const b=document.querySelector('.xbtn2');b.textContent='✓ Copié !';setTimeout(()=>b.textContent='📋 Copier le score',2000);
+}
+
+// ── SUBMIT ───────────────────────────────────────────────
+function sub() { mode==='daily'?subD():subS(); }
+function subD() {
+  if(dOver||!loaded)return;
+  const inp=$('gi');const v=inp.value.trim();if(!v)return;
+  const m=CARDS.find(x=>x.name.toLowerCase()===v.toLowerCase());
+  if(!m){shake(inp,'Carte introuvable…');return;}
+  if(dG.find(x=>x.m.name===m.name)){shake(inp,'Déjà essayée !');return;}
+  const f=cmp(m,tgt);dG.push({m,f});
+  mkRow(m,f,tgt);mkCard(m,f,tgt);updDots();
+  inp.value='';$('acl').innerHTML='';
+  const won=m.name===tgt.name;
+  if(won||dG.length>=MAX){dOver=true;saveD(won);setTimeout(()=>showDRes(won),400);}else saveD(false);
+}
+function subS() {
+  if(sOver||!sCur||!loaded)return;
+  const inp=$('gi');const v=inp.value.trim();if(!v)return;
+  const m=CARDS.find(x=>x.name.toLowerCase()===v.toLowerCase());
+  if(!m){shake(inp,'Carte introuvable…');return;}
+  if(sG.find(x=>x.m.name===m.name)){shake(inp,'Déjà essayée !');return;}
+  const f=cmp(m,sCur);sG.push({m,f});
+  mkRow(m,f,sCur);mkCard(m,f,sCur);
+  inp.value='';$('acl').innerHTML='';updSUI();
+  if(m.name===sCur.name)sCorrect();
+  else if(sG.length>=MAX)sGameOver(sCur.name);
+}
+function shake(inp,msg){
+  inp.style.borderColor='var(--ko-bd)';inp.placeholder=msg;
+  inp.animate([{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:240});
+  setTimeout(()=>{inp.style.borderColor='';inp.placeholder='Entrez le nom d\'une carte…';},1500);
+}
+
+// ── AUTOCOMPLETE ─────────────────────────────────────────
+function onIn() {
+  const v=$('gi').value.toLowerCase().trim();
+  const l=$('acl');l.innerHTML='';
+  if(mode==='daily')dSel=-1;else sSel=-1;
+  if(!v||!loaded)return;
+  const done=new Set((mode==='daily'?dG:sG).map(x=>x.m.name));
+  CARDS.filter(x=>x.name.toLowerCase().includes(v)&&!done.has(x.name)).slice(0,8).forEach(x=>{
+    const i=document.createElement('div');i.className='aci';
+    i.innerHTML=x.name+'<span class="acb">'+x.frameType+' · '+(x.attribute!=='—'?x.attribute:x.race)+'</span>';
+    i.onclick=()=>{$('gi').value=x.name;l.innerHTML='';sub();};l.appendChild(i);
+  });
+}
+function onKD(e){
+  const l=$('acl');const items=l.querySelectorAll('.aci');
+  let sel=mode==='daily'?dSel:sSel;
+  if(e.key==='ArrowDown'){e.preventDefault();sel=Math.min(sel+1,items.length-1);items.forEach((x,i)=>x.classList.toggle('sel',i===sel));if(items[sel])$('gi').value=items[sel].firstChild.textContent.trim();}
+  else if(e.key==='ArrowUp'){e.preventDefault();sel=Math.max(sel-1,-1);items.forEach((x,i)=>x.classList.toggle('sel',i===sel));if(sel>=0&&items[sel])$('gi').value=items[sel].firstChild.textContent.trim();}
+  else if(e.key==='Enter'){e.preventDefault();l.innerHTML='';sub();}
+  else if(e.key==='Escape')l.innerHTML='';
+  if(mode==='daily')dSel=sel;else sSel=sel;
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.acw'))$('acl').innerHTML='';});
+function toggleHelp(){$('hpanel').classList.toggle('on');}
+
+// ── INIT ─────────────────────────────────────────────────
+loadRec();
+updDots();
+loadCards();
+</script>
+</body>
+</html>
