@@ -4,511 +4,304 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YGO Price Duel — Atem</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html,body { width:100%;height:100%;font-family:'Nunito',sans-serif;background:#0d0d14;overflow:hidden;color:#fff;user-select:none; }
-
-/* ── NAV ── */
-#header {
-  position:fixed;top:0;left:0;right:0;height:54px;z-index:100;
-  display:flex;align-items:center;justify-content:space-between;padding:0 24px;
-  background:rgba(5,5,12,0.92);backdrop-filter:blur(14px);
-  border-bottom:1px solid rgba(255,255,255,0.07);
+:root{
+  --black:#06050a;
+  --ink:#131119;
+  --gold:#d4a843;
+  --gold-light:#f0c860;
+  --silver:#8a8fa8;
+  --good:#06d6a0;
+  --bad:#ef233c;
 }
-.nav-logo { font-family:'Cinzel',serif;font-weight:900;font-size:1rem;color:#ffd166;text-decoration:none;letter-spacing:0.18em; }
-.nav-right { display:flex;align-items:center;gap:18px; }
-.hud { display:flex;align-items:center;gap:18px; }
-.hud-item { display:flex;flex-direction:column;align-items:center;line-height:1; }
-.hud-val { font-size:1.05rem;font-weight:900;color:#ffd166; }
-.hud-lbl { font-size:0.42rem;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.28);margin-top:2px; }
 
-/* Lives in header */
-#lives { display:flex;gap:6px;align-items:center; }
-.life { width:9px;height:9px;border-radius:50%;background:#ffd166;box-shadow:0 0 6px rgba(255,209,102,0.55);transition:all 0.3s; }
-.life.lost { background:rgba(255,255,255,0.1);box-shadow:none; }
-
-/* Lang toggle */
-#lang-toggle { display:flex;border:1.5px solid rgba(255,255,255,0.13);border-radius:7px;overflow:hidden; }
-.lang-btn { padding:5px 10px;font-family:'Nunito',sans-serif;font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;border:none;cursor:pointer;transition:all 0.15s;background:transparent;color:rgba(255,255,255,0.3); }
-.lang-btn.active { background:#ffd166;color:#111; }
-.lang-btn:hover:not(.active) { color:#fff; }
-
-.nav-back { font-family:'Nunito',sans-serif;font-size:0.6rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.3);text-decoration:none;transition:color 0.2s; }
-.nav-back:hover { color:#fff; }
-
-/* ── GAME AREA ── */
-#game {
-  position:fixed;top:54px;left:0;right:0;bottom:0;
-  display:flex;flex-direction:row;
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--black);
+  color:#fff;
+  font-family:'Nunito',sans-serif;
 }
-.panel { flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;transition:background 0.4s; }
-.panel-bg { position:absolute;inset:-20px;background-size:cover;background-position:center;opacity:0.07;filter:blur(24px);pointer-events:none;transition:background-image 0.5s; }
-.panel.correct { background:rgba(6,214,160,0.07); }
-.panel.wrong   { background:rgba(239,35,60,0.07); }
 
-#divider { width:2px;background:rgba(255,255,255,0.07);position:relative;flex-shrink:0;z-index:10; }
-#vs-badge { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:50%;background:#0d0d14;border:2px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:0.55rem;font-weight:900;letter-spacing:0.1em;color:rgba(255,255,255,0.3); }
-
-/* ── CARD ── */
-.card-wrap { width:clamp(130px,16vw,200px);height:clamp(130px,16vw,200px);border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,0.13);box-shadow:0 8px 40px rgba(0,0,0,0.7);background:#1a1a2e;position:relative;flex-shrink:0;transition:border-color 0.3s; }
-.card-wrap img { position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;object-position:center;transition:opacity 0.3s; }
-.spinner { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.2rem;background:linear-gradient(135deg,#12122a,#1e1e40);animation:pulse 1.5s ease-in-out infinite; }
-.spinner.gone { display:none; }
-@keyframes pulse { 0%,100%{opacity:0.6}50%{opacity:1} }
-
-/* ── INFO ── */
-.panel-info { display:flex;flex-direction:column;align-items:center;text-align:center;margin-top:16px;padding:0 14px;max-width:300px; }
-.eyebrow { font-size:0.48rem;font-weight:800;letter-spacing:0.24em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-bottom:7px; }
-.card-name { font-size:clamp(0.85rem,1.8vw,1.25rem);font-weight:900;color:#fff;line-height:1.2;margin-bottom:3px; }
-.card-type { font-size:0.58rem;font-weight:600;color:rgba(255,255,255,0.28);margin-bottom:12px;letter-spacing:0.06em; }
-.is-label { font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.26);margin-bottom:4px; }
-.price-val { font-size:clamp(1.7rem,3.6vw,2.8rem);font-weight:900;color:#fff;line-height:1;letter-spacing:-0.02em; }
-.price-val.hidden { color:rgba(255,255,255,0.16);letter-spacing:0.4em;font-size:clamp(1.3rem,2.6vw,2rem); }
-.price-source { font-size:0.44rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:5px; }
-
-/* ── GUESS BUTTONS ── */
-.btn-zone { display:flex;flex-direction:column;gap:9px;margin-top:16px; }
-.btn-guess {
-  padding:11px 22px;border-radius:8px;border:none;
-  font-family:'Nunito',sans-serif;font-size:clamp(0.7rem,1.3vw,0.82rem);font-weight:800;
-  letter-spacing:0.07em;text-transform:uppercase;cursor:pointer;transition:all 0.15s;
-  min-width:150px;display:flex;align-items:center;justify-content:center;gap:6px;
+/* ───── NAV (comme tes autres jeux) ───── */
+nav{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:100;
+  padding:1rem 1.5rem;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:rgba(6,5,10,0.95);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(212,168,67,0.15);
 }
-.btn-higher { background:#c93046;color:#fff;box-shadow:0 4px 18px rgba(201,48,70,0.45); }
-.btn-higher:hover:not(:disabled) { background:#e03a55;transform:translateY(-2px);box-shadow:0 6px 24px rgba(201,48,70,0.6); }
-.btn-lower  { background:#3a47d4;color:#fff;box-shadow:0 4px 18px rgba(58,71,212,0.45); }
-.btn-lower:hover:not(:disabled)  { background:#4d5ae8;transform:translateY(-2px);box-shadow:0 6px 24px rgba(58,71,212,0.6); }
-.btn-guess:disabled { opacity:0.3;cursor:not-allowed;transform:none !important;box-shadow:none !important; }
-.btn-guess.correct { background:#06d6a0 !important;box-shadow:0 4px 18px rgba(6,214,160,0.45) !important; }
-.btn-guess.wrong   { background:#2a2a2a !important;box-shadow:none !important;opacity:0.5; }
 
-/* Next button */
-#next-area { margin-top:14px;display:none; }
-.btn-next {
-  padding:10px 26px;border-radius:8px;border:none;
-  font-family:'Nunito',sans-serif;font-size:0.72rem;font-weight:800;
-  letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;
-  background:rgba(255,209,102,0.15);color:#ffd166;
-  border:1.5px solid rgba(255,209,102,0.35);
-  transition:all 0.18s;
+.nav-logo{
+  font-family:'Cinzel';
+  font-weight:900;
+  color:var(--gold);
+  text-decoration:none;
+  letter-spacing:0.2em;
 }
-.btn-next:hover { background:rgba(255,209,102,0.25);transform:translateY(-2px); }
 
-/* ── LOADING ── */
-#loading { position:fixed;inset:0;z-index:600;background:#0d0d14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px; }
-.loading-logo { font-family:'Cinzel',serif;font-size:1.8rem;font-weight:900;color:#ffd166;letter-spacing:0.1em; }
-.loading-bar-wrap { width:220px;height:4px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden; }
-.loading-bar { height:100%;background:linear-gradient(90deg,#e8b84b,#ffd166);border-radius:99px;width:0%;transition:width 0.3s; }
-.loading-txt { font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.32); }
-
-/* ── TOAST ── */
-#toast {
-  position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-10px);
-  background:rgba(8,8,18,0.97);backdrop-filter:blur(16px);
-  border:1px solid rgba(255,255,255,0.09);border-radius:10px;
-  padding:10px 22px;font-size:0.8rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;
-  z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;
-  white-space:nowrap;max-width:90vw;text-align:center;
+.nav-back{
+  font-family:'Cinzel';
+  font-size:0.7rem;
+  color:var(--silver);
+  text-decoration:none;
 }
-#toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
-#toast.ok { color:#06d6a0;border-color:rgba(6,214,160,0.28); }
-#toast.ko { color:#ef233c;border-color:rgba(239,35,60,0.22); }
 
-/* ── COUNTDOWN ── */
-#countdown { position:fixed;bottom:0;left:0;right:0;height:3px;z-index:200;display:none; }
-#countdown-fill { height:100%;width:100%;background:linear-gradient(90deg,#e8b84b,#ffd166);transform-origin:left center;transform:scaleX(1); }
-
-/* ── GAME OVER ── */
-#gameover {
-  position:fixed;inset:0;z-index:500;
-  background:rgba(5,5,12,0.97);backdrop-filter:blur(22px);
-  display:none;flex-direction:column;align-items:center;justify-content:center;
-  gap:22px;text-align:center;padding:32px;
+/* ───── MAIN ───── */
+main{
+  padding:6rem 1rem 3rem;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:1rem;
 }
-#gameover.show { display:flex;animation:goIn 0.4s ease; }
-@keyframes goIn { from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)} }
-.go-emoji { font-size:3.5rem; }
-.go-title { font-family:'Cinzel',serif;font-size:clamp(3rem,8vw,5rem);font-weight:900;color:#ef233c;letter-spacing:-0.01em;filter:drop-shadow(0 0 28px rgba(239,35,60,0.45));line-height:1; }
-.go-sub { font-size:0.65rem;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.28); }
-.go-stats { display:flex;gap:24px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 36px; }
-.go-stat { text-align:center; }
-.go-stat-v { font-size:2.4rem;font-weight:900;color:#ffd166;line-height:1; }
-.go-stat-l { font-size:0.48rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-top:4px; }
-.go-sep { width:1px;background:rgba(255,255,255,0.08); }
-.go-replay { padding:14px 40px;background:linear-gradient(135deg,#e8b84b,#ffd166);color:#111;font-family:'Nunito',sans-serif;font-size:1rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;border:none;border-radius:999px;cursor:pointer;box-shadow:0 4px 24px rgba(255,209,102,0.4);transition:transform 0.15s; }
-.go-replay:hover { transform:scale(1.05); }
 
-/* Mobile */
-@media (max-width: 540px) {
-  #game { flex-direction:column; }
-  #divider { width:100%;height:2px; }
-  #vs-badge { top:50%;left:50%; }
-  .card-wrap { width:110px;height:110px; }
-  .panel-info { max-width:90vw; }
+/* HUD */
+.hud{
+  display:flex;
+  gap:1.5rem;
+  font-family:'Cinzel';
+  font-size:0.75rem;
+  color:var(--silver);
+}
+.hud span{
+  color:var(--gold);
+  font-weight:900;
+}
+
+/* GAME */
+.game{
+  width:100%;
+  max-width:520px;
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+}
+
+/* CARDS GRID (PC + mobile propre) */
+.cards{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0.8rem;
+}
+
+.card{
+  background:var(--ink);
+  border:1px solid rgba(212,168,67,0.15);
+  border-radius:14px;
+  padding:0.8rem;
+  text-align:center;
+  transition:0.2s;
+}
+
+/* image CARRÉE clean */
+.card img{
+  width:100%;
+  aspect-ratio:1/1;
+  object-fit:cover;
+  border-radius:12px;
+  margin-bottom:0.5rem;
+  background:#0f0f18;
+}
+
+.name{
+  font-size:0.8rem;
+  font-weight:700;
+  color:#fff;
+  margin-bottom:0.2rem;
+}
+
+.price{
+  font-size:1.4rem;
+  font-weight:900;
+  color:var(--gold-light);
+}
+
+/* BUTTONS */
+.buttons{
+  display:flex;
+  gap:0.7rem;
+}
+
+button{
+  flex:1;
+  padding:0.9rem;
+  border:none;
+  border-radius:10px;
+  font-family:'Cinzel';
+  font-weight:900;
+  letter-spacing:0.1em;
+  cursor:pointer;
+  font-size:0.75rem;
+  transition:0.15s;
+}
+
+.higher{background:#c93046;color:#fff;}
+.lower{background:#3a47d4;color:#fff;}
+
+button:active{transform:scale(0.97);}
+
+/* RESULT */
+.result{
+  text-align:center;
+  font-family:'Cinzel';
+  font-size:0.95rem;
+  padding:0.6rem;
+  border-radius:10px;
+  min-height:1.2rem;
+}
+
+.win{color:var(--good);}
+.lose{color:var(--bad);}
+
+/* NEXT (auto + bouton fallback) */
+.next{
+  background:var(--gold);
+  color:#111;
+  padding:0.9rem;
+  border-radius:10px;
+  font-weight:900;
+  border:none;
+  cursor:pointer;
+  display:none;
+}
+
+/* MOBILE */
+@media (max-width:500px){
+  .cards{grid-template-columns:1fr;}
+  .price{font-size:1.2rem;}
+  button{font-size:0.7rem;}
 }
 </style>
 </head>
+
 <body>
 
-<!-- Loading -->
-<div id="loading">
-  <div class="loading-logo">𓂀 YGO Price Duel</div>
-  <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
-  <div class="loading-txt" id="loadingTxt">Chargement des cartes…</div>
-</div>
-
-<!-- Header -->
-<div id="header">
+<nav>
   <a class="nav-logo" href="../index.html">𓂀 ATEM</a>
-  <div class="nav-right">
-    <div class="hud">
-      <div class="hud-item"><span class="hud-val" id="hRecord">0</span><span class="hud-lbl" id="lblRecord">Record</span></div>
-      <div class="hud-item"><span class="hud-val" id="hScore">0</span><span class="hud-lbl" id="lblScore">Score</span></div>
-      <div class="hud-item"><span class="hud-val" id="hStreak" style="color:#f59e0b">0🔥</span><span class="hud-lbl" id="lblStreak">Série</span></div>
-    </div>
-    <div id="lives"></div>
-    <div id="lang-toggle">
-      <button class="lang-btn active" id="btnFR" onclick="setLang('fr')">FR</button>
-      <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
-    </div>
-    <a class="nav-back" href="../minijeux.html">← Mini-jeux</a>
-  </div>
+  <a class="nav-back" href="../minijeux.html">← Mini-jeux</a>
+</nav>
+
+<main>
+
+<div class="hud">
+  <div>Score <span id="score">0</span></div>
+  <div>🔥 <span id="streak">0</span></div>
 </div>
 
-<!-- Game -->
-<div id="game">
-  <div class="panel" id="panelA">
-    <div class="panel-bg" id="bgA"></div>
-    <div class="card-wrap">
-      <img id="imgA" src="" alt="" style="opacity:0">
-      <div class="spinner" id="spinA">🃏</div>
+<div class="game">
+
+  <div class="cards">
+
+    <div class="card">
+      <img id="imgA">
+      <div class="name" id="nameA"></div>
+      <div class="price" id="priceA"></div>
     </div>
-    <div class="panel-info">
-      <div class="eyebrow" id="eyebrowA">Carte A · Prix connu</div>
-      <div class="card-name" id="nameA">—</div>
-      <div class="card-type" id="typeA"></div>
-      <div class="is-label" id="worthA">vaut</div>
-      <div class="price-val" id="priceA">—</div>
-      <div class="price-source">Cardmarket</div>
+
+    <div class="card">
+      <img id="imgB">
+      <div class="name" id="nameB"></div>
+      <div class="price" id="priceB">?</div>
     </div>
+
   </div>
 
-  <div id="divider"><div id="vs-badge">VS</div></div>
-
-  <div class="panel" id="panelB">
-    <div class="panel-bg" id="bgB"></div>
-    <div class="card-wrap">
-      <img id="imgB" src="" alt="" style="opacity:0">
-      <div class="spinner" id="spinB">🃏</div>
-    </div>
-    <div class="panel-info">
-      <div class="eyebrow" id="eyebrowB">Carte B · Devinez</div>
-      <div class="card-name" id="nameB">—</div>
-      <div class="card-type" id="typeB"></div>
-      <div class="is-label" id="isB">est</div>
-      <div class="price-val hidden" id="priceB">?</div>
-      <div class="price-source">Cardmarket</div>
-      <div class="btn-zone">
-        <button class="btn-guess btn-higher" id="btnH" onclick="guess('higher')"><span>↑</span> <span id="lblHigher">Plus cher</span></button>
-        <button class="btn-guess btn-lower"  id="btnL" onclick="guess('lower')"><span>↓</span> <span id="lblLower">Moins cher</span></button>
-      </div>
-      <div id="next-area">
-        <button class="btn-next" onclick="nextRound()"><span id="lblNext">Carte suivante →</span></button>
-      </div>
-    </div>
+  <div class="buttons">
+    <button class="higher" onclick="guess('higher')">PLUS CHER</button>
+    <button class="lower" onclick="guess('lower')">MOINS CHER</button>
   </div>
+
+  <div id="result" class="result"></div>
+
+  <button id="nextBtn" class="next" onclick="next()">CARTE SUIVANTE →</button>
+
 </div>
 
-<div id="toast"></div>
-<div id="countdown"><div id="countdown-fill"></div></div>
-
-<!-- Game Over -->
-<div id="gameover">
-  <div class="go-emoji">💀</div>
-  <div class="go-title">Game Over</div>
-  <div class="go-sub" id="goSub">Tu as épuisé tes vies</div>
-  <div class="go-stats">
-    <div class="go-stat"><div class="go-stat-v" id="goScore">0</div><div class="go-stat-l" id="goScoreLbl">Score final</div></div>
-    <div class="go-sep"></div>
-    <div class="go-stat"><div class="go-stat-v" id="goBest">0</div><div class="go-stat-l" id="goBestLbl">Record</div></div>
-  </div>
-  <button class="go-replay" onclick="restart()">↩ <span id="lblReplay">Rejouer</span></button>
-</div>
+</main>
 
 <script>
-/* ═══ I18N ═══ */
-const LANGS = {
-  fr: {
-    eyebrowA:'Carte A · Prix connu', eyebrowB:'Carte B · Devinez',
-    worth:'vaut', is:'est',
-    higher:'Plus cher', lower:'Moins cher',
-    loading:'Chargement des cartes…',
-    loadingDone: n=>`${n} cartes chargées !`,
-    loadingCache: n=>`${n} cartes (cache) !`,
-    loadingError:'Erreur de chargement 😢',
-    toastCorrect:(diff,s)=>`✓ Correct !  Écart : €${diff}${s}`,
-    toastWrong:(name,price)=>`✗ Raté !  ${name} = €${price}`,
-    streakSuffix: s=>` · 🔥 ×${s}`,
-    gameOver:'Tu as épuisé tes vies', finalScore:'Score final', record:'Record', replay:'Rejouer',
-    nextBtn:'Carte suivante →', streak:'Série', score:'Score',
-  },
-  en: {
-    eyebrowA:'Card A · Known Price', eyebrowB:'Card B · Guess',
-    worth:'is worth', is:'is',
-    higher:'More expensive', lower:'Less expensive',
-    loading:'Loading cards…',
-    loadingDone: n=>`${n} cards loaded!`,
-    loadingCache: n=>`${n} cards (cached)!`,
-    loadingError:'Loading error 😢',
-    toastCorrect:(diff,s)=>`✓ Correct!  Gap: €${diff}${s}`,
-    toastWrong:(name,price)=>`✗ Wrong!  ${name} = €${price}`,
-    streakSuffix: s=>` · 🔥 ×${s}`,
-    gameOver:'You ran out of lives', finalScore:'Final Score', record:'Record', replay:'Play Again',
-    nextBtn:'Next card →', streak:'Streak', score:'Score',
-  }
-};
+let cards=[],a,b;
+let score=0,streak=0;
+let locked=false;
 
-let lang = localStorage.getItem('ygo_lang') || 'fr';
-function t(key,...args){const v=LANGS[lang][key];return typeof v==='function'?v(...args):v;}
+/* LOAD */
+async function load(){
+  const r=await fetch("https://db.ygoprodeck.com/api/v7/cardinfo.php?format=tcg");
+  const d=await r.json();
 
-function setLang(l){
-  lang=l; localStorage.setItem('ygo_lang',l);
-  document.getElementById('btnFR').classList.toggle('active',l==='fr');
-  document.getElementById('btnEN').classList.toggle('active',l==='en');
-  document.getElementById('eyebrowA').textContent=t('eyebrowA');
-  document.getElementById('eyebrowB').textContent=t('eyebrowB');
-  document.getElementById('worthA').textContent=t('worth');
-  document.getElementById('isB').textContent=t('is');
-  document.getElementById('lblHigher').textContent=t('higher');
-  document.getElementById('lblLower').textContent=t('lower');
-  document.getElementById('lblNext').textContent=t('nextBtn');
-  document.getElementById('goSub').textContent=t('gameOver');
-  document.getElementById('goScoreLbl').textContent=t('finalScore');
-  document.getElementById('goBestLbl').textContent=t('record');
-  document.getElementById('lblReplay').textContent=t('replay');
-  document.getElementById('lblRecord').textContent=t('record');
-  document.getElementById('lblScore').textContent=t('score');
-  document.getElementById('lblStreak').textContent=t('streak');
+  cards=d.data
+    .filter(c=>c.card_images?.[0])
+    .map(c=>({
+      name:c.name,
+      price:parseFloat(c.card_prices?.[0]?.cardmarket_price||0),
+      img:c.card_images[0].image_url_cropped
+    }))
+    .filter(c=>c.price>0.1);
+
+  next();
 }
 
-/* ═══ CARD FETCHING ═══ */
-let DECK_BASE=[];
-const TOTAL_APPROX=10000, CARDS_NEEDED=80, BATCH=20;
+/* NEXT ROUND */
+function next(){
+  locked=false;
+  document.getElementById("result").textContent="";
+  document.getElementById("nextBtn").style.display="none";
 
-async function fetchRandomCards(){
-  const txt=document.getElementById('loadingTxt');
-  const bar=document.getElementById('loadingBar');
-  txt.textContent=t('loading');
-  const results=[], seen=new Set();
-  const batches=Math.ceil(CARDS_NEEDED/BATCH)+3;
-  for(let b=0;b<batches;b++){
-    try{
-      const off=Math.floor(Math.random()*(TOTAL_APPROX-BATCH));
-      const url=`https://db.ygoprodeck.com/api/v7/cardinfo.php?format=tcg&num=${BATCH}&offset=${off}&sort=name`;
-      const resp=await fetch(url,{mode:'cors'});
-      if(!resp.ok){await sleep(200);continue;}
-      const json=await resp.json();
-      if(!json.data) continue;
-      for(const card of json.data){
-        const price=parseFloat(card.card_prices?.[0]?.cardmarket_price||'0');
-        const img=card.card_images?.[0];
-        if(price>=0.10&&img&&!seen.has(img.id)){
-          seen.add(img.id);
-          results.push({name:card.name,type:card.type,id:img.id,
-            imgCrop:img.image_url_cropped||img.image_url_small||img.image_url,price});
-        }
-      }
-      bar.style.width=Math.round(Math.min(results.length/CARDS_NEEDED,0.99)*100)+'%';
-      txt.textContent=t('loading')+` (${results.length}/${CARDS_NEEDED})`;
-      if(results.length>=CARDS_NEEDED) break;
-      await sleep(60);
-    }catch(e){await sleep(300);}
-  }
-  DECK_BASE=results;
-  bar.style.width='100%';
-  txt.textContent=t('loadingDone',DECK_BASE.length);
-  try{sessionStorage.setItem('ygo_deck_cache_v4',JSON.stringify(DECK_BASE));}catch(e){}
-  await sleep(400);
-  return DECK_BASE.length>=4;
+  a=cards[Math.random()*cards.length|0];
+  b=cards[Math.random()*cards.length|0];
+
+  document.getElementById("imgA").src=a.img;
+  document.getElementById("imgB").src=b.img;
+
+  document.getElementById("nameA").textContent=a.name;
+  document.getElementById("nameB").textContent=b.name;
+
+  document.getElementById("priceA").textContent="€"+a.price.toFixed(2);
+  document.getElementById("priceB").textContent="?";
 }
 
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-
-/* ═══ HELPERS ═══ */
-function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[b[i],b[j]]=[b[j],b[i]];}return b;}
-
-function loadImg(side,card){
-  const img=document.getElementById('img'+side);
-  const spin=document.getElementById('spin'+side);
-  const bg=document.getElementById('bg'+side);
-  img.style.opacity='0'; spin.classList.remove('gone');
-  const fallback=`https://images.ygoprodeck.com/images/cards/${card.id}.jpg`;
-  function tryUrl(url,fb){
-    const tmp=new Image();
-    tmp.onload=()=>{img.src=url;img.style.opacity='1';spin.classList.add('gone');bg.style.backgroundImage=`url('${url}')`;};
-    tmp.onerror=fb; tmp.src=url;
-  }
-  tryUrl(card.imgCrop,()=>tryUrl(fallback,()=>{spin.textContent='🃏';spin.style.animation='none';}));
-}
-
-/* ═══ STATE ═══ */
-const MAX_LIVES=5, DELAY_MS=2200;
-let best=+localStorage.getItem('ygo_best_v12')||0;
-let deck=[], ptr=0, cardA, cardB;
-let score=0, streak=0, lives=MAX_LIVES;
-let answered=false, autoTimer=null;
-
-/* ═══ HUD ═══ */
-function renderHUD(){
-  document.getElementById('hScore').textContent=score;
-  document.getElementById('hRecord').textContent=best;
-  document.getElementById('hStreak').textContent=streak>0?`${streak}🔥`:'0';
-  const bar=document.getElementById('lives');
-  bar.innerHTML='';
-  for(let i=0;i<MAX_LIVES;i++){
-    const d=document.createElement('div');
-    d.className='life'+(i>=lives?' lost':'');
-    bar.appendChild(d);
-  }
-}
-
-/* ═══ PANEL ═══ */
-function setPanel(side,card,showPrice){
-  loadImg(side,card);
-  document.getElementById('name'+side).textContent=card.name;
-  document.getElementById('type'+side).textContent=card.type||'';
-  document.getElementById('panel'+side).className='panel';
-  const pEl=document.getElementById('price'+side);
-  if(showPrice){pEl.className='price-val';pEl.textContent=`€${card.price.toFixed(2)}`;}
-  else{pEl.className='price-val hidden';pEl.textContent='?';}
-}
-
-/* ═══ PICK ═══ */
-function pick(){
-  if(ptr+1>=deck.length){deck=shuffle(DECK_BASE);ptr=0;}
-  let a=deck[ptr],b=deck[ptr+1],tries=0;
-  while(Math.abs(a.price-b.price)<0.05&&tries<30){
-    ptr++;if(ptr+1>=deck.length){deck=shuffle(DECK_BASE);ptr=0;}
-    b=deck[ptr+1];tries++;
-  }
-  cardA=a;cardB=b;ptr+=2;
-}
-
-/* ═══ NEXT ROUND ═══ */
-function nextRound(){
-  clearTimeout(autoTimer); answered=false; stopCountdown();
-  document.getElementById('next-area').style.display='none';
-  const btnH=document.getElementById('btnH'), btnL=document.getElementById('btnL');
-  btnH.disabled=false; btnL.disabled=false;
-  btnH.className='btn-guess btn-higher'; btnL.className='btn-guess btn-lower';
-  pick();
-  setPanel('A',cardA,true);
-  setPanel('B',cardB,false);
-  renderHUD();
-}
-
-/* ═══ COUNTDOWN ═══ */
-function startCountdown(ms){
-  const wrap=document.getElementById('countdown');
-  const fill=document.getElementById('countdown-fill');
-  wrap.style.display='block';
-  fill.style.transition='none'; fill.style.transform='scaleX(1)';
-  fill.getBoundingClientRect();
-  fill.style.transition=`transform ${ms}ms linear`; fill.style.transform='scaleX(0)';
-  autoTimer=setTimeout(()=>{stopCountdown();nextRound();},ms);
-}
-function stopCountdown(){
-  clearTimeout(autoTimer);
-  document.getElementById('countdown').style.display='none';
-  const fill=document.getElementById('countdown-fill');
-  fill.style.transition='none'; fill.style.transform='scaleX(1)';
-}
-
-/* ═══ TOAST ═══ */
-let toastTimer;
-function showToast(msg,type){
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.className='show '+type;
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>{el.className='';},3000);
-}
-
-/* ═══ GUESS ═══ */
+/* GUESS */
 function guess(choice){
-  if(answered) return;
-  answered=true;
-  const btnH=document.getElementById('btnH'), btnL=document.getElementById('btnL');
-  btnH.disabled=true; btnL.disabled=true;
-  const pEl=document.getElementById('priceB');
-  pEl.className='price-val'; pEl.textContent=`€${cardB.price.toFixed(2)}`;
-  const correct=cardB.price>cardA.price?'higher':'lower';
-  const ok=(choice===correct);
-  if(choice==='higher'){
-    btnH.className='btn-guess '+(ok?'correct':'wrong');
-    if(!ok) btnL.className='btn-guess correct';
-  } else {
-    btnL.className='btn-guess '+(ok?'correct':'wrong');
-    if(!ok) btnH.className='btn-guess correct';
-  }
-  document.getElementById('panelB').className='panel '+(ok?'correct':'wrong');
+  if(locked) return;
+  locked=true;
+
+  let correct = b.price > a.price ? "higher" : "lower";
+  let ok = choice === correct;
+
+  document.getElementById("priceB").textContent="€"+b.price.toFixed(2);
+
+  const res=document.getElementById("result");
+
   if(ok){
-    score++;streak++;
-    if(score>best){best=score;localStorage.setItem('ygo_best_v12',best);}
-    const diff=Math.abs(cardA.price-cardB.price).toFixed(2);
-    const s=streak>=3?t('streakSuffix',streak):'';
-    showToast(t('toastCorrect',diff,s),'ok');
-  } else {
-    streak=0;lives--;
-    const winner=cardA.price>cardB.price?cardA:cardB;
-    showToast(t('toastWrong',winner.name,Math.max(cardA.price,cardB.price).toFixed(2)),'ko');
+    score++; streak++;
+    res.textContent="✅ correct";
+    res.className="result win";
+  }else{
+    streak=0;
+    res.textContent="❌ wrong";
+    res.className="result lose";
   }
-  renderHUD();
-  if(lives<=0){setTimeout(gameOver,1600);}
-  else{startCountdown(DELAY_MS);document.getElementById('next-area').style.display='block';}
+
+  document.getElementById("score").textContent=score;
+  document.getElementById("streak").textContent=streak;
+
+  // AUTO NEXT comme tes autres jeux
+  setTimeout(next, 1400);
 }
 
-/* ═══ GAME OVER ═══ */
-function gameOver(){
-  stopCountdown();
-  document.getElementById('goScore').textContent=score;
-  document.getElementById('goBest').textContent=best;
-  document.getElementById('gameover').classList.add('show');
-}
-function restart(){
-  score=streak=0;lives=MAX_LIVES;answered=false;ptr=0;
-  deck=shuffle(DECK_BASE);
-  document.getElementById('gameover').classList.remove('show');
-  renderHUD();nextRound();
-}
-
-/* ═══ INIT ═══ */
-async function init(){
-  setLang(lang);
-  try{
-    const cached=sessionStorage.getItem('ygo_deck_cache_v4');
-    if(cached){
-      DECK_BASE=JSON.parse(cached);
-      if(DECK_BASE.length>=4){
-        document.getElementById('loadingTxt').textContent=t('loadingCache',DECK_BASE.length);
-        document.getElementById('loadingBar').style.width='100%';
-        await sleep(400); startGame(); return;
-      }
-    }
-  }catch(e){}
-  const ok=await fetchRandomCards();
-  if(!ok){document.getElementById('loadingTxt').textContent=t('loadingError');return;}
-  startGame();
-}
-
-function startGame(){
-  document.getElementById('loading').style.display='none';
-  deck=shuffle(DECK_BASE);
-  renderHUD();nextRound();
-}
-
-init();
+load();
 </script>
+
 </body>
 </html>
