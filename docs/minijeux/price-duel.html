@@ -4,187 +4,183 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YGO Price Duel — Atem</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
 <style>
-:root{
-  --black:#06050a;
-  --ink:#131119;
-  --gold:#d4a843;
-  --gold-light:#f0c860;
-  --silver:#8a8fa8;
-  --good:#06d6a0;
-  --bad:#ef233c;
-}
+  :root {
+    --black: #06050a; --ink: #131119;
+    --gold: #d4a843; --gold-light: #f0c860;
+    --silver: #8a8fa8; --white: #f0ecf5;
+    --mystic: #7a3a8a;
+    --green: rgba(58,138,74,0.15);
+    --green-border: rgba(58,138,74,0.5);
+    --green-text: #6fc87d;
+    --red: rgba(196,64,32,0.1);
+    --red-border: rgba(196,64,32,0.4);
+    --red-text: #e07060;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--black); color: var(--white);
+    font-family: 'Crimson Pro', serif;
+    min-height: 100vh; overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(122,58,138,0.15) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
 
-*{margin:0;padding:0;box-sizing:border-box;}
-body{
-  background:var(--black);
-  color:#fff;
-  font-family:'Nunito',sans-serif;
-}
+  nav {
+    position: fixed; top: 0; width: 100%; z-index: 100;
+    padding: 1.2rem 3rem; display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(212,168,67,0.1); backdrop-filter: blur(4px);
+  }
+  .nav-logo { font-family: 'Cinzel', serif; font-weight: 900; font-size: 1.1rem; color: var(--gold); text-decoration: none; letter-spacing: 0.2em; }
+  .nav-back { font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--silver); text-decoration: none; letter-spacing: 0.2em; text-transform: uppercase; transition: color 0.3s; }
+  .nav-back:hover { color: var(--gold); }
 
-/* ───── NAV (comme tes autres jeux) ───── */
-nav{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:100;
-  padding:1rem 1.5rem;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  background:rgba(6,5,10,0.95);
-  backdrop-filter:blur(10px);
-  border-bottom:1px solid rgba(212,168,67,0.15);
-}
+  main {
+    position: relative; z-index: 1;
+    max-width: 680px; margin: 0 auto;
+    padding: 8rem 2rem 5rem;
+    display: flex; flex-direction: column; align-items: center; gap: 2rem;
+  }
 
-.nav-logo{
-  font-family:'Cinzel';
-  font-weight:900;
-  color:var(--gold);
-  text-decoration:none;
-  letter-spacing:0.2em;
-}
+  .game-title { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.4em; color: var(--gold); text-transform: uppercase; }
 
-.nav-back{
-  font-family:'Cinzel';
-  font-size:0.7rem;
-  color:var(--silver);
-  text-decoration:none;
-}
+  /* Score bar */
+  .score-bar {
+    display: flex; gap: 2rem; justify-content: center;
+    font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.2em; color: var(--silver);
+  }
+  .score-bar span { color: var(--gold-light); font-size: 1.1rem; }
 
-/* ───── MAIN ───── */
-main{
-  padding:6rem 1rem 3rem;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:1rem;
-}
+  /* Lang toggle */
+  .lang-toggle {
+    display: flex; border: 1px solid rgba(212,168,67,0.2); overflow: hidden;
+  }
+  .lang-btn {
+    font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 0.4rem 0.9rem; border: none; cursor: pointer; transition: all 0.2s;
+    background: transparent; color: var(--silver);
+  }
+  .lang-btn.active { background: var(--gold); color: var(--black); }
+  .lang-btn:hover:not(.active) { color: var(--gold); }
 
-/* HUD */
-.hud{
-  display:flex;
-  gap:1.5rem;
-  font-family:'Cinzel';
-  font-size:0.75rem;
-  color:var(--silver);
-}
-.hud span{
-  color:var(--gold);
-  font-weight:900;
-}
+  /* VS layout */
+  .duel-grid {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; width: 100%; align-items: start;
+  }
+  .vs-badge {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; font-weight: 900; letter-spacing: 0.2em;
+    color: var(--silver); border: 1px solid rgba(212,168,67,0.15);
+    width: 2.8rem; height: 2.8rem; display: flex; align-items: center; justify-content: center;
+    background: var(--ink); margin-top: 2rem;
+  }
 
-/* GAME */
-.game{
-  width:100%;
-  max-width:520px;
-  display:flex;
-  flex-direction:column;
-  gap:1rem;
-}
+  /* Card panel */
+  .card-panel {
+    background: var(--ink); border: 1px solid rgba(212,168,67,0.15);
+    padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+    transition: border-color 0.3s;
+  }
+  .card-panel.correct { border-color: var(--green-border); background: var(--green); }
+  .card-panel.wrong   { border-color: var(--red-border);   background: var(--red); }
 
-/* CARDS GRID (PC + mobile propre) */
-.cards{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:0.8rem;
-}
+  .panel-eyebrow { font-family: 'Cinzel', serif; font-size: 0.55rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--silver); }
 
-.card{
-  background:var(--ink);
-  border:1px solid rgba(212,168,67,0.15);
-  border-radius:14px;
-  padding:0.8rem;
-  text-align:center;
-  transition:0.2s;
-}
+  .card-thumb-wrap {
+    width: 90px; height: 130px; position: relative;
+    border: 1px solid rgba(212,168,67,0.15); background: var(--black); flex-shrink: 0;
+  }
+  .card-thumb { width: 100%; height: 100%; object-fit: cover; display: none; }
+  .card-spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
 
-/* image CARRÉE clean */
-.card img{
-  width:100%;
-  aspect-ratio:1/1;
-  object-fit:cover;
-  border-radius:12px;
-  margin-bottom:0.5rem;
-  background:#0f0f18;
-}
+  .card-name { font-family: 'Cinzel', serif; font-size: 0.78rem; color: var(--gold-light); letter-spacing: 0.06em; text-align: center; line-height: 1.3; }
+  .card-type { font-size: 0.75rem; color: var(--silver); font-style: italic; text-align: center; }
 
-.name{
-  font-size:0.8rem;
-  font-weight:700;
-  color:#fff;
-  margin-bottom:0.2rem;
-}
+  .price-label { font-family: 'Cinzel', serif; font-size: 0.55rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--silver); }
+  .price-val {
+    font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 700;
+    color: var(--gold-light); letter-spacing: 0.05em;
+  }
+  .price-val.hidden { color: rgba(212,168,67,0.25); font-size: 1.2rem; letter-spacing: 0.4em; }
+  .price-source { font-size: 0.6rem; color: rgba(138,143,168,0.4); letter-spacing: 0.15em; text-transform: uppercase; }
 
-.price{
-  font-size:1.4rem;
-  font-weight:900;
-  color:var(--gold-light);
-}
+  /* Guess buttons */
+  .guess-btns { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; margin-top: 0.4rem; }
+  .guess-btn {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    padding: 0.7rem 1rem; border: 1px solid; cursor: pointer; transition: all 0.25s;
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  }
+  .guess-btn.higher { background: rgba(196,64,32,0.1); color: #e07060; border-color: rgba(196,64,32,0.35); }
+  .guess-btn.higher:hover:not(:disabled) { background: rgba(196,64,32,0.2); box-shadow: 0 0 18px rgba(196,64,32,0.2); transform: translateY(-2px); }
+  .guess-btn.lower  { background: rgba(58,74,196,0.1); color: #7090e0; border-color: rgba(58,74,196,0.35); }
+  .guess-btn.lower:hover:not(:disabled)  { background: rgba(58,74,196,0.2); box-shadow: 0 0 18px rgba(58,74,196,0.2); transform: translateY(-2px); }
+  .guess-btn:disabled { cursor: default; opacity: 0.4; transform: none; box-shadow: none; }
+  .guess-btn.correct { background: var(--green) !important; border-color: var(--green-border) !important; color: var(--green-text) !important; }
+  .guess-btn.wrong   { background: var(--red)   !important; border-color: var(--red-border)   !important; color: var(--red-text)   !important; opacity: 0.5; }
 
-/* BUTTONS */
-.buttons{
-  display:flex;
-  gap:0.7rem;
-}
+  /* Lives */
+  .lives-bar { display: flex; gap: 0.4rem; align-items: center; }
+  .life { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px rgba(212,168,67,0.4); transition: all 0.3s; }
+  .life.lost { background: rgba(212,168,67,0.12); box-shadow: none; }
 
-button{
-  flex:1;
-  padding:0.9rem;
-  border:none;
-  border-radius:10px;
-  font-family:'Cinzel';
-  font-weight:900;
-  letter-spacing:0.1em;
-  cursor:pointer;
-  font-size:0.75rem;
-  transition:0.15s;
-}
+  /* Result */
+  .result-msg {
+    font-family: 'Cinzel', serif; font-size: 0.9rem; letter-spacing: 0.08em;
+    text-align: center; padding: 0.8rem 1.5rem;
+    animation: fadeUp 0.3s forwards; min-height: 2.5rem;
+  }
+  .result-msg.correct { color: var(--green-text); }
+  .result-msg.wrong   { color: var(--red-text); }
 
-.higher{background:#c93046;color:#fff;}
-.lower{background:#3a47d4;color:#fff;}
+  /* Countdown */
+  .countdown-wrap { width: 100%; height: 2px; background: rgba(212,168,67,0.1); display: none; }
+  .countdown-fill { height: 100%; background: var(--gold); transform-origin: left; }
 
-button:active{transform:scale(0.97);}
+  /* Buttons */
+  .btn {
+    font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.25em; text-transform: uppercase;
+    padding: 0.9rem 2.2rem; border: 1px solid; cursor: pointer; transition: all 0.3s;
+    background: var(--gold); color: var(--black); border-color: var(--gold); text-decoration: none; display: inline-block;
+  }
+  .btn:hover { background: var(--gold-light); box-shadow: 0 0 30px rgba(212,168,67,0.35); transform: translateY(-2px); }
+  .btn-ghost { background: transparent; color: var(--silver); border-color: rgba(138,143,168,0.3); }
+  .btn-ghost:hover { color: var(--white); border-color: var(--white); }
 
-/* RESULT */
-.result{
-  text-align:center;
-  font-family:'Cinzel';
-  font-size:0.95rem;
-  padding:0.6rem;
-  border-radius:10px;
-  min-height:1.2rem;
-}
+  /* Loading */
+  .loading { font-style: italic; color: var(--silver); letter-spacing: 0.15em; font-size: 0.9rem; }
+  .loading-bar-wrap { width: 220px; height: 3px; background: rgba(212,168,67,0.1); border-radius: 99px; overflow: hidden; }
+  .loading-bar { height: 100%; background: var(--gold); border-radius: 99px; width: 0%; transition: width 0.3s; }
 
-.win{color:var(--good);}
-.lose{color:var(--bad);}
+  /* Game over overlay */
+  .gameover-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(6,5,10,0.96); backdrop-filter: blur(20px);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1.8rem; text-align: center; padding: 2rem;
+  }
+  .gameover-overlay.show { display: flex; animation: fadeUp 0.4s ease; }
+  .go-title { font-family: 'Cinzel', serif; font-size: clamp(2.5rem,8vw,4.5rem); font-weight: 900; color: var(--red-text); letter-spacing: 0.05em; }
+  .go-sub { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--silver); }
+  .go-stats { display: flex; gap: 2rem; border: 1px solid rgba(212,168,67,0.12); padding: 1.5rem 2.5rem; background: var(--ink); }
+  .go-stat-v { font-family: 'Cinzel', serif; font-size: 2.2rem; font-weight: 900; color: var(--gold-light); }
+  .go-stat-l { font-family: 'Cinzel', serif; font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--silver); margin-top: 0.3rem; }
 
-/* NEXT (auto + bouton fallback) */
-.next{
-  background:var(--gold);
-  color:#111;
-  padding:0.9rem;
-  border-radius:10px;
-  font-weight:900;
-  border:none;
-  cursor:pointer;
-  display:none;
-}
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* MOBILE */
-@media (max-width:500px){
-  .cards{grid-template-columns:1fr;}
-  .price{font-size:1.2rem;}
-  button{font-size:0.7rem;}
-}
+  @media (max-width: 540px) {
+    nav { padding: 1rem 1.5rem; }
+    main { padding: 6rem 1rem 3rem; }
+    .duel-grid { grid-template-columns: 1fr; }
+    .vs-badge { margin: 0 auto; }
+  }
 </style>
 </head>
-
 <body>
 
 <nav>
@@ -193,115 +189,370 @@ button:active{transform:scale(0.97);}
 </nav>
 
 <main>
+  <p class="game-title">⚡ YGO Price Duel</p>
 
-<div class="hud">
-  <div>Score <span id="score">0</span></div>
-  <div>🔥 <span id="streak">0</span></div>
-</div>
+  <div style="display:flex; gap:1.5rem; align-items:center; flex-wrap:wrap; justify-content:center;">
+    <div class="score-bar">
+      <div>🏆 <span id="hRecord">0</span></div>
+      <div>✅ <span id="hScore">0</span></div>
+      <div>🔥 <span id="hStreak">0</span></div>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="btnFR" onclick="setLang('fr')">FR</button>
+      <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
 
-<div class="game">
+  <div class="lives-bar" id="lives-bar"></div>
 
-  <div class="cards">
+  <div id="loading-area" style="display:flex; flex-direction:column; align-items:center; gap:0.8rem;">
+    <p class="loading" id="loadingTxt">Chargement des cartes…</p>
+    <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
+  </div>
 
-    <div class="card">
-      <img id="imgA">
-      <div class="name" id="nameA"></div>
-      <div class="price" id="priceA"></div>
+  <div id="game-area" style="display:none; width:100%; display:none; flex-direction:column; align-items:center; gap:1.5rem;">
+
+    <div class="duel-grid" id="duel-grid">
+      <!-- Panel A -->
+      <div class="card-panel" id="panelA">
+        <p class="panel-eyebrow" id="eyebrowA">Carte A · Prix connu</p>
+        <div class="card-thumb-wrap">
+          <img id="imgA" class="card-thumb" alt="">
+          <div class="card-spinner" id="spinA">🃏</div>
+        </div>
+        <p class="card-name" id="nameA">—</p>
+        <p class="card-type" id="typeA"></p>
+        <p class="price-label" id="worthA">vaut</p>
+        <p class="price-val" id="priceA">—</p>
+        <p class="price-source">Cardmarket</p>
+      </div>
+
+      <!-- VS -->
+      <div class="vs-badge">VS</div>
+
+      <!-- Panel B -->
+      <div class="card-panel" id="panelB">
+        <p class="panel-eyebrow" id="eyebrowB">Carte B · Devinez</p>
+        <div class="card-thumb-wrap">
+          <img id="imgB" class="card-thumb" alt="">
+          <div class="card-spinner" id="spinB">🃏</div>
+        </div>
+        <p class="card-name" id="nameB">—</p>
+        <p class="card-type" id="typeB"></p>
+        <p class="price-label" id="isB">est</p>
+        <p class="price-val hidden" id="priceB">?</p>
+        <p class="price-source">Cardmarket</p>
+        <div class="guess-btns">
+          <button class="guess-btn higher" id="btnH" onclick="guess('higher')">↑ <span id="lblHigher">Plus cher</span></button>
+          <button class="guess-btn lower"  id="btnL" onclick="guess('lower')">↓ <span id="lblLower">Moins cher</span></button>
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <img id="imgB">
-      <div class="name" id="nameB"></div>
-      <div class="price" id="priceB">?</div>
+    <div id="result-msg" class="result-msg" style="display:none"></div>
+
+    <div class="countdown-wrap" id="countdown-wrap">
+      <div class="countdown-fill" id="countdown-fill"></div>
+    </div>
+
+    <div id="next-area" style="display:none">
+      <button class="btn" onclick="nextRound()">Carte suivante →</button>
     </div>
 
   </div>
 
-  <div class="buttons">
-    <button class="higher" onclick="guess('higher')">PLUS CHER</button>
-    <button class="lower" onclick="guess('lower')">MOINS CHER</button>
-  </div>
-
-  <div id="result" class="result"></div>
-
-  <button id="nextBtn" class="next" onclick="next()">CARTE SUIVANTE →</button>
-
-</div>
-
+  <a class="btn btn-ghost" href="../minijeux.html">← Retour</a>
 </main>
 
+<!-- Game Over -->
+<div class="gameover-overlay" id="gameover">
+  <p class="go-title">Game Over</p>
+  <p class="go-sub" id="goSub">Tu as épuisé tes vies</p>
+  <div class="go-stats">
+    <div class="go-stat">
+      <div class="go-stat-v" id="goScore">0</div>
+      <div class="go-stat-l" id="goScoreLbl">Score final</div>
+    </div>
+    <div style="width:1px;background:rgba(212,168,67,0.15)"></div>
+    <div class="go-stat">
+      <div class="go-stat-v" id="goBest">0</div>
+      <div class="go-stat-l" id="goBestLbl">Record</div>
+    </div>
+  </div>
+  <button class="btn" onclick="restart()">↩ <span id="lblReplay">Rejouer</span></button>
+</div>
+
 <script>
-let cards=[],a,b;
-let score=0,streak=0;
-let locked=false;
+/* ═══ I18N ═══ */
+const LANGS = {
+  fr: {
+    eyebrowA:'Carte A · Prix connu', eyebrowB:'Carte B · Devinez',
+    worth:'vaut', is:'est',
+    higher:'Plus cher', lower:'Moins cher',
+    loading:'Chargement des cartes…',
+    loadingDone: n => `${n} cartes chargées !`,
+    loadingCache: n => `${n} cartes (cache) !`,
+    loadingError:'Erreur de chargement 😢',
+    toastCorrect:(diff,s)=>`✅ Correct ! Écart : €${diff}${s}`,
+    toastWrong:(name,price)=>`❌ Raté ! ${name} = €${price}`,
+    streakSuffix: s => ` · 🔥 ×${s}`,
+    gameOver:'Tu as épuisé tes vies', finalScore:'Score final', record:'Record', replay:'Rejouer',
+    nextBtn:'Carte suivante →',
+  },
+  en: {
+    eyebrowA:'Card A · Known Price', eyebrowB:'Card B · Guess',
+    worth:'is worth', is:'is',
+    higher:'More expensive', lower:'Less expensive',
+    loading:'Loading cards…',
+    loadingDone: n => `${n} cards loaded!`,
+    loadingCache: n => `${n} cards (cached)!`,
+    loadingError:'Loading error 😢',
+    toastCorrect:(diff,s)=>`✅ Correct! Gap: €${diff}${s}`,
+    toastWrong:(name,price)=>`✗ Wrong! ${name} = €${price}`,
+    streakSuffix: s => ` · 🔥 ×${s}`,
+    gameOver:'You ran out of lives', finalScore:'Final Score', record:'Record', replay:'Play Again',
+    nextBtn:'Next card →',
+  }
+};
 
-/* LOAD */
-async function load(){
-  const r=await fetch("https://db.ygoprodeck.com/api/v7/cardinfo.php?format=tcg");
-  const d=await r.json();
+let lang = localStorage.getItem('ygo_lang') || 'fr';
+function t(key,...args){const v=LANGS[lang][key];return typeof v==='function'?v(...args):v;}
 
-  cards=d.data
-    .filter(c=>c.card_images?.[0])
-    .map(c=>({
-      name:c.name,
-      price:parseFloat(c.card_prices?.[0]?.cardmarket_price||0),
-      img:c.card_images[0].image_url_cropped
-    }))
-    .filter(c=>c.price>0.1);
-
-  next();
+function setLang(l){
+  lang=l; localStorage.setItem('ygo_lang',l);
+  document.getElementById('btnFR').classList.toggle('active',l==='fr');
+  document.getElementById('btnEN').classList.toggle('active',l==='en');
+  document.getElementById('eyebrowA').textContent=t('eyebrowA');
+  document.getElementById('eyebrowB').textContent=t('eyebrowB');
+  document.getElementById('worthA').textContent=t('worth');
+  document.getElementById('isB').textContent=t('is');
+  document.getElementById('lblHigher').textContent=t('higher');
+  document.getElementById('lblLower').textContent=t('lower');
+  document.getElementById('goSub').textContent=t('gameOver');
+  document.getElementById('goScoreLbl').textContent=t('finalScore');
+  document.getElementById('goBestLbl').textContent=t('record');
+  document.getElementById('lblReplay').textContent=t('replay');
 }
 
-/* NEXT ROUND */
-function next(){
-  locked=false;
-  document.getElementById("result").textContent="";
-  document.getElementById("nextBtn").style.display="none";
+/* ═══ CARD FETCHING ═══ */
+let DECK_BASE = [];
+const TOTAL_APPROX = 10000, CARDS_NEEDED = 80, BATCH = 20;
 
-  a=cards[Math.random()*cards.length|0];
-  b=cards[Math.random()*cards.length|0];
-
-  document.getElementById("imgA").src=a.img;
-  document.getElementById("imgB").src=b.img;
-
-  document.getElementById("nameA").textContent=a.name;
-  document.getElementById("nameB").textContent=b.name;
-
-  document.getElementById("priceA").textContent="€"+a.price.toFixed(2);
-  document.getElementById("priceB").textContent="?";
+async function fetchRandomCards(){
+  const txt=document.getElementById('loadingTxt');
+  const bar=document.getElementById('loadingBar');
+  txt.textContent=t('loading');
+  const results=[], seen=new Set();
+  const batches=Math.ceil(CARDS_NEEDED/BATCH)+3;
+  for(let b=0;b<batches;b++){
+    try{
+      const off=Math.floor(Math.random()*(TOTAL_APPROX-BATCH));
+      const url=`https://db.ygoprodeck.com/api/v7/cardinfo.php?format=tcg&num=${BATCH}&offset=${off}&sort=name`;
+      const resp=await fetch(url,{mode:'cors'});
+      if(!resp.ok){await sleep(200);continue;}
+      const json=await resp.json();
+      if(!json.data) continue;
+      for(const card of json.data){
+        const price=parseFloat(card.card_prices?.[0]?.cardmarket_price||'0');
+        const img=card.card_images?.[0];
+        if(price>=0.10&&img&&!seen.has(img.id)){
+          seen.add(img.id);
+          results.push({name:card.name,type:card.type,id:img.id,
+            imgCrop:img.image_url_cropped||img.image_url_small||img.image_url,price});
+        }
+      }
+      const pct=Math.round(Math.min(results.length/CARDS_NEEDED,0.99)*100);
+      bar.style.width=pct+'%';
+      txt.textContent=t('loading')+` (${results.length}/${CARDS_NEEDED})`;
+      if(results.length>=CARDS_NEEDED) break;
+      await sleep(60);
+    }catch(e){await sleep(300);}
+  }
+  DECK_BASE=results;
+  bar.style.width='100%';
+  txt.textContent=t('loadingDone',DECK_BASE.length);
+  try{sessionStorage.setItem('ygo_deck_cache_v3',JSON.stringify(DECK_BASE));}catch(e){}
+  await sleep(400);
+  return DECK_BASE.length>=4;
 }
 
-/* GUESS */
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+/* ═══ HELPERS ═══ */
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+function loadImg(side, card){
+  const img=document.getElementById('img'+side);
+  const spin=document.getElementById('spin'+side);
+  img.style.display='none'; spin.style.display='flex';
+  const fallback=`https://images.ygoprodeck.com/images/cards/${card.id}.jpg`;
+  function tryUrl(url,fb){
+    const tmp=new Image();
+    tmp.onload=()=>{img.src=url;img.style.display='block';spin.style.display='none';};
+    tmp.onerror=fb; tmp.src=url;
+  }
+  tryUrl(card.imgCrop,()=>tryUrl(fallback,()=>{spin.textContent='🃏';}));
+}
+
+/* ═══ STATE ═══ */
+const MAX_LIVES=5, DELAY_MS=2200;
+let best=+localStorage.getItem('ygo_best_v11')||0;
+let deck=[], ptr=0, cardA, cardB;
+let score=0, streak=0, lives=MAX_LIVES;
+let answered=false, autoTimer=null;
+
+/* ═══ HUD ═══ */
+function renderHUD(){
+  document.getElementById('hScore').textContent=score;
+  document.getElementById('hRecord').textContent=best;
+  document.getElementById('hStreak').textContent=streak>0?streak+'🔥':'0';
+  const bar=document.getElementById('lives-bar');
+  bar.innerHTML='';
+  for(let i=0;i<MAX_LIVES;i++){
+    const d=document.createElement('div');
+    d.className='life'+(i>=lives?' lost':'');
+    bar.appendChild(d);
+  }
+}
+
+/* ═══ PANEL ═══ */
+function setPanel(side, card, showPrice){
+  loadImg(side, card);
+  document.getElementById('name'+side).textContent=card.name;
+  document.getElementById('type'+side).textContent=card.type||'';
+  document.getElementById('panel'+side).className='card-panel';
+  const pEl=document.getElementById('price'+side);
+  if(showPrice){pEl.className='price-val';pEl.textContent=`€${card.price.toFixed(2)}`;}
+  else{pEl.className='price-val hidden';pEl.textContent='?';}
+}
+
+/* ═══ PICK ═══ */
+function pick(){
+  if(ptr+1>=deck.length){deck=shuffle(DECK_BASE);ptr=0;}
+  let a=deck[ptr],b=deck[ptr+1],tries=0;
+  while(Math.abs(a.price-b.price)<0.05&&tries<30){
+    ptr++;if(ptr+1>=deck.length){deck=shuffle(DECK_BASE);ptr=0;}
+    b=deck[ptr+1];tries++;
+  }
+  cardA=a;cardB=b;ptr+=2;
+}
+
+/* ═══ NEXT ROUND ═══ */
+function nextRound(){
+  clearTimeout(autoTimer); answered=false; stopCountdown();
+  document.getElementById('result-msg').style.display='none';
+  document.getElementById('next-area').style.display='none';
+  const btnH=document.getElementById('btnH'), btnL=document.getElementById('btnL');
+  btnH.disabled=false; btnL.disabled=false;
+  btnH.className='guess-btn higher'; btnL.className='guess-btn lower';
+  pick();
+  setPanel('A',cardA,true);
+  setPanel('B',cardB,false);
+  renderHUD();
+}
+
+/* ═══ COUNTDOWN ═══ */
+function startCountdown(ms){
+  const wrap=document.getElementById('countdown-wrap');
+  const fill=document.getElementById('countdown-fill');
+  wrap.style.display='block';
+  fill.style.transition='none'; fill.style.transform='scaleX(1)';
+  fill.getBoundingClientRect();
+  fill.style.transition=`transform ${ms}ms linear`; fill.style.transform='scaleX(0)';
+  autoTimer=setTimeout(()=>{stopCountdown();nextRound();},ms);
+}
+function stopCountdown(){
+  clearTimeout(autoTimer);
+  document.getElementById('countdown-wrap').style.display='none';
+  const fill=document.getElementById('countdown-fill');
+  fill.style.transition='none'; fill.style.transform='scaleX(1)';
+}
+
+/* ═══ GUESS ═══ */
 function guess(choice){
-  if(locked) return;
-  locked=true;
+  if(answered) return;
+  answered=true;
+  const btnH=document.getElementById('btnH'), btnL=document.getElementById('btnL');
+  btnH.disabled=true; btnL.disabled=true;
 
-  let correct = b.price > a.price ? "higher" : "lower";
-  let ok = choice === correct;
+  const pEl=document.getElementById('priceB');
+  pEl.className='price-val'; pEl.textContent=`€${cardB.price.toFixed(2)}`;
 
-  document.getElementById("priceB").textContent="€"+b.price.toFixed(2);
+  const correct=cardB.price>cardA.price?'higher':'lower';
+  const ok=(choice===correct);
 
-  const res=document.getElementById("result");
-
-  if(ok){
-    score++; streak++;
-    res.textContent="✅ correct";
-    res.className="result win";
-  }else{
-    streak=0;
-    res.textContent="❌ wrong";
-    res.className="result lose";
+  if(choice==='higher'){
+    btnH.className='guess-btn '+(ok?'correct':'wrong');
+    if(!ok) btnL.className='guess-btn correct';
+  } else {
+    btnL.className='guess-btn '+(ok?'correct':'wrong');
+    if(!ok) btnH.className='guess-btn correct';
   }
 
-  document.getElementById("score").textContent=score;
-  document.getElementById("streak").textContent=streak;
+  document.getElementById('panelB').className='card-panel '+(ok?'correct':'wrong');
 
-  // AUTO NEXT comme tes autres jeux
-  setTimeout(next, 1400);
+  const msg=document.getElementById('result-msg');
+  if(ok){
+    score++;streak++;
+    if(score>best){best=score;localStorage.setItem('ygo_best_v11',best);}
+    const diff=Math.abs(cardA.price-cardB.price).toFixed(2);
+    const s=streak>=3?t('streakSuffix',streak):'';
+    msg.textContent=t('toastCorrect',diff,s);
+    msg.className='result-msg correct';
+  } else {
+    streak=0;lives--;
+    const winner=cardA.price>cardB.price?cardA:cardB;
+    msg.textContent=t('toastWrong',winner.name,Math.max(cardA.price,cardB.price).toFixed(2));
+    msg.className='result-msg wrong';
+  }
+  msg.style.display='block';
+  renderHUD();
+  if(lives<=0){setTimeout(gameOver,1600);}
+  else{startCountdown(DELAY_MS);document.getElementById('next-area').style.display='block';}
 }
 
-load();
-</script>
+/* ═══ GAME OVER ═══ */
+function gameOver(){
+  stopCountdown();
+  document.getElementById('goScore').textContent=score;
+  document.getElementById('goBest').textContent=best;
+  document.getElementById('gameover').classList.add('show');
+}
+function restart(){
+  score=streak=0;lives=MAX_LIVES;answered=false;ptr=0;
+  deck=shuffle(DECK_BASE);
+  document.getElementById('gameover').classList.remove('show');
+  renderHUD();nextRound();
+}
 
+/* ═══ INIT ═══ */
+async function init(){
+  setLang(lang);
+  try{
+    const cached=sessionStorage.getItem('ygo_deck_cache_v3');
+    if(cached){
+      DECK_BASE=JSON.parse(cached);
+      if(DECK_BASE.length>=4){
+        document.getElementById('loadingTxt').textContent=t('loadingCache',DECK_BASE.length);
+        document.getElementById('loadingBar').style.width='100%';
+        await sleep(400); startGame(); return;
+      }
+    }
+  }catch(e){}
+  const ok=await fetchRandomCards();
+  if(!ok){document.getElementById('loadingTxt').textContent=t('loadingError');return;}
+  startGame();
+}
+
+function startGame(){
+  document.getElementById('loading-area').style.display='none';
+  const ga=document.getElementById('game-area');
+  ga.style.display='flex';
+  deck=shuffle(DECK_BASE);
+  renderHUD();nextRound();
+}
+
+init();
+</script>
 </body>
 </html>
