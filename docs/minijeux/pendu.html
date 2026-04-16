@@ -8,166 +8,55 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
 <style>
   :root {
-    --black: #06050a;
-    --ink: #131119;
-    --gold: #d4a843;
-    --gold-light: #f0c860;
-    --silver: #8a8fa8;
-    --white: #f0ecf5;
+    --black: #06050a; --ink: #131119;
+    --gold: #d4a843; --gold-light: #f0c860;
+    --silver: #8a8fa8; --white: #f0ecf5;
     --mystic: #7a3a8a;
-    --green: #3a8a4a;
-    --red: #8a3a3a;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: var(--black);
-    color: var(--white);
-    font-family: 'Crimson Pro', serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(122,58,138,0.15) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  nav {
-    position: fixed; top: 0; width: 100%; z-index: 100;
-    padding: 1.2rem 3rem;
-    display: flex; align-items: center; justify-content: space-between;
-    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
-    border-bottom: 1px solid rgba(212,168,67,0.1);
-    backdrop-filter: blur(4px);
-  }
+  body { background: var(--black); color: var(--white); font-family: 'Crimson Pro', serif; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(122,58,138,0.15) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+  nav { position: fixed; top: 0; width: 100%; z-index: 100; padding: 1.2rem 3rem; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%); border-bottom: 1px solid rgba(212,168,67,0.1); backdrop-filter: blur(4px); }
   .nav-logo { font-family: 'Cinzel', serif; font-weight: 900; font-size: 1.1rem; color: var(--gold); text-decoration: none; letter-spacing: 0.2em; }
   .nav-back { font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--silver); text-decoration: none; letter-spacing: 0.2em; text-transform: uppercase; transition: color 0.3s; }
   .nav-back:hover { color: var(--gold); }
+  main { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; padding: 8rem 2rem 5rem; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
+  .game-title { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.4em; color: var(--gold); text-transform: uppercase; text-align: center; }
 
-  main {
-    position: relative; z-index: 1;
-    max-width: 700px; margin: 0 auto;
-    padding: 8rem 2rem 5rem;
-    display: flex; flex-direction: column; align-items: center; gap: 2rem;
-  }
-
-  .game-title {
-    font-family: 'Cinzel', serif; font-size: 0.7rem;
-    letter-spacing: 0.4em; color: var(--gold); text-transform: uppercase; text-align: center;
-  }
-
-  /* Pendu ASCII */
-  .pendu-ascii {
-    font-family: 'Courier New', monospace;
-    font-size: 0.9rem;
-    color: var(--silver);
-    background: var(--ink);
-    border: 1px solid rgba(212,168,67,0.12);
-    padding: 1.5rem 2rem;
-    white-space: pre;
-    line-height: 1.4;
-    min-width: 220px;
-    text-align: left;
-    transition: color 0.3s;
-  }
+  .pendu-ascii { font-family: 'Courier New', monospace; font-size: 0.9rem; color: var(--silver); background: var(--ink); border: 1px solid rgba(212,168,67,0.12); padding: 1.5rem 2rem; white-space: pre; line-height: 1.4; min-width: 220px; text-align: left; transition: color 0.3s; }
   .pendu-ascii.danger { color: #c44020; }
 
-  /* Mot affiché */
-  .word-display {
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem;
-    min-height: 3rem;
-  }
-  .letter-box {
-    font-family: 'Cinzel', serif;
-    font-size: 1.4rem; font-weight: 700;
-    width: 2rem; height: 2.5rem;
-    display: flex; align-items: center; justify-content: center;
-    border-bottom: 2px solid rgba(212,168,67,0.4);
-    color: var(--gold-light);
-    transition: all 0.2s;
-  }
-  .letter-box.separator {
-    border-bottom: none;
-    color: var(--silver);
-  }
-  .letter-box.revealed { animation: pop 0.25s ease; }
+  .word-display { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; min-height: 3rem; }
+  .letter-box { font-family: 'Cinzel', serif; font-size: 1.4rem; font-weight: 700; width: 2rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-bottom: 2px solid rgba(212,168,67,0.4); color: var(--gold-light); transition: all 0.2s; }
+  .letter-box.separator { border-bottom: none; color: var(--silver); }
   @keyframes pop { 0% { transform: scale(1.3); } 100% { transform: scale(1); } }
 
-  /* Indice */
-  .indice-box {
-    font-style: italic; font-size: 0.95rem; color: var(--silver);
-    background: rgba(122,58,138,0.1);
-    border: 1px solid rgba(122,58,138,0.2);
-    padding: 0.6rem 1.2rem;
-    text-align: center;
-  }
+  .indice-box { font-style: italic; font-size: 0.95rem; color: var(--silver); background: rgba(122,58,138,0.1); border: 1px solid rgba(122,58,138,0.2); padding: 0.6rem 1.2rem; text-align: center; }
 
-  /* Erreurs */
-  .erreurs-bar {
-    display: flex; gap: 0.5rem; align-items: center;
-    font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.2em; color: var(--silver);
-  }
-  .erreur-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: rgba(196,64,32,0.25);
-    border: 1px solid rgba(196,64,32,0.4);
-    transition: background 0.3s;
-  }
+  .erreurs-bar { display: flex; gap: 0.5rem; align-items: center; font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.2em; color: var(--silver); }
+  .erreur-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(196,64,32,0.25); border: 1px solid rgba(196,64,32,0.4); transition: background 0.3s; }
   .erreur-dot.active { background: #c44020; border-color: #c44020; }
 
-  /* Lettres tentées */
-  .lettres-tentees {
-    font-size: 0.85rem; color: rgba(138,143,168,0.6);
-    letter-spacing: 0.1em;
-    text-align: center;
-    min-height: 1.5rem;
-  }
+  .lettres-tentees { font-size: 0.85rem; color: rgba(138,143,168,0.6); letter-spacing: 0.1em; text-align: center; min-height: 1.5rem; }
 
-  /* Keyboard */
-  .keyboard {
-    display: flex; flex-direction: column; gap: 0.4rem; align-items: center;
-    width: 100%;
-  }
+  .keyboard { display: flex; flex-direction: column; gap: 0.4rem; align-items: center; width: 100%; }
   .keyboard-row { display: flex; gap: 0.4rem; justify-content: center; }
-  .key {
-    font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 700;
-    width: 2.4rem; height: 2.4rem;
-    background: var(--ink);
-    border: 1px solid rgba(212,168,67,0.15);
-    color: var(--silver);
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex; align-items: center; justify-content: center;
-  }
+  .key { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 700; width: 2.4rem; height: 2.4rem; background: var(--ink); border: 1px solid rgba(212,168,67,0.15); color: var(--silver); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
   .key:hover:not(:disabled) { background: rgba(212,168,67,0.1); color: var(--gold); border-color: rgba(212,168,67,0.4); }
   .key:disabled { cursor: default; opacity: 0.3; }
   .key.correct { background: rgba(58,138,74,0.2); color: #6fc87d; border-color: rgba(58,138,74,0.4); }
   .key.wrong { background: rgba(138,58,58,0.15); color: rgba(196,64,32,0.6); border-color: rgba(138,58,58,0.3); }
 
-  /* Bouton */
-  .btn {
-    font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.25em; text-transform: uppercase;
-    padding: 0.9rem 2.2rem; border: 1px solid; cursor: pointer; transition: all 0.3s;
-    background: var(--gold); color: var(--black); border-color: var(--gold);
-  }
+  .btn { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.25em; text-transform: uppercase; padding: 0.9rem 2.2rem; border: 1px solid; cursor: pointer; transition: all 0.3s; background: var(--gold); color: var(--black); border-color: var(--gold); }
   .btn:hover { background: var(--gold-light); box-shadow: 0 0 30px rgba(212,168,67,0.35); transform: translateY(-2px); }
   .btn-ghost { background: transparent; color: var(--silver); border-color: rgba(138,143,168,0.3); }
   .btn-ghost:hover { color: var(--white); border-color: var(--white); }
 
-  /* Result overlay */
-  .result-banner {
-    font-family: 'Cinzel', serif; font-size: 1.2rem; letter-spacing: 0.1em;
-    padding: 1rem 2rem; border: 1px solid; text-align: center; width: 100%;
-    animation: fadeUp 0.4s forwards;
-  }
+  .result-banner { font-family: 'Cinzel', serif; font-size: 1.2rem; letter-spacing: 0.1em; padding: 1rem 2rem; border: 1px solid; text-align: center; width: 100%; animation: fadeUp 0.4s forwards; }
   .result-banner.win { background: rgba(58,138,74,0.1); border-color: rgba(58,138,74,0.4); color: #6fc87d; }
   .result-banner.lose { background: rgba(138,58,58,0.1); border-color: rgba(138,58,58,0.4); color: #c44020; }
 
   .loading { font-style: italic; color: var(--silver); letter-spacing: 0.15em; font-size: 0.9rem; }
-
   @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
   @media (max-width: 500px) {
@@ -193,24 +82,19 @@
 
   <div class="erreurs-bar" id="erreurs-bar" style="display:none">
     <span style="margin-right:0.5rem">Erreurs :</span>
-    <div class="erreur-dot" id="d0"></div>
-    <div class="erreur-dot" id="d1"></div>
-    <div class="erreur-dot" id="d2"></div>
-    <div class="erreur-dot" id="d3"></div>
-    <div class="erreur-dot" id="d4"></div>
-    <div class="erreur-dot" id="d5"></div>
+    <div class="erreur-dot" id="d0"></div><div class="erreur-dot" id="d1"></div>
+    <div class="erreur-dot" id="d2"></div><div class="erreur-dot" id="d3"></div>
+    <div class="erreur-dot" id="d4"></div><div class="erreur-dot" id="d5"></div>
     <div class="erreur-dot" id="d6"></div>
   </div>
 
   <div id="word-display" class="word-display" style="display:none"></div>
   <div id="indice" class="indice-box" style="display:none"></div>
   <div id="lettres-tentees" class="lettres-tentees" style="display:none"></div>
-
   <div id="keyboard" class="keyboard" style="display:none"></div>
-
   <div id="result-banner" style="display:none"></div>
 
-  <div id="btn-area" style="display:none; display:flex; gap:1rem; flex-wrap:wrap; justify-content:center;">
+  <div id="btn-area" style="display:none; gap:1rem; flex-wrap:wrap; justify-content:center;">
     <button class="btn" onclick="newGame()">Nouvelle partie</button>
     <a class="btn btn-ghost" href="../minijeux.html">← Retour</a>
   </div>
@@ -238,10 +122,37 @@ function normalize(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+// Pool local de cartes pour éviter de refetch à chaque partie
+let CARD_POOL = [];
+let poolIndex = 0;
+
+async function refillPool() {
+  // Offset aléatoire dans les ~10000 cartes TCG
+  const offset = Math.floor(Math.random() * 9800);
+  const url = `https://db.ygoprodeck.com/api/v7/cardinfo.php?format=tcg&num=50&offset=${offset}&sort=name`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const cards = (data.data || []).filter(c => c.name && normalize(c.name).replace(/[^a-z]/g, '').length >= 4);
+  if (cards.length === 0) throw new Error('Pool vide');
+  // Mélange
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  CARD_POOL = cards;
+  poolIndex = 0;
+}
+
+async function pickCard() {
+  if (poolIndex >= CARD_POOL.length) await refillPool();
+  return CARD_POOL[poolIndex++];
+}
+
 let state = {};
 
 async function newGame() {
   document.getElementById('loading').style.display = 'block';
+  document.getElementById('loading').textContent = 'Chargement d\'une carte…';
   document.getElementById('pendu-ascii').style.display = 'none';
   document.getElementById('word-display').style.display = 'none';
   document.getElementById('indice').style.display = 'none';
@@ -252,11 +163,7 @@ async function newGame() {
   document.getElementById('btn-area').style.display = 'none';
 
   try {
-    const res = await fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr');
-    const data = await res.json();
-    const cards = data.data || [];
-    // pick a card with a reasonably long name
-    let card = cards.find(c => c.name && normalize(c.name).length >= 4) || cards[0];
+    const card = await pickCard();
 
     const nom = card.name.trim();
     const nomNorm = normalize(nom);
@@ -267,43 +174,34 @@ async function newGame() {
     if (attr) indice += ' / ' + attr;
     if (arch) indice += ' / ' + arch;
 
-    state = {
-      nom, nomNorm, indice,
-      trouve: new Set(),
-      rate: new Set(),
-      fini: false,
-      maxErreurs: 7
-    };
+    state = { nom, nomNorm, indice, trouve: new Set(), rate: new Set(), fini: false, maxErreurs: 7 };
 
     document.getElementById('loading').style.display = 'none';
     renderAll();
   } catch(e) {
     document.getElementById('loading').textContent = '❌ Impossible de charger une carte. Réessaie.';
+    document.getElementById('btn-area').style.display = 'flex';
   }
 }
 
 function renderAll() {
-  // ASCII
   const ascii = document.getElementById('pendu-ascii');
   ascii.textContent = PENDU_STAGES[Math.min(state.rate.size, 7)];
   ascii.className = 'pendu-ascii' + (state.rate.size >= 5 ? ' danger' : '');
   ascii.style.display = 'block';
 
-  // Erreurs dots
   const bar = document.getElementById('erreurs-bar');
   bar.style.display = 'flex';
   for (let i = 0; i < 7; i++) {
-    const dot = document.getElementById('d'+i);
-    dot.className = 'erreur-dot' + (i < state.rate.size ? ' active' : '');
+    document.getElementById('d'+i).className = 'erreur-dot' + (i < state.rate.size ? ' active' : '');
   }
 
-  // Word display
   const wd = document.getElementById('word-display');
   wd.style.display = 'flex';
   wd.innerHTML = '';
   for (const c of state.nom) {
     const box = document.createElement('div');
-    if ([' ','-',"'"].includes(c)) {
+    if ([' ', '-', "'"].includes(c)) {
       box.className = 'letter-box separator';
       box.textContent = c === ' ' ? '\u00A0' : c;
     } else {
@@ -314,21 +212,17 @@ function renderAll() {
     wd.appendChild(box);
   }
 
-  // Indice
   const ind = document.getElementById('indice');
   ind.textContent = '📋 ' + state.indice;
   ind.style.display = 'block';
 
-  // Lettres tentées
   const lt = document.getElementById('lettres-tentees');
   const tried = [...state.trouve, ...state.rate].sort();
   lt.textContent = tried.length ? 'Tentées : ' + tried.join(', ').toUpperCase() : '';
   lt.style.display = 'block';
 
-  // Keyboard
   buildKeyboard();
 
-  // Result
   const banner = document.getElementById('result-banner');
   banner.style.display = 'none';
 
@@ -342,11 +236,10 @@ function renderAll() {
       banner.className = 'result-banner lose';
       banner.textContent = '💀 Perdu ! La réponse était : ' + state.nom;
     }
-    // reveal all letters
     wd.innerHTML = '';
     for (const c of state.nom) {
       const box = document.createElement('div');
-      box.className = 'letter-box' + ([' ','-',"'"].includes(c) ? ' separator' : '');
+      box.className = 'letter-box' + ([' ', '-', "'"].includes(c) ? ' separator' : '');
       box.textContent = c.toUpperCase();
       wd.appendChild(box);
     }
@@ -391,7 +284,6 @@ function handleLetter(letter) {
   if (inWord) state.trouve.add(ln);
   else state.rate.add(ln);
 
-  // check win/lose
   const alphaChars = [...state.nomNorm].filter(c => c.match(/[a-z]/));
   const allFound = alphaChars.every(c => state.trouve.has(c));
   if (allFound) { state.fini = true; state.win = true; }
@@ -400,7 +292,6 @@ function handleLetter(letter) {
   renderAll();
 }
 
-// Keyboard support
 document.addEventListener('keydown', (e) => {
   if (state.fini || !state.nom) return;
   const l = e.key.toUpperCase();
