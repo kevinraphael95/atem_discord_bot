@@ -11,42 +11,54 @@
 
 <link rel="stylesheet" href="css/style.css">
 <script src="js/nav.js" defer></script>
+<script src="js/intro.js" defer></script>
 </head>
 
 <body>
+
+<!-- 🔥 INTRO CINEMATIC -->
+<div class="intro" id="intro">
+  <div class="particles"></div>
+  <div class="summon-circle"></div>
+  <div class="flash"></div>
+
+  <audio id="summonSound" src="data/sounds/summon.mp3"></audio>
+</div>
 
 <div class="atmo"></div>
 <div class="top-bar"></div>
 
 <section class="hero">
+
   <div class="hero-inner">
 
-    <!-- HERO TOP (style Kisuke) -->
-    <div class="hero-top">
-      <img class="avatar"
+    <!-- HERO TOP -->
+    <div class="hero-top reveal">
+      <img class="avatar card-summon"
            src="data/images/atem.png"
            alt="Atem">
 
-      <h1 class="hero-title">
+      <h1 class="hero-title reveal-text">
         <span class="l1">Atem</span>
         <span class="l2">Yu-Gi-Oh! Bot Discord</span>
       </h1>
     </div>
 
     <!-- DESCRIPTION -->
-    <p class="hero-desc">
+    <p class="hero-desc reveal">
       Atem est un bot Discord dédié à l’univers Yu-Gi-Oh! :
-      gestion de cartes, banlists, mini-jeux, systèmes TCG et fonctionnalités avancées pour joueurs et collectionneurs.
+      gestion de cartes, banlists, mini-jeux et systèmes TCG avancés.
     </p>
 
     <!-- CTA -->
-    <div class="hero-cta">
+    <div class="hero-cta reveal">
       <a class="btn btn-gold" href="commandes.html">Voir les commandes</a>
       <a class="btn btn-gold" href="minijeux.html">Mini-jeux</a>
       <a class="btn btn-ghost" href="https://github.com/kevinraphael95" target="_blank">GitHub ↗</a>
     </div>
 
   </div>
+
 </section>
 
 <footer>
