@@ -1,365 +1,302 @@
 /* ═══════════════════════════════════════════════════════
-   ATEM BOT — STYLE.CSS FULL (PRODUCTION + CINEMATIC)
-   Thème : Égypte ancienne · Duel Monsters · Millennium Items
+   ATEM BOT — style.css FINAL OPTIMISÉ
+   Thème : Égypte ancienne · Yu-Gi-Oh · Duel Monsters
    ═══════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ───────────────────────────────
+/* ───────────────────────────────────────────────
    VARIABLES
-─────────────────────────────── */
+─────────────────────────────────────────────── */
 :root {
-  --void: #0a0810;
-  --deep: #100e18;
-  --panel: #161320;
-  --surface: #1c1928;
-  --border: rgba(255,255,255,.07);
+  --void:#0a0810;
+  --deep:#100e18;
+  --panel:#161320;
+  --surface:#1c1928;
+  --border:rgba(255,255,255,.07);
 
-  --gold: #d4a843;
-  --gold-lt: #f0c860;
-  --gold-pale: rgba(212,168,67,.12);
-  --gold-glow: rgba(212,168,67,.28);
+  --gold:#d4a843;
+  --gold-lt:#f0c860;
+  --gold-pale:rgba(212,168,67,.12);
+  --gold-glow:rgba(212,168,67,.28);
 
-  --rei: #1460b8;
-  --rei-glow: rgba(30,127,232,.32);
+  --rei:#1460b8;
+  --rei-mid:#1e7fe8;
+  --rei-pale:rgba(30,127,232,.10);
+  --rei-glow:rgba(30,127,232,.32);
 
-  --red-lt: #e0501a;
-  --red-glow: rgba(224,80,26,.28);
+  --red:#b83010;
+  --red-lt:#e0501a;
+  --red-pale:rgba(224,80,26,.10);
+  --red-glow:rgba(224,80,26,.28);
 
-  --text: #c8c4d0;
-  --muted: #8a8698;
-
-  --ok: #4ade80;
+  --text:#c8c4d0;
+  --white:#f0ecf5;
+  --muted:#8a8698;
 }
 
-/* ───────────────────────────────
+/* ───────────────────────────────────────────────
    RESET
-─────────────────────────────── */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+─────────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--void);
+  color:var(--text);
+  font-family:'Crimson Pro',serif;
+  overflow-x:hidden;
+  line-height:1.6;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: "Crimson Pro", serif;
-  background: var(--void);
-  color: var(--text);
-  overflow-x: hidden;
-  line-height: 1.6;
-}
-
-/* ───────────────────────────────
-   ATMOSPHÈRE
-─────────────────────────────── */
-.atmo {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-
+/* ───────────────────────────────────────────────
+   ATMOSPHERE BACKGROUND
+─────────────────────────────────────────────── */
+.atmo{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
   background:
-    radial-gradient(circle at 50% 0%, rgba(212,168,67,.10), transparent 60%),
-    radial-gradient(circle at 100% 50%, rgba(224,80,26,.07), transparent 55%),
-    radial-gradient(circle at 0% 70%, rgba(30,127,232,.06), transparent 60%);
+    radial-gradient(ellipse 90% 55% at 50% -5%,rgba(212,168,67,.10),transparent 60%),
+    radial-gradient(ellipse 40% 60% at 100% 55%,rgba(224,80,26,.07),transparent 55%),
+    radial-gradient(ellipse 35% 35% at 0% 70%,rgba(30,127,232,.06),transparent 55%);
 }
 
-/* Hiéroglyphe */
-.atmo::after {
-  content: "𓂀";
-  position: fixed;
-  right: 5vw;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: clamp(80px, 12vw, 140px);
-  color: rgba(212,168,67,.05);
+/* watermark */
+.atmo::after{
+  content:'𓂀';
+  position:fixed;
+  right:3vw;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:clamp(80px,12vw,140px);
+  color:rgba(212,168,67,.04);
 }
 
-/* ───────────────────────────────
+/* ───────────────────────────────────────────────
    TOP BAR
-─────────────────────────────── */
-.top-bar {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  height: 2px;
-  z-index: 999;
-
-  background: linear-gradient(90deg,
-    transparent,
-    var(--rei),
-    var(--gold),
-    var(--red-lt),
-    var(--gold),
-    var(--rei),
-    transparent);
+─────────────────────────────────────────────── */
+.top-bar{
+  position:fixed;top:0;left:0;width:100%;height:2px;z-index:600;
+  background:linear-gradient(90deg,transparent,var(--rei-mid),var(--gold),var(--red-lt),transparent);
+  opacity:.8;
 }
 
-/* ───────────────────────────────
+/* ───────────────────────────────────────────────
+   NAV
+─────────────────────────────────────────────── */
+nav{
+  position:fixed;top:0;width:100%;z-index:400;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0 3rem;
+  height:60px;
+  background:rgba(10,8,16,.94);
+  border-bottom:1px solid var(--gold-pale);
+  backdrop-filter:blur(14px);
+}
+
+.nav-logo{
+  font-family:'Cinzel',serif;
+  color:var(--gold);
+  letter-spacing:.2em;
+  text-decoration:none;
+  font-weight:900;
+}
+
+.nav-links{display:flex;gap:.4rem;list-style:none;}
+.nav-links a{
+  font-family:'Cinzel',serif;
+  font-size:.7rem;
+  text-transform:uppercase;
+  color:var(--muted);
+  text-decoration:none;
+  padding:.4rem .8rem;
+}
+.nav-links a:hover{color:var(--white);}
+.nav-links a.active{color:var(--gold);background:var(--gold-pale);}
+
+/* ───────────────────────────────────────────────
+   BUTTONS
+─────────────────────────────────────────────── */
+.btn{
+  font-family:'Cinzel',serif;
+  text-transform:uppercase;
+  letter-spacing:.2em;
+  padding:.8rem 2rem;
+  border:1px solid var(--gold);
+  text-decoration:none;
+  transition:.2s;
+  display:inline-block;
+}
+
+.btn-gold{
+  background:var(--gold);
+  color:var(--void);
+}
+.btn-gold:hover{
+  background:var(--gold-lt);
+  box-shadow:0 0 25px var(--gold-glow);
+  transform:translateY(-2px);
+}
+
+.btn-ghost{
+  background:transparent;
+  color:var(--muted);
+  border-color:var(--border);
+}
+
+/* ───────────────────────────────────────────────
    HERO
-─────────────────────────────── */
-.hero {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 7rem 2rem;
-  position: relative;
-  z-index: 1;
+─────────────────────────────────────────────── */
+.hero{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:7rem 2rem;
+  position:relative;
+  z-index:1;
 }
 
-.hero-inner {
-  text-align: center;
-  max-width: 900px;
+.hero-inner{max-width:900px;}
+
+.hero-top{
+  display:flex;
+  gap:2rem;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
 }
 
-/* avatar wrapper (IMPORTANT FIX pseudo-element) */
-.card-wrapper {
-  position: relative;
-  display: inline-block;
+.avatar{
+  width:110px;
+  height:110px;
+  border-radius:50%;
+  border:2px solid var(--gold);
+  box-shadow:0 0 40px var(--gold-pale);
+  object-fit:cover;
 }
 
-/* carte invoc */
-.card-wrapper::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    transparent,
-    rgba(255,255,255,.35),
-    transparent
-  );
-  transform: translateX(-120%);
-  animation: shine 2s ease forwards;
-  animation-delay: 1.6s;
-  pointer-events: none;
+.hero-title{
+  font-family:'Cinzel',serif;
+  font-weight:900;
+  font-size:clamp(3rem,8vw,7rem);
+  color:var(--white);
 }
 
-.avatar {
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  border: 2px solid var(--gold);
-  box-shadow:
-    0 0 40px var(--gold-glow),
-    0 0 80px rgba(30,127,232,.2);
+.hero-title .l2{
+  font-size:.35em;
+  color:var(--gold);
+  letter-spacing:.3em;
 }
 
-/* ───────────────────────────────
-   TITRES
-─────────────────────────────── */
-.hero-title {
-  font-family: "Cinzel", serif;
-  font-weight: 900;
-  font-size: clamp(3rem, 8vw, 7rem);
-  line-height: .9;
+.hero-desc{
+  font-style:italic;
+  max-width:600px;
+  margin:2rem auto;
 }
 
-.hero-title .l1 {
-  color: white;
+/* ───────────────────────────────────────────────
+   INTRO CINEMATIC (ATEM SUMMON)
+─────────────────────────────────────────────── */
+.intro{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:radial-gradient(circle at center,rgba(212,168,67,.15),#000 70%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
 }
 
-.hero-title .l2 {
-  font-size: .35em;
-  letter-spacing: .35em;
-  background: linear-gradient(120deg, var(--gold), var(--red-lt));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.intro.hide{
+  opacity:0;
+  pointer-events:none;
+  transition:.6s;
 }
 
-/* ───────────────────────────────
-   BOUTONS
-─────────────────────────────── */
-.btn {
-  font-family: "Cinzel", serif;
-  padding: .8rem 2rem;
-  text-transform: uppercase;
-  letter-spacing: .15em;
-  font-size: .7rem;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: .25s;
-  display: inline-block;
+.summon-circle{
+  width:280px;height:280px;
+  border-radius:50%;
+  border:2px solid var(--gold);
+  animation:spin 2s linear infinite;
+  box-shadow:0 0 40px var(--gold-glow);
 }
 
-.btn-gold {
-  background: var(--gold);
-  color: var(--void);
-  border-color: var(--gold);
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* flash */
+.flash{
+  position:absolute;inset:0;
+  background:white;
+  opacity:0;
+  animation:flash 2.6s ease;
 }
 
-.btn-gold:hover {
-  background: var(--gold-lt);
-  box-shadow: 0 0 30px var(--gold-glow);
-  transform: translateY(-2px);
+@keyframes flash{
+  0%,60%{opacity:0;}
+  65%{opacity:1;}
+  70%{opacity:0;}
 }
 
-.btn-ghost {
-  background: transparent;
-  color: var(--muted);
+/* card spawn */
+.card-summon{
+  opacity:0;
+  transform:translateY(40px) scale(.7);
+  animation:summon 1.2s forwards;
+  animation-delay:1.2s;
 }
 
-.btn-ghost:hover {
-  color: white;
-  border-color: rgba(255,255,255,.2);
+@keyframes summon{
+  to{opacity:1;transform:translateY(0) scale(1);}
 }
 
-/* ───────────────────────────────
-   INTRO CINÉMATIQUE
-─────────────────────────────── */
-.intro {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  background: radial-gradient(circle, rgba(212,168,67,.15), black 70%);
-  overflow: hidden;
+/* ───────────────────────────────────────────────
+   FEATURES / GRID
+─────────────────────────────────────────────── */
+.feat-grid,
+.games-grid,
+.vaact-feat-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;
 }
 
-.intro.hide {
-  opacity: 0;
-  pointer-events: none;
-  transition: .6s;
+.fcard,
+.game-card,
+.vaact-feat{
+  background:var(--panel);
+  padding:2rem;
 }
 
-/* PARTICULES */
-.particles::before,
-.particles::after {
-  content: "";
-  position: absolute;
-  width: 200%;
-  height: 200%;
-  background-image: radial-gradient(circle, rgba(212,168,67,.5) 1px, transparent 1px);
-  background-size: 40px 40px;
-  animation: float 5s linear infinite;
-  opacity: .15;
+/* hover */
+.fcard:hover,
+.game-card:hover{
+  background:var(--rei-pale);
 }
 
-@keyframes float {
-  from { transform: translateY(0); }
-  to { transform: translateY(-40px); }
+/* ───────────────────────────────────────────────
+   FOOTER
+─────────────────────────────────────────────── */
+footer{
+  border-top:1px solid var(--gold-pale);
+  padding:2rem;
+  text-align:center;
+  color:var(--muted);
 }
 
-/* CERCLE INVOCATION */
-.summon-circle {
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  border: 2px solid var(--gold);
-  box-shadow: 0 0 40px var(--gold-glow);
-  animation: spin 2s linear infinite, pulse 1.2s ease-in-out infinite;
+/* ───────────────────────────────────────────────
+   ANIMATIONS
+─────────────────────────────────────────────── */
+@keyframes rise{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-  50% { transform: scale(1.1); }
-}
-
-/* FLASH */
-.flash {
-  position: absolute;
-  inset: 0;
-  background: white;
-  opacity: 0;
-  animation: flash 2.6s ease forwards;
-}
-
-@keyframes flash {
-  60% { opacity: 0; }
-  65% { opacity: .9; }
-  70% { opacity: 0; }
-}
-
-/* ───────────────────────────────
-   ANIMATIONS GÉNÉRALES
-─────────────────────────────── */
-.card-summon {
-  opacity: 0;
-  transform: translateY(40px) scale(.7);
-  animation: summon 1.3s ease forwards;
-  animation-delay: 1s;
-}
-
-@keyframes summon {
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.reveal {
-  opacity: 0;
-  animation: rise .8s ease forwards;
-  animation-delay: 1.6s;
-}
-
-.reveal-text {
-  opacity: 0;
-  animation: rise .8s ease forwards;
-  animation-delay: 1.3s;
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(15px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes shine {
-  to { transform: translateX(120%); }
-}
-
-/* ───────────────────────────────
+/* ───────────────────────────────────────────────
    RESPONSIVE
-─────────────────────────────── */
-@media (max-width: 700px) {
-  .hero {
-    padding: 5rem 1.2rem;
-  }
-
-  .hero-title {
-    font-size: 3rem;
-  }
-
-  .avatar {
-    width: 85px;
-    height: 85px;
-  }
-
-  .summon-circle {
-    width: 200px;
-    height: 200px;
-  }
-}
-
-/* ───────────────────────────────
-   PERFORMANCE FIX
-─────────────────────────────── */
-@media (max-width: 700px) {
-  .particles {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
+─────────────────────────────────────────────── */
+@media(max-width:700px){
+  nav{padding:0 1rem;}
+  .hero-title{font-size:3rem;}
+  .feat-grid,.games-grid,.vaact-feat-grid{grid-template-columns:1fr;}
 }
