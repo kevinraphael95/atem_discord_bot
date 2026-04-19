@@ -30,7 +30,7 @@ class Vaact(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
-        name="vaact_info",
+        name="vaact",
         description="Présentation rapide du tournoi animé Yu-Gi-Oh! VAACT."
     )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
@@ -43,8 +43,8 @@ class Vaact(commands.Cog):
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
-        name="vaact_info",
-        aliases=["vaactinfo"],
+        name="vaact",
+        aliases=["vaactinfo", "vaact_info"],
         help="Présentation rapide du tournoi animé Yu-Gi-Oh! VAACT."
     )
     @commands.cooldown(1, 5.0, commands.BucketType.user)
