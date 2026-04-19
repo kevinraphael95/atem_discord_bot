@@ -1,7 +1,6 @@
 /* ── NAV CENTRALISÉE — ATEM ──────────────────────────── */
 (function () {
   const pages = [
-    { href: 'index.html',     label: 'Accueil' },
     { href: 'commandes.html', label: 'Commandes' },
     { href: 'vaact.html',     label: 'VAACT' },
     { href: 'minijeux.html',  label: 'Mini-jeux' },
