@@ -493,4 +493,168 @@ function switchMode(m) {
       clr();
       if (!sCur) sInit();
       else sG.forEach(x => { mkRow(x.m, x.f, sCur); mkCard(x.m, x.f, sCur); });
-      updSUI(); $('gi').di
+      updSUI(); $('gi').disabled = false; $('gbtn').disabled = false; foc();
+    }
+  }
+}
+
+function foc() { setTimeout(() => $('gi').focus(), 60); }
+
+function saveD(won) {
+  try { localStorage.setItem('ygog_v1', JSON.stringify({ date: todayKey(), guesses: dG.map(x => ({ n: x.m.name })), over: dOver, won })); } catch(e) {}
+}
+function loadD() {
+  try {
+    const s = JSON.parse(localStorage.getItem('ygog_v1'));
+    if (!s || s.date !== todayKey()) return;
+    for (const sv of (s.guesses || [])) {
+      const fr = CARDS.find(x => x.name === sv.n); if (!fr) continue;
+      dG.push({ m: fr, f: cmp(fr, tgt) });
+    }
+    dOver = s.over || false;
+    if (mode === 'daily') {
+      dG.forEach(x => { mkRow(x.m, x.f, tgt); mkCard(x.m, x.f, tgt); });
+      updDots(); if (dOver) showDRes(s.won);
+    }
+  } catch(e) {}
+}
+function updDots() {
+  const r = $('dots'); r.innerHTML = '';
+  for (let i = 0; i < MAX; i++) {
+    const d = document.createElement('div'); d.className = 'dot';
+    if (i < dG.length) { const w = dG[i].m.name === tgt.name; d.classList.add(w ? 'win' : (dOver && i === dG.length-1 ? 'lose' : 'used')); }
+    r.appendChild(d);
+  }
+  $('cnt').textContent = dG.length + '/' + MAX;
+}
+
+function showDRes(won) {
+  const b = $('rb'); b.classList.add('on', won ? 'win' : 'lose');
+  $('rttl').textContent = won ? '🃏 BIEN JOUÉ !' : '☠ ÉCHEC';
+  $('rimg').src = tgt.img;
+  $('rchar').textContent = tgt.name;
+  $('rdesc').textContent = won
+    ? tgt.name + ' trouvé en ' + dG.length + ' essai' + (dG.length > 1 ? 's' : '') + '.'
+    : tgt.name + ' · ' + tgt.frameType + ' · ' + tgt.attribute + ' · Niv.' + tgt.level + ' · ATK ' + (tgt.atk < 0 ? '—' : tgt.atk);
+  $('gi').disabled = true; $('gbtn').disabled = true;
+  tick(); setInterval(tick, 1000);
+}
+
+function tick() {
+  const now = new Date(), tom = new Date(now);
+  tom.setDate(tom.getDate() + 1); tom.setHours(0,0,0,0);
+  const d = tom - now;
+  $('nt').textContent = String(Math.floor(d/3600000)).padStart(2,'0') + ':' + String(Math.floor((d%3600000)/60000)).padStart(2,'0') + ':' + String(Math.floor((d%60000)/1000)).padStart(2,'0');
+}
+
+function share() {
+  let t = 'YGO Guessr ' + todayKey() + '\n' + dG.length + '/' + MAX + '\n\n';
+  dG.forEach(x => {
+    t += (x.m.name === tgt.name ? '🃏 ' : '') + x.m.name + '\n';
+    t += x.f.map(f => f.s === 'correct' ? '🟩' : f.s === 'close' ? '🟨' : '🟥').join('') + '\n';
+  });
+  try { navigator.clipboard.writeText(t); } catch(e) {}
+  const b = document.querySelector('.xbtn'); b.textContent = '✓ Copié !';
+  setTimeout(() => b.textContent = '📋 Copier le résultat', 2000);
+}
+
+function loadRec() { try { const s = JSON.parse(localStorage.getItem('ygog_surv')); if (s) sRec = s.best || 0; } catch(e) {} }
+function saveRec() { try { localStorage.setItem('ygog_surv', JSON.stringify({ best: sRec })); } catch(e) {} }
+function rndQ() { const a = CARDS.slice(); for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; }
+function sInit() { sStr=0;sBst=0;sKil=0;sQ=rndQ();sQi=0;sOver=false;$('send').classList.remove('on');sNext(); }
+function sNext() { if(sQi>=sQ.length){sQ=rndQ();sQi=0;} sCur=sQ[sQi++];sG=[];clr();$('flash').classList.remove('on');$('gi').disabled=false;$('gbtn').disabled=false;foc();updSUI(); }
+function updSUI() {
+  $('sstreak').textContent = sStr; $('sbest').textContent = sRec;
+  const el = $('sdots'); el.innerHTML = '';
+  for (let i = 0; i < MAX; i++) { const d = document.createElement('div'); d.className = 'sdot'; if (i < sG.length) d.classList.add(sG[i] && sG[i].m.name === sCur.name ? 'win' : 'used'); el.appendChild(d); }
+}
+function showFlash(type, msg) {
+  const f = $('flash'); f.className = 'flash on ' + (type === 'ok' ? 'ok' : 'ko'); f.textContent = msg;
+  clearTimeout(f._t); f._t = setTimeout(() => f.classList.remove('on'), 2500);
+}
+function sGameOver(name) {
+  sOver=true;if(sStr>sRec){sRec=sStr;saveRec();}
+  showFlash('ko','☠ ' + name + ' — Game Over !');
+  $('gi').disabled=true;$('gbtn').disabled=true;
+  setTimeout(()=>showSEnd(),1500);
+}
+function sCorrect() {
+  sKil++;sStr++;if(sStr>sBst)sBst=sStr;if(sStr>sRec){sRec=sStr;saveRec();}
+  showFlash('ok','✓ '+sCur.name+' trouvée'+(sStr>=3?' 🔥 ×'+sStr:''));
+  $('gi').disabled=true;$('gbtn').disabled=true;updSUI();
+  setTimeout(()=>sNext(),1900);
+}
+function showSEnd() {
+  clr();$('send').classList.add('on');
+  $('sedesc').innerHTML = 'Série de <em>'+sStr+'</em> — '+sKil+' carte'+(sKil>1?'s':'')+'.';
+  $('sek').textContent=sKil;$('seb').textContent=sBst;$('ser').textContent=sRec;
+  $('gi').disabled=true;$('gbtn').disabled=true;updSUI();
+}
+function sRestart() { sInit(); }
+function sShare() {
+  const t='YGO Guessr — Survie\nSérie : '+sStr+'\nTrouvées : '+sKil+'\nRecord : '+sRec;
+  try{navigator.clipboard.writeText(t);}catch(e){}
+  const b=document.querySelector('.xbtn2');b.textContent='✓ Copié !';setTimeout(()=>b.textContent='📋 Copier le score',2000);
+}
+
+function sub() { mode==='daily'?subD():subS(); }
+function subD() {
+  if(dOver||!loaded)return;
+  const inp=$('gi');const v=inp.value.trim();if(!v)return;
+  const m=CARDS.find(x=>x.name.toLowerCase()===v.toLowerCase());
+  if(!m){shake(inp,'Carte introuvable…');return;}
+  if(dG.find(x=>x.m.name===m.name)){shake(inp,'Déjà essayée !');return;}
+  const f=cmp(m,tgt);dG.push({m,f});
+  mkRow(m,f,tgt);mkCard(m,f,tgt);updDots();
+  inp.value='';$('acl').innerHTML='';
+  const won=m.name===tgt.name;
+  if(won||dG.length>=MAX){dOver=true;saveD(won);setTimeout(()=>showDRes(won),400);}else saveD(false);
+}
+function subS() {
+  if(sOver||!sCur||!loaded)return;
+  const inp=$('gi');const v=inp.value.trim();if(!v)return;
+  const m=CARDS.find(x=>x.name.toLowerCase()===v.toLowerCase());
+  if(!m){shake(inp,'Carte introuvable…');return;}
+  if(sG.find(x=>x.m.name===m.name)){shake(inp,'Déjà essayée !');return;}
+  const f=cmp(m,sCur);sG.push({m,f});
+  mkRow(m,f,sCur);mkCard(m,f,sCur);
+  inp.value='';$('acl').innerHTML='';updSUI();
+  if(m.name===sCur.name)sCorrect();
+  else if(sG.length>=MAX)sGameOver(sCur.name);
+}
+function shake(inp,msg){
+  inp.style.borderColor='var(--ko-bd)';inp.placeholder=msg;
+  inp.animate([{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:240});
+  setTimeout(()=>{inp.style.borderColor='';inp.placeholder='Entrez le nom d\'une carte…';},1500);
+}
+
+function onIn() {
+  const v=$('gi').value.toLowerCase().trim();
+  const l=$('acl');l.innerHTML='';
+  if(mode==='daily')dSel=-1;else sSel=-1;
+  if(!v||!loaded)return;
+  const done=new Set((mode==='daily'?dG:sG).map(x=>x.m.name));
+  CARDS.filter(x=>x.name.toLowerCase().includes(v)&&!done.has(x.name)).slice(0,8).forEach(x=>{
+    const i=document.createElement('div');i.className='aci';
+    i.innerHTML=x.name+'<span class="acb">'+x.frameType+' · '+(x.attribute!=='—'?x.attribute:x.race)+'</span>';
+    i.onclick=()=>{$('gi').value=x.name;l.innerHTML='';sub();};l.appendChild(i);
+  });
+}
+function onKD(e){
+  const l=$('acl');const items=l.querySelectorAll('.aci');
+  let sel=mode==='daily'?dSel:sSel;
+  if(e.key==='ArrowDown'){e.preventDefault();sel=Math.min(sel+1,items.length-1);items.forEach((x,i)=>x.classList.toggle('sel',i===sel));if(items[sel])$('gi').value=items[sel].firstChild.textContent.trim();}
+  else if(e.key==='ArrowUp'){e.preventDefault();sel=Math.max(sel-1,-1);items.forEach((x,i)=>x.classList.toggle('sel',i===sel));if(sel>=0&&items[sel])$('gi').value=items[sel].firstChild.textContent.trim();}
+  else if(e.key==='Enter'){e.preventDefault();l.innerHTML='';sub();}
+  else if(e.key==='Escape')l.innerHTML='';
+  if(mode==='daily')dSel=sel;else sSel=sel;
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.acw'))$('acl').innerHTML='';});
+function toggleHelp(){$('hpanel').classList.toggle('on');}
+
+loadRec();
+updDots();
+loadCards();
+</script>
+</body>
+</html>
