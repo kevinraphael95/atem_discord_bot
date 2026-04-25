@@ -1,0 +1,57 @@
+/* ═══════════════════════════════════════════════════════
+   PAGE : MINI-JEUX
+   ═══════════════════════════════════════════════════════ */
+
+.games-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 1px; background: var(--gold-line); border: 1px solid var(--gold-line);
+  overflow: hidden;
+}
+.game-card {
+  background: var(--panel); padding: 2rem 1.6rem;
+  text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: .8rem;
+  position: relative; overflow: hidden; transition: background .25s;
+  opacity: 0; animation: rise .6s forwards;
+}
+.game-card:nth-child(1){animation-delay:.3s}
+.game-card:nth-child(2){animation-delay:.42s}
+.game-card:nth-child(3){animation-delay:.54s}
+.game-card:nth-child(4){animation-delay:.66s}
+.game-card:nth-child(5){animation-delay:.78s}
+.game-card::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--rei-mid), var(--red-lt));
+  transform: scaleX(0); transition: transform .35s;
+}
+.game-card:hover { background: var(--rei-pale); transform: translateY(-2px); }
+.game-card:hover::after { transform: scaleX(1); }
+
+.game-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: .8rem; }
+.game-icon { font-size: 2rem; line-height: 1; }
+.game-badge {
+  font-family: 'Cinzel', serif; font-size: .58rem; letter-spacing: .15em;
+  text-transform: uppercase; padding: .2rem .55rem;
+  border: 1px solid rgba(212,168,67,.25); color: var(--gold); white-space: nowrap;
+}
+.game-name {
+  font-family: 'Cinzel', serif; font-weight: 700;
+  font-size: .82rem; letter-spacing: .1em; color: var(--gold-lt); text-transform: uppercase;
+}
+.game-desc { font-size: .95rem; color: var(--text); line-height: 1.6; flex: 1; }
+.game-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid var(--gold-line); padding-top: .8rem; margin-top: auto;
+}
+.game-meta { font-size: .8rem; color: var(--muted); font-style: italic; }
+.game-arrow {
+  font-family: 'Cinzel', serif; font-size: .72rem; letter-spacing: .1em;
+  color: var(--gold); opacity: 0; transform: translateX(-6px); transition: all .3s;
+}
+.game-card:hover .game-arrow { opacity: 1; transform: translateX(0); }
+
+@media (max-width: 700px) {
+  .games-grid { grid-template-columns: 1fr; }
+}
+@media (min-width: 701px) and (max-width: 1024px) {
+  .games-grid { grid-template-columns: repeat(2,1fr); }
+}
