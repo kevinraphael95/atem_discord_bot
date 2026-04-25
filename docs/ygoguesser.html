@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="shinigami">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YGO Guesser — Atem</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<script src="nav.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+JP:wght@300;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/nav.js" defer></script>
 <style>
 /* ── GUESSER LAYOUT ───────────────────────────────────── */
 .gwrap {
@@ -20,7 +20,7 @@
 /* Mode switcher */
 .msw { display:flex; overflow:hidden; border:1px solid var(--border); background:var(--panel); }
 .mbtn {
-  font-family:'Cinzel',serif; font-size:.68rem; font-weight:400; letter-spacing:.12em;
+  font-family:'Shippori Mincho',serif; font-size:.68rem; font-weight:400; letter-spacing:.12em;
   padding:.65rem 1.8rem; border:none; background:transparent;
   color:var(--muted); cursor:pointer; transition:all .2s; text-transform:uppercase;
   position:relative;
@@ -34,7 +34,7 @@
 .dbar {
   display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
   font-size:.7rem; font-weight:500; color:var(--muted);
-  font-family:'Cinzel',serif; letter-spacing:.08em;
+  font-family:'Shippori Mincho',serif; letter-spacing:.08em;
 }
 .dbar .cnt { color: var(--gold-lt); }
 .dots { display:flex; gap:5px; }
@@ -53,8 +53,8 @@
 .sbar::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,rgba(30,127,232,.12) 0%,transparent 70%); pointer-events:none; }
 .sbar.on { display:flex; }
 .sv { display:flex; flex-direction:column; align-items:center; gap:2px; }
-.sv-n { font-family:'Cinzel',serif; font-size:1.4rem; font-weight:900; color:#d9eeff; line-height:1; }
-.sv-l { font-size:.6rem; font-weight:500; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; font-family:'Cinzel',serif; }
+.sv-n { font-family:'Shippori Mincho',serif; font-size:1.4rem; font-weight:900; color:#d9eeff; line-height:1; }
+.sv-l { font-size:.6rem; font-weight:500; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; font-family:'Shippori Mincho',serif; }
 .svdiv { width:1px; height:34px; background:rgba(94,176,255,.2); }
 .sdots-w { display:flex; flex-direction:column; align-items:center; gap:4px; }
 .sdots   { display:flex; gap:4px; }
@@ -63,18 +63,18 @@
 .sdot.win  { background:var(--ok-bd); border-color:var(--ok-tx); }
 
 /* Flash */
-.flash { width:100%; max-width:700px; padding:9px 18px; text-align:center; font-size:.78rem; font-weight:600; display:none; font-family:'Cinzel',serif; letter-spacing:.06em; }
+.flash { width:100%; max-width:700px; padding:9px 18px; text-align:center; font-size:.78rem; font-weight:600; display:none; font-family:'Shippori Mincho',serif; letter-spacing:.06em; }
 .flash.on  { display:block; animation: flashP .25s ease; }
 .flash.ok  { background:var(--ok-bg); border:1px solid var(--ok-bd); color:var(--ok-tx); }
 .flash.ko  { background:var(--ko-bg); border:1px solid var(--ko-bd); color:var(--ko-tx); }
 @keyframes flashP { from{opacity:0;transform:scale(.97) translateY(-4px);} to{opacity:1;transform:scale(1) translateY(0);} }
 
 /* Help */
-.hbtn { font-size:.65rem; font-weight:500; color:var(--muted); cursor:pointer; background:none; border:none; text-decoration:underline; text-underline-offset:3px; transition:color .2s; font-family:'Cinzel',serif; letter-spacing:.08em; }
+.hbtn { font-size:.65rem; font-weight:500; color:var(--muted); cursor:pointer; background:none; border:none; text-decoration:underline; text-underline-offset:3px; transition:color .2s; font-family:'Shippori Mincho',serif; letter-spacing:.08em; }
 .hbtn:hover { color:var(--gold-lt); }
 .hpanel { max-width:700px; width:100%; background:var(--panel); border:1px solid var(--border); padding:1.1rem 1.3rem; display:none; flex-direction:column; gap:8px; font-size:.9rem; line-height:1.7; color:var(--text); }
 .hpanel.on { display:flex; }
-.hpanel b  { color:var(--gold-lt); font-size:.65rem; font-weight:700; letter-spacing:.1em; font-family:'Cinzel',serif; text-transform:uppercase; }
+.hpanel b  { color:var(--gold-lt); font-size:.65rem; font-weight:700; letter-spacing:.1em; font-family:'Shippori Mincho',serif; text-transform:uppercase; }
 .leg       { display:flex; gap:8px; align-items:center; font-size:.88rem; }
 .sw { width:14px; height:14px; flex-shrink:0; border:1px solid; }
 .sw.g { background:var(--ok-bg); border-color:var(--ok-bd); }
@@ -84,7 +84,7 @@
 /* Loading state */
 .loading-bar {
   width:100%; max-width:700px; background:var(--panel); border:1px solid var(--border);
-  padding:1rem 1.5rem; text-align:center; font-family:'Cinzel',serif;
+  padding:1rem 1.5rem; text-align:center; font-family:'Shippori Mincho',serif;
   font-size:.7rem; letter-spacing:.15em; color:var(--muted); text-transform:uppercase;
 }
 .loading-bar.hidden { display:none; }
@@ -94,9 +94,9 @@
 .iz:focus-within { border-color:var(--gold-line); }
 .survival-mode .iz:focus-within { border-color:rgba(30,127,232,.5); }
 .acw { position:relative; flex:1; }
-.gi  { width:100%; background:transparent; border:none; color:var(--white); font-family:'Crimson Pro',serif; font-size:1rem; font-weight:400; padding:.8rem .9rem; outline:none; }
+.gi  { width:100%; background:transparent; border:none; color:var(--white); font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:400; padding:.8rem .9rem; outline:none; }
 .gi::placeholder { color:var(--dim); }
-.gbtn { background:var(--gold); border:none; color:var(--void); font-family:'Cinzel',serif; font-size:.65rem; font-weight:700; padding:0 1.4rem; cursor:pointer; letter-spacing:.15em; transition:all .2s; text-transform:uppercase; white-space:nowrap; min-width:90px; border-left:1px solid rgba(0,0,0,.15); }
+.gbtn { background:var(--gold); border:none; color:var(--void); font-family:'Shippori Mincho',serif; font-size:.65rem; font-weight:700; padding:0 1.4rem; cursor:pointer; letter-spacing:.15em; transition:all .2s; text-transform:uppercase; white-space:nowrap; min-width:90px; border-left:1px solid rgba(0,0,0,.15); }
 .gbtn:hover    { background:var(--gold-lt); }
 .gbtn:disabled { opacity:.35; cursor:not-allowed; }
 .survival-mode .gbtn { background:var(--rei-mid); color:var(--white); }
@@ -105,24 +105,23 @@
 /* Autocomplete */
 .acl { position:absolute; top:100%; left:0; right:0; background:var(--surface); border:1px solid var(--border); border-top:none; max-height:220px; overflow-y:auto; z-index:100; }
 .acl:empty { display:none; }
-.aci { padding:8px 13px; cursor:pointer; font-size:.88rem; color:var(--text); transition:background .1s; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:9px; font-family:'Crimson Pro',serif; }
+.aci { padding:8px 13px; cursor:pointer; font-size:.88rem; color:var(--text); transition:background .1s; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:9px; font-family:'DM Sans',sans-serif; }
 .aci:hover, .aci.sel { background:var(--gold-pale); color:var(--gold-lt); }
 .survival-mode .aci:hover, .survival-mode .aci.sel { color:#d9eeff; }
-.acb { font-size:.68rem; color:var(--dim); margin-left:auto; white-space:nowrap; font-family:'JetBrains Mono',monospace; }
+.acb { font-size:.68rem; color:var(--dim); margin-left:auto; white-space:nowrap; font-family:'DM Sans',monospace; }
 
 /* ── TABLE DESKTOP ────────────────────────────────────── */
 .tw { width:100%; overflow-x:auto; }
 
-/* 10 colonnes : Nom + 9 stats */
 .th { display:grid; grid-template-columns:160px repeat(9,1fr); gap:2px; margin-bottom:5px; min-width:860px; padding:0 1px; }
-.th div { font-size:.55rem; font-weight:700; letter-spacing:.1em; color:var(--muted); text-align:center; padding:4px 2px; border-bottom:1px solid rgba(212,168,67,.2); text-transform:uppercase; font-family:'Cinzel',serif; }
+.th div { font-size:.55rem; font-weight:700; letter-spacing:.1em; color:var(--muted); text-align:center; padding:4px 2px; border-bottom:1px solid rgba(212,168,67,.2); text-transform:uppercase; font-family:'Shippori Mincho',serif; }
 .th div:first-child { text-align:left; padding-left:7px; }
 
 .row { display:grid; grid-template-columns:160px repeat(9,1fr); gap:2px; margin-bottom:2px; min-width:860px; animation:rowIn .35s cubic-bezier(.2,.8,.3,1) both; }
 @keyframes rowIn { from{opacity:0;transform:translateY(-8px);} to{opacity:1;transform:translateY(0);} }
 
-.cell { background:var(--panel); border:1px solid var(--rim); padding:6px 2px; text-align:center; font-size:.6rem; font-weight:500; min-height:44px; display:flex; align-items:center; justify-content:center; line-height:1.3; font-family:'JetBrains Mono',monospace; }
-.cell:first-child { text-align:left; justify-content:flex-start; padding-left:7px; font-size:.65rem; font-family:'Crimson Pro',serif; font-weight:600; }
+.cell { background:var(--panel); border:1px solid var(--rim); padding:6px 2px; text-align:center; font-size:.6rem; font-weight:500; min-height:44px; display:flex; align-items:center; justify-content:center; line-height:1.3; font-family:'DM Sans',sans-serif; }
+.cell:first-child { text-align:left; justify-content:flex-start; padding-left:7px; font-size:.65rem; font-family:'DM Sans',sans-serif; font-weight:600; }
 .cell.correct { background:var(--ok-bg); border-color:var(--ok-bd); color:var(--ok-tx); }
 .cell.close   { background:var(--yw-bg); border-color:var(--yw-bd); color:var(--yw-tx); }
 .cell.wrong   { background:var(--ko-bg); border-color:var(--ko-bd); color:var(--ko-tx); }
@@ -134,15 +133,15 @@
 .card.ok::before { background:linear-gradient(to bottom,var(--ok-bd),var(--ok-tx)); }
 .card.ko::before { background:linear-gradient(to bottom,var(--ko-bd),var(--ko-tx)); }
 .ctop  { display:flex; align-items:center; justify-content:space-between; padding:10px 13px 10px 17px; background:rgba(0,0,0,.3); border-bottom:1px solid var(--border); }
-.cname { font-family:'Crimson Pro',serif; font-size:.9rem; font-weight:600; }
+.cname { font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:600; }
 .cname.correct { color:var(--ok-tx); } .cname.wrong { color:var(--ko-tx); }
-.cbadge { font-size:.6rem; color:var(--dim); text-align:right; line-height:1.5; font-family:'JetBrains Mono',monospace; }
+.cbadge { font-size:.6rem; color:var(--dim); text-align:right; line-height:1.5; font-family:'DM Sans',sans-serif; }
 .cgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); }
 .cc    { background:var(--panel); padding:7px 4px; display:flex; flex-direction:column; align-items:center; gap:2px; }
 .cc.correct { background:var(--ok-bg); } .cc.close { background:var(--yw-bg); } .cc.wrong { background:var(--ko-bg); }
-.cl { font-size:.48rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; text-align:center; color:var(--dim); font-family:'Cinzel',serif; }
+.cl { font-size:.48rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; text-align:center; color:var(--dim); font-family:'Shippori Mincho',serif; }
 .cc.correct .cl{color:rgba(74,222,128,.4);} .cc.close .cl{color:rgba(251,191,36,.4);} .cc.wrong .cl{color:rgba(248,113,113,.4);}
-.cv { font-size:.68rem; font-weight:500; text-align:center; line-height:1.3; font-family:'JetBrains Mono',monospace; }
+.cv { font-size:.68rem; font-weight:500; text-align:center; line-height:1.3; font-family:'DM Sans',sans-serif; }
 .cc.correct .cv{color:var(--ok-tx);} .cc.close .cv{color:var(--yw-tx);} .cc.wrong .cv{color:var(--ko-tx);}
 
 /* ── RESULT BANNER ────────────────────────────────────── */
@@ -150,28 +149,28 @@
 .rbanner.on  { display:flex; }
 .rbanner.win { border-color:var(--ok-bd); background:var(--ok-bg); }
 .rbanner.lose{ border-color:var(--ko-bd); background:var(--ko-bg); }
-.rttl  { font-family:'Cinzel',serif; font-size:1rem; font-weight:900; letter-spacing:.1em; }
+.rttl  { font-family:'Shippori Mincho',serif; font-size:1rem; font-weight:900; letter-spacing:.1em; }
 .rbanner.win  .rttl { color:var(--ok-tx); } .rbanner.lose .rttl { color:var(--ko-tx); }
-.rchar { font-family:'Cinzel',serif; font-size:.88rem; font-weight:700; color:var(--gold-lt); }
-.rdesc { color:var(--text); font-size:.95rem; line-height:1.65; font-family:'Crimson Pro',serif; font-style:italic; }
+.rchar { font-family:'Shippori Mincho',serif; font-size:.88rem; font-weight:700; color:var(--gold-lt); }
+.rdesc { color:var(--text); font-size:.95rem; line-height:1.65; font-family:'DM Sans',sans-serif; font-style:italic; }
 .rimg  { width:80px; height:auto; border:1px solid var(--gold-line); margin:0 auto; }
-.ntmr  { font-size:.65rem; color:var(--muted); font-family:'Cinzel',serif; letter-spacing:.08em; }
+.ntmr  { font-size:.65rem; color:var(--muted); font-family:'Shippori Mincho',serif; letter-spacing:.08em; }
 .ntmr span { color:var(--gold-lt); }
-.xbtn  { align-self:center; background:transparent; border:1px solid var(--border); color:var(--gold-lt); font-size:.65rem; font-weight:700; letter-spacing:.12em; padding:.55rem 1.4rem; cursor:pointer; transition:all .2s; text-transform:uppercase; font-family:'Cinzel',serif; }
+.xbtn  { align-self:center; background:transparent; border:1px solid var(--border); color:var(--gold-lt); font-size:.65rem; font-weight:700; letter-spacing:.12em; padding:.55rem 1.4rem; cursor:pointer; transition:all .2s; text-transform:uppercase; font-family:'Shippori Mincho',serif; }
 .xbtn:hover { background:var(--gold-pale); border-color:var(--gold); }
 
 /* Survival end */
 .send { width:100%; max-width:700px; padding:1.8rem 1.6rem; border:1px solid rgba(94,176,255,.35); background:#0b1020; text-align:center; display:none; flex-direction:column; gap:14px; animation:rise .45s ease both; }
 .send.on { display:flex; }
-.se-t { font-family:'Cinzel',serif; font-size:1.1rem; font-weight:900; letter-spacing:.1em; color:#d9eeff; }
-.se-s { color:var(--text); font-size:.95rem; line-height:1.7; font-family:'Crimson Pro',serif; font-style:italic; }
+.se-t { font-family:'Shippori Mincho',serif; font-size:1.1rem; font-weight:900; letter-spacing:.1em; color:#d9eeff; }
+.se-s { color:var(--text); font-size:.95rem; line-height:1.7; font-family:'DM Sans',sans-serif; font-style:italic; }
 .sestats { display:flex; gap:9px; justify-content:center; flex-wrap:wrap; }
 .sestat  { display:flex; flex-direction:column; align-items:center; gap:2px; padding:9px 13px; background:rgba(1,1,8,.6); border:1px solid rgba(30,127,232,.22); }
-.sestat strong { font-family:'Cinzel',serif; font-size:1.2rem; color:#d9eeff; }
-.sestat span   { font-size:.58rem; color:var(--dim); letter-spacing:.1em; text-transform:uppercase; font-family:'Cinzel',serif; }
-.r2btn  { align-self:center; background:transparent; border:1px solid rgba(94,176,255,.4); color:#d9eeff; font-size:.68rem; font-weight:700; padding:.65rem 1.7rem; cursor:pointer; letter-spacing:.12em; transition:all .2s; text-transform:uppercase; font-family:'Cinzel',serif; }
+.sestat strong { font-family:'Shippori Mincho',serif; font-size:1.2rem; color:#d9eeff; }
+.sestat span   { font-size:.58rem; color:var(--dim); letter-spacing:.1em; text-transform:uppercase; font-family:'Shippori Mincho',serif; }
+.r2btn  { align-self:center; background:transparent; border:1px solid rgba(94,176,255,.4); color:#d9eeff; font-size:.68rem; font-weight:700; padding:.65rem 1.7rem; cursor:pointer; letter-spacing:.12em; transition:all .2s; text-transform:uppercase; font-family:'Shippori Mincho',serif; }
 .r2btn:hover { background:var(--rei-pale); transform:translateY(-1px); }
-.xbtn2  { align-self:center; background:transparent; border:1px solid rgba(94,176,255,.25); color:#d9eeff; font-size:.65rem; font-weight:600; letter-spacing:.12em; padding:.5rem 1.3rem; cursor:pointer; transition:all .2s; text-transform:uppercase; font-family:'Cinzel',serif; }
+.xbtn2  { align-self:center; background:transparent; border:1px solid rgba(94,176,255,.25); color:#d9eeff; font-size:.65rem; font-weight:600; letter-spacing:.12em; padding:.5rem 1.3rem; cursor:pointer; transition:all .2s; text-transform:uppercase; font-family:'Shippori Mincho',serif; }
 .xbtn2:hover { background:var(--rei-pale); }
 
 @media (max-width: 700px) {
@@ -300,8 +299,6 @@ const COLS = [
 const MAX = 8;
 const $ = id => document.getElementById(id);
 
-// ── POOL DE CARTES (staples + cartes connues TCG) ────────
-// On charge ~200 cartes connues depuis l'API au démarrage
 let CARDS = [];
 let loaded = false;
 
@@ -351,7 +348,6 @@ function normalize(raw) {
 async function loadCards() {
   $('loadBar').classList.remove('hidden');
   try {
-    // Charge les staples + cartes TCG populaires (~500 cartes connues)
     const urls = [
       'https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&misc=yes',
       'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Blue-Eyes&misc=yes',
@@ -380,7 +376,6 @@ async function loadCards() {
   }
 }
 
-// ── SEED / DAILY ─────────────────────────────────────────
 function seededShuffle(arr, seed) {
   const a = arr.slice(); let s = seed >>> 0;
   for (let i = a.length - 1; i > 0; i--) {
@@ -402,7 +397,6 @@ function todayKey() {
   return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
 }
 
-// ── COMPARAISON ──────────────────────────────────────────
 function cmp(m, t) {
   const dAtk = Math.abs((m.atk < 0 ? 0 : m.atk) - (t.atk < 0 ? 0 : t.atk));
   const dDef = Math.abs((m.def < 0 ? 0 : m.def) - (t.def < 0 ? 0 : t.def));
@@ -426,7 +420,6 @@ function cmp(m, t) {
   ];
 }
 
-// ── DOM HELPERS ──────────────────────────────────────────
 function mkRow(m, f, tgt) {
   const row = document.createElement('div'); row.className = 'row';
   const nc = document.createElement('div');
@@ -463,7 +456,6 @@ function mkCard(m, f, tgt) {
 
 function clr() { $('gr').innerHTML = ''; $('gc').innerHTML = ''; }
 
-// ── STATE ────────────────────────────────────────────────
 let mode = 'daily';
 let tgt, dG = [], dOver = false, dSel = -1;
 let sStr = 0, sBst = 0, sKil = 0;
@@ -501,173 +493,4 @@ function switchMode(m) {
       clr();
       if (!sCur) sInit();
       else sG.forEach(x => { mkRow(x.m, x.f, sCur); mkCard(x.m, x.f, sCur); });
-      updSUI(); $('gi').disabled = false; $('gbtn').disabled = false; foc();
-    }
-  }
-}
-
-function foc() { setTimeout(() => $('gi').focus(), 60); }
-
-// ── PERSISTENCE ──────────────────────────────────────────
-function saveD(won) {
-  try { localStorage.setItem('ygog_v1', JSON.stringify({ date: todayKey(), guesses: dG.map(x => ({ n: x.m.name })), over: dOver, won })); } catch(e) {}
-}
-function loadD() {
-  try {
-    const s = JSON.parse(localStorage.getItem('ygog_v1'));
-    if (!s || s.date !== todayKey()) return;
-    for (const sv of (s.guesses || [])) {
-      const fr = CARDS.find(x => x.name === sv.n); if (!fr) continue;
-      dG.push({ m: fr, f: cmp(fr, tgt) });
-    }
-    dOver = s.over || false;
-    if (mode === 'daily') {
-      dG.forEach(x => { mkRow(x.m, x.f, tgt); mkCard(x.m, x.f, tgt); });
-      updDots(); if (dOver) showDRes(s.won);
-    }
-  } catch(e) {}
-}
-function updDots() {
-  const r = $('dots'); r.innerHTML = '';
-  for (let i = 0; i < MAX; i++) {
-    const d = document.createElement('div'); d.className = 'dot';
-    if (i < dG.length) { const w = dG[i].m.name === tgt.name; d.classList.add(w ? 'win' : (dOver && i === dG.length-1 ? 'lose' : 'used')); }
-    r.appendChild(d);
-  }
-  $('cnt').textContent = dG.length + '/' + MAX;
-}
-
-function showDRes(won) {
-  const b = $('rb'); b.classList.add('on', won ? 'win' : 'lose');
-  $('rttl').textContent = won ? '🃏 BIEN JOUÉ !' : '☠ ÉCHEC';
-  $('rimg').src = tgt.img;
-  $('rchar').textContent = tgt.name;
-  $('rdesc').textContent = won
-    ? tgt.name + ' trouvé en ' + dG.length + ' essai' + (dG.length > 1 ? 's' : '') + '.'
-    : tgt.name + ' · ' + tgt.frameType + ' · ' + tgt.attribute + ' · Niv.' + tgt.level + ' · ATK ' + (tgt.atk < 0 ? '—' : tgt.atk);
-  $('gi').disabled = true; $('gbtn').disabled = true;
-  tick(); setInterval(tick, 1000);
-}
-
-function tick() {
-  const now = new Date(), tom = new Date(now);
-  tom.setDate(tom.getDate() + 1); tom.setHours(0,0,0,0);
-  const d = tom - now;
-  $('nt').textContent = String(Math.floor(d/3600000)).padStart(2,'0') + ':' + String(Math.floor((d%3600000)/60000)).padStart(2,'0') + ':' + String(Math.floor((d%60000)/1000)).padStart(2,'0');
-}
-
-function share() {
-  let t = 'YGO Guessr ' + todayKey() + '\n' + dG.length + '/' + MAX + '\n\n';
-  dG.forEach(x => {
-    t += (x.m.name === tgt.name ? '🃏 ' : '') + x.m.name + '\n';
-    t += x.f.map(f => f.s === 'correct' ? '🟩' : f.s === 'close' ? '🟨' : '🟥').join('') + '\n';
-  });
-  try { navigator.clipboard.writeText(t); } catch(e) {}
-  const b = document.querySelector('.xbtn'); b.textContent = '✓ Copié !';
-  setTimeout(() => b.textContent = '📋 Copier le résultat', 2000);
-}
-
-// ── SURVIVAL ─────────────────────────────────────────────
-function loadRec() { try { const s = JSON.parse(localStorage.getItem('ygog_surv')); if (s) sRec = s.best || 0; } catch(e) {} }
-function saveRec() { try { localStorage.setItem('ygog_surv', JSON.stringify({ best: sRec })); } catch(e) {} }
-function rndQ() { const a = CARDS.slice(); for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; }
-function sInit() { sStr=0;sBst=0;sKil=0;sQ=rndQ();sQi=0;sOver=false;$('send').classList.remove('on');sNext(); }
-function sNext() { if(sQi>=sQ.length){sQ=rndQ();sQi=0;} sCur=sQ[sQi++];sG=[];clr();$('flash').classList.remove('on');$('gi').disabled=false;$('gbtn').disabled=false;foc();updSUI(); }
-function updSUI() {
-  $('sstreak').textContent = sStr; $('sbest').textContent = sRec;
-  const el = $('sdots'); el.innerHTML = '';
-  for (let i = 0; i < MAX; i++) { const d = document.createElement('div'); d.className = 'sdot'; if (i < sG.length) d.classList.add(sG[i] && sG[i].m.name === sCur.name ? 'win' : 'used'); el.appendChild(d); }
-}
-function showFlash(type, msg) {
-  const f = $('flash'); f.className = 'flash on ' + (type === 'ok' ? 'ok' : 'ko'); f.textContent = msg;
-  clearTimeout(f._t); f._t = setTimeout(() => f.classList.remove('on'), 2500);
-}
-function sGameOver(name) {
-  sOver=true;if(sStr>sRec){sRec=sStr;saveRec();}
-  showFlash('ko','☠ ' + name + ' — Game Over !');
-  $('gi').disabled=true;$('gbtn').disabled=true;
-  setTimeout(()=>showSEnd(),1500);
-}
-function sCorrect() {
-  sKil++;sStr++;if(sStr>sBst)sBst=sStr;if(sStr>sRec){sRec=sStr;saveRec();}
-  showFlash('ok','✓ '+sCur.name+' trouvée'+(sStr>=3?' 🔥 ×'+sStr:''));
-  $('gi').disabled=true;$('gbtn').disabled=true;updSUI();
-  setTimeout(()=>sNext(),1900);
-}
-function showSEnd() {
-  clr();$('send').classList.add('on');
-  $('sedesc').innerHTML = 'Série de <em>'+sStr+'</em> — '+sKil+' carte'+(sKil>1?'s':'')+'.';
-  $('sek').textContent=sKil;$('seb').textContent=sBst;$('ser').textContent=sRec;
-  $('gi').disabled=true;$('gbtn').disabled=true;updSUI();
-}
-function sRestart() { sInit(); }
-function sShare() {
-  const t='YGO Guessr — Survie\nSérie : '+sStr+'\nTrouvées : '+sKil+'\nRecord : '+sRec;
-  try{navigator.clipboard.writeText(t);}catch(e){}
-  const b=document.querySelector('.xbtn2');b.textContent='✓ Copié !';setTimeout(()=>b.textContent='📋 Copier le score',2000);
-}
-
-// ── SUBMIT ───────────────────────────────────────────────
-function sub() { mode==='daily'?subD():subS(); }
-function subD() {
-  if(dOver||!loaded)return;
-  const inp=$('gi');const v=inp.value.trim();if(!v)return;
-  const m=CARDS.find(x=>x.name.toLowerCase()===v.toLowerCase());
-  if(!m){shake(inp,'Carte introuvable…');return;}
-  if(dG.find(x=>x.m.name===m.name)){shake(inp,'Déjà essayée !');return;}
-  const f=cmp(m,tgt);dG.push({m,f});
-  mkRow(m,f,tgt);mkCard(m,f,tgt);updDots();
-  inp.value='';$('acl').innerHTML='';
-  const won=m.name===tgt.name;
-  if(won||dG.length>=MAX){dOver=true;saveD(won);setTimeout(()=>showDRes(won),400);}else saveD(false);
-}
-function subS() {
-  if(sOver||!sCur||!loaded)return;
-  const inp=$('gi');const v=inp.value.trim();if(!v)return;
-  const m=CARDS.find(x=>x.name.toLowerCase()===v.toLowerCase());
-  if(!m){shake(inp,'Carte introuvable…');return;}
-  if(sG.find(x=>x.m.name===m.name)){shake(inp,'Déjà essayée !');return;}
-  const f=cmp(m,sCur);sG.push({m,f});
-  mkRow(m,f,sCur);mkCard(m,f,sCur);
-  inp.value='';$('acl').innerHTML='';updSUI();
-  if(m.name===sCur.name)sCorrect();
-  else if(sG.length>=MAX)sGameOver(sCur.name);
-}
-function shake(inp,msg){
-  inp.style.borderColor='var(--ko-bd)';inp.placeholder=msg;
-  inp.animate([{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:240});
-  setTimeout(()=>{inp.style.borderColor='';inp.placeholder='Entrez le nom d\'une carte…';},1500);
-}
-
-// ── AUTOCOMPLETE ─────────────────────────────────────────
-function onIn() {
-  const v=$('gi').value.toLowerCase().trim();
-  const l=$('acl');l.innerHTML='';
-  if(mode==='daily')dSel=-1;else sSel=-1;
-  if(!v||!loaded)return;
-  const done=new Set((mode==='daily'?dG:sG).map(x=>x.m.name));
-  CARDS.filter(x=>x.name.toLowerCase().includes(v)&&!done.has(x.name)).slice(0,8).forEach(x=>{
-    const i=document.createElement('div');i.className='aci';
-    i.innerHTML=x.name+'<span class="acb">'+x.frameType+' · '+(x.attribute!=='—'?x.attribute:x.race)+'</span>';
-    i.onclick=()=>{$('gi').value=x.name;l.innerHTML='';sub();};l.appendChild(i);
-  });
-}
-function onKD(e){
-  const l=$('acl');const items=l.querySelectorAll('.aci');
-  let sel=mode==='daily'?dSel:sSel;
-  if(e.key==='ArrowDown'){e.preventDefault();sel=Math.min(sel+1,items.length-1);items.forEach((x,i)=>x.classList.toggle('sel',i===sel));if(items[sel])$('gi').value=items[sel].firstChild.textContent.trim();}
-  else if(e.key==='ArrowUp'){e.preventDefault();sel=Math.max(sel-1,-1);items.forEach((x,i)=>x.classList.toggle('sel',i===sel));if(sel>=0&&items[sel])$('gi').value=items[sel].firstChild.textContent.trim();}
-  else if(e.key==='Enter'){e.preventDefault();l.innerHTML='';sub();}
-  else if(e.key==='Escape')l.innerHTML='';
-  if(mode==='daily')dSel=sel;else sSel=sel;
-}
-document.addEventListener('click',e=>{if(!e.target.closest('.acw'))$('acl').innerHTML='';});
-function toggleHelp(){$('hpanel').classList.toggle('on');}
-
-// ── INIT ─────────────────────────────────────────────────
-loadRec();
-updDots();
-loadCards();
-</script>
-</body>
-</html>
+      updSUI(); $('gi').di
