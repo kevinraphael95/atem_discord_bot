@@ -1,0 +1,63 @@
+/* ═══════════════════════════════════════════════════════
+   PAGE : VAACT
+   ═══════════════════════════════════════════════════════ */
+
+.intro-block {
+  background: var(--panel);
+  border: 1px solid var(--red-line);
+  border-left: 3px solid var(--red-lt);
+  padding: 2rem 2.2rem; margin-bottom: 3rem;
+}
+.intro-block p {
+  font-size: 1.05rem; color: var(--text); line-height: 1.8; margin-bottom: .8rem;
+}
+.intro-block p:last-child { margin-bottom: 0; }
+.intro-block strong { color: var(--gold-lt); font-style: normal; font-weight: 600; }
+.intro-block em { color: var(--rei-lt); }
+
+.vaact-feat-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 1px; background: var(--gold-line); border: 1px solid var(--gold-line);
+  margin-bottom: 3rem; overflow: hidden;
+}
+.vaact-feat {
+  background: var(--panel); padding: 1.8rem 1.4rem; transition: background .25s;
+  position: relative; overflow: hidden;
+}
+.vaact-feat::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--gold), var(--red-lt));
+  transform: scaleX(0); transition: transform .35s;
+}
+.vaact-feat:hover { background: var(--red-pale); }
+.vaact-feat:hover::after { transform: scaleX(1); }
+.vaact-feat-icon { font-size: 1.5rem; margin-bottom: .7rem; display: block; }
+.vaact-feat-name {
+  font-family: 'Cinzel', serif; font-weight: 700;
+  font-size: .72rem; letter-spacing: .12em; color: var(--gold-lt);
+  text-transform: uppercase; margin-bottom: .45rem;
+}
+.vaact-feat-desc { font-size: .95rem; color: var(--text); line-height: 1.6; }
+
+.cmd-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 1px; background: var(--border); border: 1px solid var(--border); overflow: hidden;
+}
+.cmd-item {
+  background: var(--deep); padding: 1rem 1.2rem; transition: background .2s;
+}
+.cmd-item:hover { background: var(--panel); }
+.cmd-item-name {
+  font-family: 'JetBrains Mono', monospace; font-size: .75rem;
+  color: var(--gold-lt); display: block; margin-bottom: .3rem;
+}
+.cmd-item-desc { font-size: .9rem; color: var(--text); }
+
+@media (max-width: 700px) {
+  .vaact-feat-grid { grid-template-columns: repeat(2,1fr); }
+  .cmd-grid { grid-template-columns: 1fr; }
+}
+@media (min-width: 701px) and (max-width: 1024px) {
+  .vaact-feat-grid { grid-template-columns: repeat(2,1fr); }
+  .cmd-grid { grid-template-columns: repeat(2,1fr); }
+}

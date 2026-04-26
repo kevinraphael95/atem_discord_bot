@@ -1,0 +1,74 @@
+/* ═══════════════════════════════════════════════════════
+   THÈME : SHADOW REALM (violet ombres / or pharaon)
+   Organisation :
+   - Backgrounds / surfaces
+   - Couleurs principales (Or / Ombre / Danger)
+   - Texte
+   - États UI (succès, erreur…)
+   - Effets & ambiance
+   - UI spécifique
+   ═══════════════════════════════════════════════════════ */
+[data-theme="shinigami"] {
+  /* === FONDS === */
+  --void:    #35305a; /* fond page */
+  --deep:    #3d3866; /* sections */
+  --panel:   #464075; /* cartes */
+  --surface: #504a82; /* boutons / inputs */
+  --rim:     #5a5490; /* contours */
+  --border:  rgba(255,255,255,.22);
+
+  /* === OR === */
+  --gold:      #d4982e;
+  --gold-lt:   #f0c458;
+  --gold-pale: rgba(212,152,46,.20);
+  --gold-glow: rgba(212,152,46,.40);
+  --gold-line: rgba(212,152,46,.30);
+
+  /* === VIOLET === */
+  --rei:      #7040b8;
+  --rei-mid:  #9660e0;
+  --rei-lt:   #c8a0ff;
+  --rei-pale: rgba(150,96,224,.22);
+  --rei-glow: rgba(150,96,224,.48);
+
+  /* === ROUGE === */
+  --red:      #b01828;
+  --red-lt:   #e83a54;
+  --red-pale: rgba(200,40,60,.18);
+  --red-glow: rgba(200,40,60,.38);
+  --red-line: rgba(200,40,60,.28);
+
+  /* === TEXTE === */
+  --white: #f5f2ff;
+  --text:  #ede9ff;
+  --muted: #bab5d8;
+  --dim:   #8e89b0;
+
+  /* === ÉTATS === */
+  --ok-bg: #122b20; --ok-bd: #1a9e4e; --ok-tx: #5ef09a;
+  --ko-bg: #2a1018; --ko-bd: #b82222; --ko-tx: #ff8585;
+  --yw-bg: #261a06; --yw-bd: #a8500e; --yw-tx: #ffd060;
+
+  /* === SPÉCIAL === */
+  --surv-bg: #2c2848;
+  --surv-bd: rgba(200,160,255,.50);
+  --surv-tx: #f0eaff;
+
+  /* === EFFETS === */
+  --atmo-1: rgba(150,96,224,.24);
+  --atmo-2: rgba(212,152,46,.13);
+  --atmo-3: rgba(150,96,224,.11);
+
+  /* === UI === */
+  --top-bar-grad: linear-gradient(
+    90deg,
+    transparent 0%,
+    #7040b8 12%,
+    #d4982e 32%,
+    #f0c458 50%,
+    #d4982e 68%,
+    #7040b8 88%,
+    transparent 100%
+  );
+  --nav-bg: rgba(46,42,74,.97);
+}

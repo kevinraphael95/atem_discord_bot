@@ -1,259 +1,455 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="shinigami">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Staple ou Pas — Atem</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+JP:wght@300;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/nav.js" defer></script>
 <style>
-  :root {
-    --black: #06050a; --ink: #131119;
-    --gold: #d4a843; --gold-light: #f0c860;
-    --silver: #8a8fa8; --white: #f0ecf5;
-    --mystic: #7a3a8a;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: var(--black); color: var(--white);
-    font-family: 'Crimson Pro', serif;
-    min-height: 100vh; overflow-x: hidden;
-  }
-  body::before {
-    content: ''; position: fixed; inset: 0;
-    background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(122,58,138,0.15) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
-  }
-  nav {
-    position: fixed; top: 0; width: 100%; z-index: 100;
-    padding: 1.2rem 3rem; display: flex; align-items: center; justify-content: space-between;
-    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
-    border-bottom: 1px solid rgba(212,168,67,0.1); backdrop-filter: blur(4px);
-  }
-  .nav-logo { font-family: 'Cinzel', serif; font-weight: 900; font-size: 1.1rem; color: var(--gold); text-decoration: none; letter-spacing: 0.2em; }
-  .nav-back { font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--silver); text-decoration: none; letter-spacing: 0.2em; text-transform: uppercase; transition: color 0.3s; }
-  .nav-back:hover { color: var(--gold); }
+/* ── STAPLE LAYOUT ─────────────────────────────────── */
+.sp-wrap {
+  position: relative; z-index: 1;
+  max-width: 700px; margin: 0 auto;
+  padding: 2rem 1.5rem 6rem;
+  display: flex; flex-direction: column; align-items: center; gap: 1.3rem;
+  opacity: 0; animation: rise .7s .4s forwards;
+}
 
-  main {
-    position: relative; z-index: 1;
-    max-width: 620px; margin: 0 auto;
-    padding: 8rem 2rem 5rem;
-    display: flex; flex-direction: column; align-items: center; gap: 2rem;
-  }
+/* HUD */
+.hud {
+  display: flex; align-items: center; gap: 1.2rem;
+  flex-wrap: wrap; justify-content: center;
+}
+.hud-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font-family: 'Shippori Mincho', serif;
+}
+.hud-val  { font-size: 1.3rem; font-weight: 800; color: var(--gold-lt); line-height: 1; }
+.hud-lbl  { font-size: .52rem; letter-spacing: .15em; color: var(--muted); text-transform: uppercase; }
+.hud-div  { width: 1px; height: 28px; background: var(--border); }
 
-  .game-title { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.4em; color: var(--gold); text-transform: uppercase; }
+/* Card box */
+.card-box {
+  width: 100%; background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 1.4rem; display: flex; gap: 1.2rem;
+  align-items: flex-start; min-height: 170px;
+  transition: border-color .3s, background .3s;
+  position: relative; overflow: hidden;
+}
+.card-box::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: transparent; transition: background .3s;
+}
+.card-box.correct { border-color: var(--ok-bd); background: var(--ok-bg); }
+.card-box.correct::before { background: var(--ok-bd); }
+.card-box.wrong   { border-color: var(--ko-bd); background: var(--ko-bg); }
+.card-box.wrong::before   { background: var(--ko-bd); }
 
-  /* Score */
-  .score-bar {
-    display: flex; gap: 2rem; justify-content: center;
-    font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.2em;
-    color: var(--silver);
-  }
-  .score-item span { color: var(--gold-light); font-size: 1.1rem; }
+.card-thumb-wrap {
+  width: 80px; min-width: 80px; height: 116px;
+  border: 1px solid var(--gold-line); background: var(--deep);
+  position: relative; overflow: hidden; flex-shrink: 0;
+}
+.card-thumb { width: 100%; height: 100%; object-fit: cover; display: none; }
+.card-spinner {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  font-size: 1.6rem; color: var(--dim);
+}
 
-  /* Card display */
-  .card-box {
-    background: var(--ink);
-    border: 1px solid rgba(212,168,67,0.15);
-    padding: 2rem;
-    width: 100%;
-    display: flex; gap: 1.5rem;
-    align-items: flex-start;
-    min-height: 180px;
-    transition: border-color 0.3s;
-  }
-  .card-box.correct { border-color: rgba(58,138,74,0.5); background: rgba(58,138,74,0.05); }
-  .card-box.wrong { border-color: rgba(196,64,32,0.5); background: rgba(196,64,32,0.05); }
+.card-info { flex: 1; display: flex; flex-direction: column; gap: .5rem; }
+.card-name {
+  font-family: 'Shippori Mincho', serif; font-size: .95rem; font-weight: 700;
+  color: var(--gold-lt); letter-spacing: .05em; line-height: 1.3;
+}
+.card-type {
+  font-family: 'DM Sans', sans-serif; font-size: .72rem;
+  font-style: italic; color: var(--muted);
+}
+.card-desc {
+  font-family: 'DM Sans', sans-serif; font-size: .8rem;
+  color: var(--text); line-height: 1.55;
+  display: -webkit-box; -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
 
-  .card-thumb {
-    width: 80px; min-width: 80px; height: 116px;
-    object-fit: cover; border: 1px solid rgba(212,168,67,0.2);
-    background: var(--black);
-  }
-  .card-thumb-placeholder {
-    width: 80px; min-width: 80px; height: 116px;
-    background: rgba(212,168,67,0.05);
-    border: 1px solid rgba(212,168,67,0.1);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.5rem;
-  }
+/* Guess buttons */
+.guess-btns { display: flex; gap: .8rem; width: 100%; }
+.guess-btn {
+  flex: 1; padding: .9rem 1rem;
+  font-family: 'Shippori Mincho', serif; font-size: .68rem;
+  font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  border: 1px solid; cursor: pointer; transition: all .22s;
+  background: transparent;
+}
+.guess-btn.staple {
+  color: var(--ok-tx); border-color: var(--ok-bd);
+}
+.guess-btn.staple:hover:not(:disabled) {
+  background: var(--ok-bg); box-shadow: 0 0 16px rgba(21,128,61,.2); transform: translateY(-2px);
+}
+.guess-btn.not-staple {
+  color: var(--ko-tx); border-color: var(--ko-bd);
+}
+.guess-btn.not-staple:hover:not(:disabled) {
+  background: var(--ko-bg); box-shadow: 0 0 16px rgba(153,27,27,.2); transform: translateY(-2px);
+}
+.guess-btn:disabled { cursor: default; opacity: .35; transform: none; box-shadow: none; }
+.guess-btn.revealed-correct { background: var(--ok-bg) !important; border-color: var(--ok-bd) !important; color: var(--ok-tx) !important; }
+.guess-btn.revealed-wrong   { background: var(--ko-bg) !important; border-color: var(--ko-bd) !important; color: var(--ko-tx) !important; opacity: .4; }
 
-  .card-info { flex: 1; display: flex; flex-direction: column; gap: 0.6rem; }
-  .card-name { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--gold-light); letter-spacing: 0.08em; }
-  .card-type { font-size: 0.82rem; color: var(--silver); font-style: italic; }
-  .card-desc { font-size: 0.9rem; color: rgba(240,236,245,0.75); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+/* Flash */
+.sp-flash {
+  width: 100%; padding: .75rem 1.2rem; text-align: center;
+  font-family: 'Shippori Mincho', serif; font-size: .75rem;
+  font-weight: 700; letter-spacing: .07em;
+  border: 1px solid; display: none; animation: flashIn .25s ease;
+}
+.sp-flash.on { display: block; }
+.sp-flash.ok { background: var(--ok-bg); border-color: var(--ok-bd); color: var(--ok-tx); }
+.sp-flash.ko { background: var(--ko-bg); border-color: var(--ko-bd); color: var(--ko-tx); }
+@keyframes flashIn { from{opacity:0;transform:translateY(-5px);} to{opacity:1;transform:translateY(0);} }
 
-  /* Buttons */
-  .guess-btns { display: flex; gap: 1rem; width: 100%; }
-  .guess-btn {
-    flex: 1; padding: 1rem; font-family: 'Cinzel', serif;
-    font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase;
-    border: 1px solid; cursor: pointer; transition: all 0.25s;
-  }
-  .guess-btn.staple {
-    background: rgba(58,138,74,0.1); color: #6fc87d; border-color: rgba(58,138,74,0.3);
-  }
-  .guess-btn.staple:hover { background: rgba(58,138,74,0.2); box-shadow: 0 0 20px rgba(58,138,74,0.2); transform: translateY(-2px); }
-  .guess-btn.not-staple {
-    background: rgba(196,64,32,0.1); color: #e07060; border-color: rgba(196,64,32,0.3);
-  }
-  .guess-btn.not-staple:hover { background: rgba(196,64,32,0.2); box-shadow: 0 0 20px rgba(196,64,32,0.15); transform: translateY(-2px); }
-  .guess-btn:disabled { cursor: default; opacity: 0.5; transform: none; box-shadow: none; }
+/* Loading */
+.sp-load {
+  font-family: 'Shippori Mincho', serif; font-size: .7rem;
+  letter-spacing: .15em; color: var(--muted); text-transform: uppercase;
+}
 
-  /* Result */
-  .result-msg {
-    font-family: 'Cinzel', serif; font-size: 1rem; letter-spacing: 0.1em;
-    text-align: center; padding: 0.8rem 1.5rem;
-    animation: fadeUp 0.3s forwards;
-    min-height: 2.5rem;
-  }
-  .result-msg.correct { color: #6fc87d; }
-  .result-msg.wrong { color: #e07060; }
+/* Next / Back */
+.sp-next-area { display: none; }
+.sp-next-btn {
+  background: var(--gold); color: var(--void); border: none;
+  font-family: 'Shippori Mincho', serif; font-size: .65rem; font-weight: 700;
+  letter-spacing: .15em; text-transform: uppercase;
+  padding: .7rem 2rem; cursor: pointer; transition: all .2s;
+}
+.sp-next-btn:hover { background: var(--gold-lt); }
 
-  .btn {
-    font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.25em; text-transform: uppercase;
-    padding: 0.9rem 2.2rem; border: 1px solid; cursor: pointer; transition: all 0.3s;
-    background: var(--gold); color: var(--black); border-color: var(--gold); text-decoration: none; display: inline-block;
-  }
-  .btn:hover { background: var(--gold-light); box-shadow: 0 0 30px rgba(212,168,67,0.35); transform: translateY(-2px); }
-  .btn-ghost { background: transparent; color: var(--silver); border-color: rgba(138,143,168,0.3); }
-  .btn-ghost:hover { color: var(--white); border-color: var(--white); }
+.sp-back {
+  font-family: 'Shippori Mincho', serif; font-size: .65rem;
+  letter-spacing: .15em; text-transform: uppercase;
+  color: var(--muted); text-decoration: none;
+  border: 1px solid var(--border); padding: .55rem 1.2rem;
+  transition: all .2s;
+}
+.sp-back:hover { color: var(--gold-lt); border-color: var(--gold-line); }
 
-  .loading { font-style: italic; color: var(--silver); letter-spacing: 0.15em; font-size: 0.9rem; }
+/* Staple badge */
+.staple-badge {
+  display: none; font-family: 'Shippori Mincho', serif;
+  font-size: .55rem; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; padding: .25rem .7rem;
+  border: 1px solid; margin-bottom: .2rem; align-self: flex-start;
+}
+.staple-badge.show { display: inline-block; }
+.staple-badge.yes { border-color: var(--ok-bd); color: var(--ok-tx); background: var(--ok-bg); }
+.staple-badge.no  { border-color: var(--ko-bd); color: var(--ko-tx); background: var(--ko-bg); }
 
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-  @media (max-width: 500px) {
-    nav { padding: 1rem 1.5rem; }
-    main { padding: 6rem 1rem 3rem; }
-    .card-box { flex-direction: column; }
-  }
+@media (max-width: 540px) {
+  .card-box   { flex-direction: column; }
+  .guess-btns { flex-direction: column; }
+  .sp-wrap    { padding: 1.5rem .9rem 5rem; }
+}
 </style>
 </head>
 <body>
 
-<nav>
-  <a class="nav-logo" href="../index.html">𓂀 ATEM</a>
-  <a class="nav-back" href="../minijeux.html">← Mini-jeux</a>
-</nav>
+<div class="atmo"></div>
+<div class="top-bar"></div>
 
-<main>
-  <p class="game-title">💎 Staple ou Pas ?</p>
+<div class="phdr">
+  <h1 class="pttl">
+    <span class="t1">Staple ou Pas ?</span>
+  </h1>
+  <p class="psub">Une carte s'affiche — tu décides si c'est une staple TCG ou non.</p>
+  <div class="orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+</div>
 
-  <div class="score-bar">
-    <div class="score-item">✅ Bonnes : <span id="good">0</span></div>
-    <div class="score-item">❌ Mauvaises : <span id="bad">0</span></div>
-    <div class="score-item">🔥 Streak : <span id="streak">0</span></div>
-  </div>
+<div class="sp-wrap">
 
-  <div id="loading" class="loading">Tirage d'une carte…</div>
-
-  <div id="card-box" class="card-box" style="display:none">
-    <div id="card-thumb-placeholder" class="card-thumb-placeholder">🃏</div>
-    <img id="card-thumb" class="card-thumb" style="display:none" alt="">
-    <div class="card-info">
-      <p id="card-name" class="card-name"></p>
-      <p id="card-type" class="card-type"></p>
-      <p id="card-desc" class="card-desc"></p>
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-stat">
+      <div class="hud-val" id="hGood">0</div>
+      <div class="hud-lbl">✅ Bonnes</div>
+    </div>
+    <div class="hud-div"></div>
+    <div class="hud-stat">
+      <div class="hud-val" id="hBad">0</div>
+      <div class="hud-lbl">❌ Ratées</div>
+    </div>
+    <div class="hud-div"></div>
+    <div class="hud-stat">
+      <div class="hud-val" id="hStreak">0</div>
+      <div class="hud-lbl">🔥 Série</div>
     </div>
   </div>
 
-  <div id="result-msg" class="result-msg" style="display:none"></div>
+  <!-- Loading -->
+  <div class="sp-load" id="sp-load">Tirage d'une carte…</div>
 
-  <div id="guess-btns" class="guess-btns" style="display:none">
-    <button class="guess-btn staple" id="btn-staple" onclick="guess(true)">💎 Staple</button>
-    <button class="guess-btn not-staple" id="btn-not" onclick="guess(false)">🪨 Pas Staple</button>
+  <!-- Card -->
+  <div class="card-box" id="card-box" style="display:none">
+    <div class="card-thumb-wrap">
+      <img id="card-thumb" class="card-thumb" alt="">
+      <div class="card-spinner" id="card-spinner">🃏</div>
+    </div>
+    <div class="card-info">
+      <div class="staple-badge" id="staple-badge"></div>
+      <p class="card-name" id="card-name"></p>
+      <p class="card-type" id="card-type"></p>
+      <p class="card-desc" id="card-desc"></p>
+    </div>
   </div>
 
-  <div id="next-area" style="display:none; margin-top:0.5rem;">
-    <button class="btn" onclick="nextCard()">Carte suivante →</button>
+  <!-- Flash -->
+  <div class="sp-flash" id="sp-flash"></div>
+
+  <!-- Buttons -->
+  <div class="guess-btns" id="guess-btns" style="display:none">
+    <button class="guess-btn staple"     id="btn-staple" onclick="guess(true)">💎 Staple</button>
+    <button class="guess-btn not-staple" id="btn-not"    onclick="guess(false)">🪨 Pas Staple</button>
   </div>
 
-  <a class="btn btn-ghost" href="../minijeux.html">← Retour</a>
-</main>
+  <a class="sp-back" href="../minijeux.html">← Retour aux mini-jeux</a>
+
+</div>
 
 <script>
-let score = { good: 0, bad: 0, streak: 0 };
+// ── STATE ────────────────────────────────────────────
+let good = 0, bad = 0, streak = 0;
 let isStaple = false;
 
+// ── POOLS & CACHE ────────────────────────────────────
+let staplePool   = [];   // liste EN des staples, chargée une fois
+let randomPool   = [];   // buffer roulant de cartes random FR
+let nextCardData = null; // carte préfetchée prête à afficher
+
+const RANDOM_BUFFER = 6;     // cartes random à garder en avance
+const TOTAL_RANDOM  = 10000; // offset max pour l'API random
+
+// Cache FR : nameEN → données FR (ou null si indispo)
+const frCache = new Map();
+
+// ── API HELPERS ──────────────────────────────────────
+async function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const id   = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(id);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
+  }
+}
+
+// Charge le pool staple EN une seule fois
+async function loadStaplePool() {
+  if (staplePool.length) return;
+  const data = await fetchWithTimeout(
+    'https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes'
+  );
+  staplePool = data.data || [];
+}
+
+// Récupère la version FR d'une carte par son nom EN, avec cache
+async function fetchCardFR(nameEN) {
+  if (frCache.has(nameEN)) return frCache.get(nameEN);
+  try {
+    const data = await fetchWithTimeout(
+      `https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${encodeURIComponent(nameEN)}&language=fr`
+    );
+    const card = data.data?.[0] || null;
+    frCache.set(nameEN, card);
+    return card;
+  } catch {
+    frCache.set(nameEN, null);
+    return null;
+  }
+}
+
+// Remplit le buffer de cartes random directement en FR
+async function fillRandomBuffer() {
+  let attempts = 0;
+  while (randomPool.length < RANDOM_BUFFER && attempts < 20) {
+    attempts++;
+    const offset = Math.floor(Math.random() * TOTAL_RANDOM);
+    try {
+      const data = await fetchWithTimeout(
+        `https://db.ygoprodeck.com/api/v7/cardinfo.php?num=3&offset=${offset}&language=fr`
+      );
+      const cards = (data.data || []).filter(c => c.card_images?.length);
+      randomPool.push(...cards);
+    } catch { /* retry silencieux */ }
+  }
+}
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// ── PREFETCH ─────────────────────────────────────────
+async function prefetchNext() {
+  const willBeStaple = Math.random() < 0.5;
+
+  if (willBeStaple) {
+    await loadStaplePool();
+    const baseCard = pickRandom(staplePool);
+
+    // Enrichissement FR : fallback EN si pas de traduction dispo
+    const frCard = await fetchCardFR(baseCard.name);
+    const card = frCard
+      ? {
+          ...baseCard,
+          name: frCard.name || baseCard.name,
+          desc: frCard.desc || baseCard.desc,
+          type: frCard.type || baseCard.type,
+        }
+      : baseCard;
+
+    nextCardData = { card, staple: true };
+
+  } else {
+    await fillRandomBuffer();
+    const card = randomPool.shift();
+    nextCardData = { card, staple: false };
+    // Refill en arrière-plan sans bloquer
+    fillRandomBuffer().catch(() => {});
+  }
+}
+
+// ── UI HELPERS ───────────────────────────────────────
+function renderHUD() {
+  document.getElementById('hGood').textContent   = good;
+  document.getElementById('hBad').textContent    = bad;
+  document.getElementById('hStreak').textContent = streak;
+}
+
+function showFlash(type, msg) {
+  const f = document.getElementById('sp-flash');
+  f.className   = 'sp-flash on ' + type;
+  f.textContent = msg;
+}
+
+function resetUI() {
+  const load  = document.getElementById('sp-load');
+  const box   = document.getElementById('card-box');
+  const btns  = document.getElementById('guess-btns');
+  const flash = document.getElementById('sp-flash');
+  const badge = document.getElementById('staple-badge');
+  const img   = document.getElementById('card-thumb');
+  const spin  = document.getElementById('card-spinner');
+
+  load.style.display  = 'block';
+  load.textContent    = 'Tirage d\'une carte…';
+  box.style.display   = 'none';
+  btns.style.display  = 'none';
+  flash.classList.remove('on');
+  badge.className     = 'staple-badge';
+  img.style.display   = 'none';
+  img.src             = '';
+  spin.style.display  = 'flex';
+  spin.textContent    = '🃏';
+  box.className       = 'card-box';
+
+  document.getElementById('btn-staple').disabled  = false;
+  document.getElementById('btn-not').disabled     = false;
+  document.getElementById('btn-staple').className = 'guess-btn staple';
+  document.getElementById('btn-not').className    = 'guess-btn not-staple';
+}
+
+function displayCard(card) {
+  document.getElementById('card-name').textContent = card.name || '???';
+  document.getElementById('card-type').textContent = card.type || '';
+  document.getElementById('card-desc').textContent = card.desc || '—';
+
+  const imgUrl =
+    card.card_images?.[0]?.image_url_cropped ||
+    card.card_images?.[0]?.image_url_small   ||
+    card.card_images?.[0]?.image_url;
+
+  if (imgUrl) {
+    const img  = document.getElementById('card-thumb');
+    const spin = document.getElementById('card-spinner');
+    img.onload  = () => { img.style.display = 'block'; spin.style.display = 'none'; };
+    img.onerror = () => { spin.textContent = '🃏'; };
+    img.src = imgUrl;
+  }
+
+  document.getElementById('sp-load').style.display   = 'none';
+  document.getElementById('card-box').style.display   = 'flex';
+  document.getElementById('guess-btns').style.display = 'flex';
+}
+
+// ── MAIN FLOW ─────────────────────────────────────────
 async function nextCard() {
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('card-box').style.display = 'none';
-  document.getElementById('guess-btns').style.display = 'none';
-  document.getElementById('result-msg').style.display = 'none';
-  document.getElementById('next-area').style.display = 'none';
+  resetUI();
 
   try {
-    // 50% chance staple, 50% random
-    isStaple = Math.random() < 0.5;
-    let url = isStaple
-      ? 'https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr'
-      : 'https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr';
+    if (!nextCardData) await prefetchNext();
+    const { card, staple } = nextCardData;
+    nextCardData = null;
+    isStaple = staple;
 
-    const res = await fetch(url);
-    const data = await res.json();
-    const cards = data.data || [];
-    const card = cards[Math.floor(Math.random() * cards.length)];
+    displayCard(card);
 
-    document.getElementById('card-name').textContent = card.name;
-    document.getElementById('card-type').textContent = card.type || '';
-    document.getElementById('card-desc').textContent = card.desc || '—';
+    // Prefetch de la suivante en arrière-plan
+    prefetchNext().catch(() => {});
 
-    const img = document.getElementById('card-thumb');
-    const placeholder = document.getElementById('card-thumb-placeholder');
-    const imgUrl = card.card_images?.[0]?.image_url_cropped || card.card_images?.[0]?.image_url;
-    if (imgUrl) {
-      img.src = imgUrl;
-      img.onload = () => { img.style.display = 'block'; placeholder.style.display = 'none'; };
-      img.onerror = () => { img.style.display = 'none'; placeholder.style.display = 'flex'; };
-    } else {
-      img.style.display = 'none';
-      placeholder.style.display = 'flex';
-    }
-
-    const box = document.getElementById('card-box');
-    box.className = 'card-box';
-    document.getElementById('btn-staple').disabled = false;
-    document.getElementById('btn-not').disabled = false;
-
-    document.getElementById('loading').style.display = 'none';
-    box.style.display = 'flex';
-    document.getElementById('guess-btns').style.display = 'flex';
-
-  } catch(e) {
-    document.getElementById('loading').textContent = '❌ Erreur de chargement. Réessaie.';
+  } catch (e) {
+    const load = document.getElementById('sp-load');
+    load.textContent  = '❌ Erreur de chargement. Clique pour réessayer.';
+    load.style.cursor = 'pointer';
+    load.onclick = () => { load.onclick = null; load.style.cursor = ''; nextCard(); };
   }
 }
 
 function guess(guessStaple) {
   document.getElementById('btn-staple').disabled = true;
-  document.getElementById('btn-not').disabled = true;
+  document.getElementById('btn-not').disabled    = true;
 
   const correct = guessStaple === isStaple;
-  const box = document.getElementById('card-box');
-  const msg = document.getElementById('result-msg');
+  const box  = document.getElementById('card-box');
+  const badge = document.getElementById('staple-badge');
+  const btnS = document.getElementById('btn-staple');
+  const btnN = document.getElementById('btn-not');
+
+  badge.textContent = isStaple ? '💎 Staple confirmée' : '🪨 Pas une staple';
+  badge.className   = 'staple-badge show ' + (isStaple ? 'yes' : 'no');
 
   if (correct) {
-    score.good++; score.streak++;
-    box.className = 'card-box correct';
-    msg.className = 'result-msg correct';
-    msg.textContent = '✅ Bonne réponse ! ' + (isStaple ? 'C\'est bien une staple.' : 'Pas une staple en effet.');
+    good++; streak++;
+    box.className  = 'card-box correct';
+    btnS.className = guessStaple ? 'guess-btn revealed-correct' : 'guess-btn revealed-wrong';
+    btnN.className = guessStaple ? 'guess-btn revealed-wrong'   : 'guess-btn revealed-correct';
+    const s = streak >= 3 ? ` · 🔥 ×${streak}` : '';
+    showFlash('ok', '✅ Bonne réponse !' + (isStaple ? ' C\'est bien une staple.' : ' Pas une staple en effet.') + s);
   } else {
-    score.bad++; score.streak = 0;
-    box.className = 'card-box wrong';
-    msg.className = 'result-msg wrong';
-    msg.textContent = '❌ Raté ! ' + (isStaple ? 'C\'était une staple !' : 'Ce n\'est pas une staple.');
+    bad++; streak = 0;
+    box.className  = 'card-box wrong';
+    btnS.className = guessStaple ? 'guess-btn revealed-wrong'   : 'guess-btn revealed-correct';
+    btnN.className = guessStaple ? 'guess-btn revealed-correct' : 'guess-btn revealed-wrong';
+    showFlash('ko', '❌ Raté ! ' + (isStaple ? 'C\'était une staple !' : 'Ce n\'est pas une staple.'));
   }
 
-  document.getElementById('good').textContent = score.good;
-  document.getElementById('bad').textContent = score.bad;
-  document.getElementById('streak').textContent = score.streak;
-
-  msg.style.display = 'block';
-  document.getElementById('next-area').style.display = 'block';
+  renderHUD();
+  setTimeout(nextCard, 1200);
 }
 
-nextCard();
+// ── INIT ─────────────────────────────────────────────
+// Préchargements parallèles au démarrage
+Promise.all([
+  loadStaplePool().catch(() => {}),
+  fillRandomBuffer().catch(() => {}),
+]).finally(() => nextCard());
 </script>
 </body>
 </html>
