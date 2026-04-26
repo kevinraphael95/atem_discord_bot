@@ -10,65 +10,65 @@
    ═══════════════════════════════════════════════════════ */
 [data-theme="shinigami"] {
   /* === FONDS === */
-  --void:    #12101a; /* fond page — noir violet */
-  --deep:    #16141f; /* sections */
-  --panel:   #1c1a28; /* cartes */
-  --surface: #232130; /* boutons / inputs */
-  --rim:     #2a2838; /* contours */
-  --border:  rgba(255,255,255,.11); /* bordures */
+  --void:    #4a4470; /* fond page */
+  --deep:    #524c7a; /* sections */
+  --panel:   #5c5688; /* cartes */
+  --surface: #666094; /* boutons / inputs */
+  --rim:     #726ca2; /* contours */
+  --border:  rgba(255,255,255,.28);
 
-  /* === OR (accent principal — or pharaon) === */
-  --gold:      #c9902a; /* or profond */
-  --gold-lt:   #e8b84a; /* or lumineux */
-  --gold-pale: rgba(201,144,42,.14); /* fond */
-  --gold-glow: rgba(201,144,42,.34); /* effet */
-  --gold-line: rgba(201,144,42,.22); /* bordure */
+  /* === OR === */
+  --gold:      #d4982e;
+  --gold-lt:   #f0c458;
+  --gold-pale: rgba(212,152,46,.22);
+  --gold-glow: rgba(212,152,46,.42);
+  --gold-line: rgba(212,152,46,.32);
 
-  /* === VIOLET (ombre / Shadow Realm) === */
-  --rei:      #5b2d9e; /* base */
-  --rei-mid:  #7c44cc; /* principal */
-  --rei-lt:   #b48aff; /* hover */
-  --rei-pale: rgba(124,68,204,.16); /* fond */
-  --rei-glow: rgba(124,68,204,.40); /* effet */
+  /* === VIOLET === */
+  --rei:      #7040b8;
+  --rei-mid:  #9660e0;
+  --rei-lt:   #c8a0ff;
+  --rei-pale: rgba(150,96,224,.25);
+  --rei-glow: rgba(150,96,224,.50);
 
-  /* === ROUGE SOMBRE (danger) === */
-  --red:      #991622; /* base */
-  --red-lt:   #d93248; /* hover */
-  --red-pale: rgba(180,30,50,.13); /* fond */
-  --red-glow: rgba(180,30,50,.32); /* effet */
-  --red-line: rgba(180,30,50,.22); /* bordure */
+  /* === ROUGE === */
+  --red:      #b01828;
+  --red-lt:   #e83a54;
+  --red-pale: rgba(200,40,60,.20);
+  --red-glow: rgba(200,40,60,.40);
+  --red-line: rgba(200,40,60,.30);
 
   /* === TEXTE === */
-  --white: #f0ecfa; /* blanc légèrement violacé */
-  --text:  #cdc8e0; /* normal */
-  --muted: #8e89a8; /* secondaire */
-  --dim:   #524e68; /* désactivé */
+  --white: #f5f2ff;
+  --text:  #ede9ff;
+  --muted: #c4bfe0;
+  --dim:   #9890b8;
 
   /* === ÉTATS === */
-  --ok-bg: #061210; --ok-bd: #15803d; --ok-tx: #4ade80; /* succès */
-  --ko-bg: #110510; --ko-bd: #991b1b; --ko-tx: #f87171; /* erreur */
-  --yw-bg: #110d02; --yw-bd: #92400e; --yw-tx: #fbbf24; /* warning */
+  --ok-bg: #1a3d2e; --ok-bd: #22b85a; --ok-tx: #6fffa8;
+  --ko-bg: #3a1424; --ko-bd: #cc2828; --ko-tx: #ff9090;
+  --yw-bg: #362210; --yw-bd: #c06010; --yw-tx: #ffd870;
 
   /* === SPÉCIAL === */
-  --surv-bg: #0d0b1a;
-  --surv-bd: rgba(180,138,255,.42);
-  --surv-tx: #ede6ff;
+  --surv-bg: #3e3860;
+  --surv-bd: rgba(200,160,255,.52);
+  --surv-tx: #f0eaff;
 
   /* === EFFETS === */
-  --atmo-1: rgba(124,68,204,.22); /* halo violet */
-  --atmo-2: rgba(201,144,42,.10); /* halo or */
-  --atmo-3: rgba(124,68,204,.08); /* fond subtil */
+  --atmo-1: rgba(150,96,224,.20);
+  --atmo-2: rgba(212,152,46,.12);
+  --atmo-3: rgba(150,96,224,.10);
 
   /* === UI === */
   --top-bar-grad: linear-gradient(
     90deg,
     transparent 0%,
-    #5b2d9e 12%,
-    #c9902a 32%,
-    #e8b84a 50%,
-    #c9902a 68%,
-    #5b2d9e 88%,
+    #7040b8 12%,
+    #d4982e 32%,
+    #f0c458 50%,
+    #d4982e 68%,
+    #7040b8 88%,
     transparent 100%
   );
-  --nav-bg: rgba(18,16,26,.96);
+  --nav-bg: rgba(58,52,90,.97);
 }
