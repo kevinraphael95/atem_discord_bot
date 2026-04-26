@@ -1,85 +1,68 @@
 /* ═══════════════════════════════════════════════════════
-   THÈME : SHINIGAMI (bleu / or)
-   Organisation :
-   - Backgrounds / surfaces
-   - Couleurs principales (Or / Reiatsu / Danger)
-   - Texte
-   - États UI (succès, erreur…)
-   - Effets & ambiance
-   - UI spécifique
+   THÈME : ATEM (or / sable / Égypte ancienne)
    ═══════════════════════════════════════════════════════ */
-
-[data-theme="shinigami"] {
+[data-theme="atem"] {
 
   /* === FONDS === */
-  --void:    #20242c; /* fond page (éclairci) */
-  --deep:    #262b34; /* sections */
-  --panel:   #2c323c; /* cartes */
-  --surface: #323a46; /* boutons / inputs */
-  --rim:     #38414d; /* contours */
-  --border:  rgba(255,255,255,.13); /* bordures */
+  --void:    #0e0b06; /* noir sable profond */
+  --deep:    #13100a; /* caveau / fond section */
+  --panel:   #1c1710; /* parchemin brûlé */
+  --surface: #251f14; /* surfaces surélevées */
+  --rim:     #2e2618; /* contours sables */
+  --border:  rgba(220,185,100,.18); /* bordures or tamisé */
 
+  /* === OR ROYAL (accent principal) === */
+  --gold:      #c8992a; /* or profond */
+  --gold-lt:   #e8c05a; /* or lumineux */
+  --gold-pale: rgba(200,153,42,.14); /* fond or */
+  --gold-glow: rgba(200,153,42,.35); /* halo */
+  --gold-line: rgba(200,153,42,.28); /* trait */
 
-  /* === OR (accent principal) === */
-  --gold:      #d4a843; /* principal */
-  --gold-lt:   #f0c96a; /* hover */
-  --gold-pale: rgba(212,168,67,.15); /* fond */
-  --gold-glow: rgba(212,168,67,.32); /* effet */
-  --gold-line: rgba(212,168,67,.24); /* bordure */
+  /* === LAPIS LAZULI (magie / Oeil d'Horus) === */
+  --rei:      #2a4a8c; /* lapis foncé */
+  --rei-mid:  #3a6fcf; /* lapis vif */
+  --rei-lt:   #7aabff; /* lapis clair */
+  --rei-pale: rgba(58,111,207,.15);
+  --rei-glow: rgba(58,111,207,.35);
 
-
-  /* === BLEU (reiatsu / énergie) === */
-  --rei:      #1460b8; /* base */
-  --rei-mid:  #1e7fe8; /* principal */
-  --rei-lt:   #6bb8ff; /* hover */
-  --rei-pale: rgba(30,127,232,.16); /* fond */
-  --rei-glow: rgba(30,127,232,.38); /* effet */
-
-
-  /* === ROUGE (danger / erreur) === */
-  --red:      #c43318; /* base */
-  --red-lt:   #ff5a1f; /* hover */
-  --red-pale: rgba(232,84,26,.13); /* fond */
-  --red-glow: rgba(232,84,26,.32); /* effet */
-  --red-line: rgba(232,84,26,.24); /* bordure */
-
+  /* === ROUGE SANG (danger / Seth) === */
+  --red:      #8c1f0e;
+  --red-lt:   #d43a20;
+  --red-pale: rgba(180,50,20,.14);
+  --red-glow: rgba(180,50,20,.32);
+  --red-line: rgba(180,50,20,.26);
 
   /* === TEXTE === */
-  --white: #f5f2ec; /* blanc */
-  --text:  #dbd7d0; /* normal */
-  --muted: #a29e98; /* secondaire */
-  --dim:   #66625d; /* désactivé */
-
+  --white: #f8f0dc; /* papyrus clair */
+  --text:  #e2d4b4; /* sable doré */
+  --muted: #9a8c6c; /* sable ombré */
+  --dim:   #5a5040; /* sable profond */
 
   /* === ÉTATS === */
-  --ok-bg: #071410; --ok-bd: #15803d; --ok-tx: #4ade80; /* succès */
-  --ko-bg: #130606; --ko-bd: #991b1b; --ko-tx: #f87171; /* erreur */
-  --yw-bg: #130d03; --yw-bd: #92400e; --yw-tx: #fbbf24; /* warning */
+  --ok-bg: #071209; --ok-bd: #1a6e34; --ok-tx: #56d688;
+  --ko-bg: #110500; --ko-bd: #8c2211; --ko-tx: #e86040;
+  --yw-bg: #120b00; --yw-bd: #8a5c00; --yw-tx: #e8b840;
 
+  /* === SPÉCIAL (mode survie) === */
+  --surv-bg: #060412;
+  --surv-bd: rgba(120,90,220,.45);
+  --surv-tx: #d8ceff;
 
-  /* === SPÉCIAL === */
-  --surv-bg: #0b1020; 
-  --surv-bd: rgba(94,176,255,.42); 
-  --surv-tx: #e6f4ff; /* mode spécial */
-
-
-  /* === EFFETS === */
-  --atmo-1: rgba(30,127,232,.20);
-  --atmo-2: rgba(232,84,26,.10);
-  --atmo-3: rgba(30,127,232,.09);
-
+  /* === EFFETS ATMOSPHÉRIQUES === */
+  --atmo-1: rgba(200,153,42,.18);  /* halo or */
+  --atmo-2: rgba(58,111,207,.10);  /* halo lapis */
+  --atmo-3: rgba(200,153,42,.07);  /* fond subtil */
 
   /* === UI === */
   --top-bar-grad: linear-gradient(
     90deg,
     transparent 0%,
-    #1e7fe8 15%,
-    #d4a843 38%,
-    #ff5a1f 55%,
-    #d4a843 75%,
-    #1e7fe8 92%,
+    #2a4a8c 10%,
+    #c8992a 28%,
+    #e8c05a 45%,
+    #c8992a 62%,
+    #8c1f0e 80%,
     transparent 100%
   );
-
-  --nav-bg: rgba(40,45,52,.94); /* légèrement éclairci */
+  --nav-bg: rgba(14,11,6,.96);
 }
