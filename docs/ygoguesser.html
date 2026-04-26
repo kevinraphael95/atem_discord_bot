@@ -351,20 +351,29 @@ async function loadCards() {
     const urls = [
       'https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&misc=yes',
       'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Blue-Eyes&misc=yes',
-      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Dark+Magician&misc=yes',
-      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Elemental+HERO&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Dark%20Magician&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Elemental%20HERO&misc=yes',
       'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Stardust&misc=yes',
       'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Blackwing&misc=yes',
-      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Six+Samurai&misc=yes',
+      'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Six%20Samurai&misc=yes',
       'https://db.ygoprodeck.com/api/v7/cardinfo.php?archetype=Monarch&misc=yes',
     ];
-    const results = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
+
+    // ✅ allSettled au lieu de all — les URLs qui échouent sont ignorées
+    const results = await Promise.allSettled(
+      urls.map(u => fetch(u).then(r => r.ok ? r.json() : null))
+    );
+
     const seen = new Set();
     for (const res of results) {
-      for (const c of (res.data || [])) {
+      if (res.status !== 'fulfilled' || !res.value) continue;
+      for (const c of (res.value.data || [])) {
         if (!seen.has(c.id)) { seen.add(c.id); CARDS.push(normalize(c)); }
       }
     }
+
+    if (CARDS.length === 0) throw new Error('Aucune carte chargée');
+
     loaded = true;
     $('loadBar').classList.add('hidden');
     $('gi').disabled = false;
@@ -372,7 +381,8 @@ async function loadCards() {
     $('gi').placeholder = 'Entrez le nom d\'une carte…';
     initGame();
   } catch(e) {
-    $('loadBar').textContent = '❌ Erreur de chargement. Rechargez la page.';
+    $('loadBar').textContent = '❌ Erreur : ' + e.message + '. Rechargez la page.';
+    console.error(e);
   }
 }
 
@@ -390,7 +400,7 @@ function dayNum() {
 }
 function todayCard() {
   const d = dayNum();
-  return seededShuffle(CARDS, d ^ 0xA7EM)[d % CARDS.length];
+  return seededShuffle(CARDS, d ^ 0xA7E)[d % CARDS.length];
 }
 function todayKey() {
   const d = new Date();
