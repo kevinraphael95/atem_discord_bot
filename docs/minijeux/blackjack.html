@@ -18,7 +18,7 @@
   opacity: 0; animation: rise .7s .4s forwards;
 }
 
-/* Score HUD */
+/* HUD */
 .hud {
   display: flex; align-items: center; gap: 1.2rem;
   flex-wrap: wrap; justify-content: center;
@@ -50,25 +50,56 @@
 .hand-total.bust      { color: var(--ko-tx); }
 .hand-total.blackjack { color: var(--ok-tx); }
 
-.cards-list { display: flex; flex-wrap: wrap; gap: .7rem; }
+/* Liste de cartes */
+.cards-list { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; }
 
+/* Carte individuelle avec image */
 .card-chip {
-  background: var(--gold-pale); border: 1px solid var(--gold-line);
-  padding: .4rem .9rem;
-  font-family: 'DM Sans', sans-serif; font-size: .82rem; color: var(--text);
-  display: flex; align-items: center; gap: .5rem;
-  animation: fadeUp .2s forwards;
+  background: var(--deep); border: 1px solid var(--gold-line);
+  display: flex; flex-direction: column; align-items: center;
+  gap: .4rem; padding: .5rem;
+  width: 90px;
+  animation: fadeUp .25s forwards;
+  transition: transform .2s;
+}
+.card-chip:hover { transform: translateY(-3px); }
+
+.card-chip-img-wrap {
+  width: 78px; height: 113px;
+  background: var(--void); border: 1px solid var(--border);
+  position: relative; overflow: hidden; flex-shrink: 0;
+}
+.card-chip-img {
+  width: 100%; height: 100%; object-fit: cover; display: none;
+}
+.card-chip-spinner {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; color: var(--dim);
+}
+
+.card-chip-name {
+  font-family: 'DM Sans', sans-serif; font-size: .62rem;
+  color: var(--text); text-align: center; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+  width: 100%;
 }
 .card-chip .level-badge {
-  font-family: 'Shippori Mincho', serif; font-size: .7rem;
+  font-family: 'Shippori Mincho', serif; font-size: .62rem; font-weight: 700;
   color: var(--gold-lt); background: var(--gold-pale);
-  padding: .1rem .4rem; border: 1px solid var(--gold-line);
+  padding: .1rem .5rem; border: 1px solid var(--gold-line);
+  white-space: nowrap;
 }
+
+/* Carte cachée */
 .card-chip.hidden {
   background: var(--rei-pale); border-color: rgba(124,68,204,.22);
-  color: var(--muted); font-style: italic;
+  justify-content: center; height: 175px; width: 90px;
 }
-@keyframes fadeUp { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
+.card-chip.hidden:hover { transform: none; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
 
 /* Boutons action */
 .action-btns { display: flex; gap: .8rem; width: 100%; }
@@ -80,9 +111,14 @@
   background: transparent;
 }
 .action-btn.hit   { color: var(--ok-tx); border-color: var(--ok-bd); }
-.action-btn.hit:hover:not(:disabled)   { background: var(--ok-bg); transform: translateY(-2px); box-shadow: 0 0 16px rgba(21,128,61,.2); }
+.action-btn.hit:hover:not(:disabled) {
+  background: var(--ok-bg); transform: translateY(-2px);
+  box-shadow: 0 0 16px rgba(21,128,61,.2);
+}
 .action-btn.stand { color: var(--ko-tx); border-color: var(--ko-bd); }
-.action-btn.stand:hover:not(:disabled) { background: var(--ko-bg); transform: translateY(-2px); }
+.action-btn.stand:hover:not(:disabled) {
+  background: var(--ko-bg); transform: translateY(-2px);
+}
 .action-btn:disabled { opacity: .3; cursor: default; transform: none; box-shadow: none; }
 
 /* Résultat */
@@ -102,12 +138,6 @@
 .bj-load {
   font-family: 'Shippori Mincho', serif; font-size: .7rem;
   letter-spacing: .15em; color: var(--muted); text-transform: uppercase;
-}
-
-/* Sous-titre */
-.bj-sub {
-  font-family: 'DM Sans', sans-serif; font-style: italic;
-  font-size: .82rem; color: var(--muted); text-align: center;
 }
 
 /* Boutons nav */
@@ -133,6 +163,8 @@
 @media (max-width: 500px) {
   .bj-wrap { padding: 1.5rem .9rem 5rem; }
   .action-btns { flex-direction: column; }
+  .card-chip { width: 72px; }
+  .card-chip-img-wrap { width: 62px; height: 90px; }
 }
 </style>
 </head>
@@ -167,7 +199,7 @@
   <!-- Loading -->
   <div class="bj-load" id="bj-load">Chargement des cartes…</div>
 
-  <!-- Mains -->
+  <!-- Main dealer -->
   <div id="dealer-section" class="hand-section" style="display:none">
     <div class="hand-label">
       <span>Dealer</span>
@@ -176,6 +208,7 @@
     <div class="cards-list" id="dealer-cards"></div>
   </div>
 
+  <!-- Main joueur -->
   <div id="player-section" class="hand-section" style="display:none">
     <div class="hand-label">
       <span>Toi</span>
@@ -215,7 +248,9 @@ async function fetchDeck() {
   const url = `https://db.ygoprodeck.com/api/v7/cardinfo.php?format=tcg&num=80&offset=${offset}&language=fr`;
   const res  = await fetch(url);
   const data = await res.json();
-  const monsters = (data.data || []).filter(c => c.type?.includes('Monster') && c.level >= 1);
+  const monsters = (data.data || []).filter(
+    c => c.type?.includes('Monster') && c.level >= 1 && c.card_images?.length
+  );
   for (let i = monsters.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [monsters[i], monsters[j]] = [monsters[j], monsters[i]];
@@ -228,13 +263,52 @@ function totalOf(cards) { return cards.reduce((s, c) => s + cardVal(c), 0); }
 
 function renderCard(card, hidden = false) {
   const div = document.createElement('div');
+
   if (hidden) {
     div.className = 'card-chip hidden';
-    div.textContent = '🂠 Carte cachée';
-  } else {
-    div.className = 'card-chip';
-    div.innerHTML = `${card.name} <span class="level-badge">Niv.${card.level}</span>`;
+    div.innerHTML = `<span style="font-size:2.2rem">🂠</span><span class="card-chip-name" style="color:var(--muted);font-style:italic">Carte cachée</span>`;
+    return div;
   }
+
+  div.className = 'card-chip';
+
+  // Image wrapper
+  const imgWrap = document.createElement('div');
+  imgWrap.className = 'card-chip-img-wrap';
+
+  const spinner = document.createElement('div');
+  spinner.className = 'card-chip-spinner';
+  spinner.textContent = '🃏';
+  imgWrap.appendChild(spinner);
+
+  const imgUrl =
+    card.card_images?.[0]?.image_url_cropped ||
+    card.card_images?.[0]?.image_url_small   ||
+    card.card_images?.[0]?.image_url || '';
+
+  if (imgUrl) {
+    const img = document.createElement('img');
+    img.className = 'card-chip-img';
+    img.alt = card.name;
+    img.onload  = () => { img.style.display = 'block'; spinner.style.display = 'none'; };
+    img.onerror = () => { spinner.textContent = '🃏'; };
+    img.src = imgUrl;
+    imgWrap.appendChild(img);
+  }
+
+  // Nom
+  const name = document.createElement('div');
+  name.className = 'card-chip-name';
+  name.textContent = card.name;
+
+  // Badge niveau
+  const badge = document.createElement('span');
+  badge.className = 'level-badge';
+  badge.textContent = 'Niv. ' + card.level;
+
+  div.appendChild(imgWrap);
+  div.appendChild(name);
+  div.appendChild(badge);
   return div;
 }
 
@@ -273,10 +347,10 @@ function endGame(msg, type) {
   result.className   = 'bj-result on ' + type;
   result.textContent = msg;
 
-  document.getElementById('bj-btns').style.display = 'flex';
+  document.getElementById('bj-btns').style.display        = 'flex';
   document.getElementById('bj-back-static').style.display = 'none';
 
-  if (type === 'win')  score.wins++;
+  if (type === 'win')       score.wins++;
   else if (type === 'lose') score.losses++;
   document.getElementById('hWins').textContent   = score.wins;
   document.getElementById('hLosses').textContent = score.losses;
