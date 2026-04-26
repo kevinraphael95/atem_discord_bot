@@ -224,9 +224,72 @@
 
 
 <script>
+// ── STATE ───────────────────────────────────────────
 let good = 0, bad = 0, streak = 0;
 let isStaple = false;
 
+// ── POOLS (cache) ────────────────────────────────────
+let staplePool   = [];   // chargé une seule fois
+let randomPool   = [];   // buffer roulant de cartes random
+let nextCardData = null; // prefetch de la prochaine carte
+
+const RANDOM_BUFFER = 5; // nombre de cartes random à pré-charger
+const TOTAL_RANDOM  = 10000; // offset max pour l'API
+
+// ── API HELPERS ──────────────────────────────────────
+async function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const id   = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(id);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
+  }
+}
+
+async function loadStaplePool() {
+  if (staplePool.length) return;
+  const data = await fetchWithTimeout(
+    'https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes'
+  );
+  staplePool = data.data || [];
+}
+
+async function fillRandomBuffer() {
+  while (randomPool.length < RANDOM_BUFFER) {
+    const offset = Math.floor(Math.random() * TOTAL_RANDOM);
+    try {
+      const data = await fetchWithTimeout(
+        `https://db.ygoprodeck.com/api/v7/cardinfo.php?num=3&offset=${offset}`
+      );
+      const cards = (data.data || []).filter(c => c.card_images?.length);
+      randomPool.push(...cards);
+    } catch { /* on retry silencieusement */ }
+  }
+}
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// ── PREFETCH ─────────────────────────────────────────
+async function prefetchNext() {
+  const willBeStaple = Math.random() < 0.5;
+  if (willBeStaple) {
+    await loadStaplePool();
+    nextCardData = { card: pickRandom(staplePool), staple: true };
+  } else {
+    await fillRandomBuffer();
+    nextCardData = { card: randomPool.shift(), staple: false };
+    fillRandomBuffer(); // re-remplit en arrière-plan
+  }
+}
+
+// ── UI HELPERS ───────────────────────────────────────
 function renderHUD() {
   document.getElementById('hGood').textContent   = good;
   document.getElementById('hBad').textContent    = bad;
@@ -235,64 +298,82 @@ function renderHUD() {
 
 function showFlash(type, msg) {
   const f = document.getElementById('sp-flash');
-  f.className = 'sp-flash on ' + type; f.textContent = msg;
+  f.className = 'sp-flash on ' + type;
+  f.textContent = msg;
 }
 
-async function nextCard() {
+function resetUI() {
   const load  = document.getElementById('sp-load');
   const box   = document.getElementById('card-box');
   const btns  = document.getElementById('guess-btns');
   const flash = document.getElementById('sp-flash');
-  const next  = document.getElementById('next-area');
   const badge = document.getElementById('staple-badge');
+  const img   = document.getElementById('card-thumb');
+  const spin  = document.getElementById('card-spinner');
 
   load.style.display  = 'block';
+  load.textContent    = 'Tirage d\'une carte…';
   box.style.display   = 'none';
   btns.style.display  = 'none';
   flash.classList.remove('on');
-  next.style.display  = 'none';
   badge.className     = 'staple-badge';
+  img.style.display   = 'none';
+  img.src             = '';
+  spin.style.display  = 'flex';
+  spin.textContent    = '🃏';
+  box.className       = 'card-box';
 
-  // Reset image
-  const img  = document.getElementById('card-thumb');
-  const spin = document.getElementById('card-spinner');
-  img.style.display = 'none'; spin.style.display = 'flex';
+  document.getElementById('btn-staple').disabled  = false;
+  document.getElementById('btn-not').disabled     = false;
+  document.getElementById('btn-staple').className = 'guess-btn staple';
+  document.getElementById('btn-not').className    = 'guess-btn not-staple';
+}
+
+function displayCard(card) {
+  document.getElementById('card-name').textContent = card.name || '???';
+  document.getElementById('card-type').textContent = card.type || '';
+  document.getElementById('card-desc').textContent = card.desc || '—';
+
+  const imgUrl =
+    card.card_images?.[0]?.image_url_cropped ||
+    card.card_images?.[0]?.image_url_small   ||
+    card.card_images?.[0]?.image_url;
+
+  if (imgUrl) {
+    const img  = document.getElementById('card-thumb');
+    const spin = document.getElementById('card-spinner');
+    img.onload  = () => { img.style.display = 'block'; spin.style.display = 'none'; };
+    img.onerror = () => { spin.textContent = '🃏'; };
+    img.src = imgUrl;
+  }
+
+  const load = document.getElementById('sp-load');
+  load.style.display = 'none';
+  document.getElementById('card-box').style.display  = 'flex';
+  document.getElementById('guess-btns').style.display = 'flex';
+}
+
+// ── MAIN FLOW ─────────────────────────────────────────
+async function nextCard() {
+  resetUI();
 
   try {
-    isStaple = Math.random() < 0.5;
-    const url = isStaple
-      ? 'https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes'
-      : 'https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes';
+    // Si prefetch prêt → instantané, sinon on charge
+    if (!nextCardData) await prefetchNext();
+    const { card, staple } = nextCardData;
+    nextCardData = null;
+    isStaple = staple;
 
-    const res  = await fetch(url);
-    const data = await res.json();
-    const cards = data.data || [];
-    if (!cards.length) throw new Error('no cards');
-    const card = cards[Math.floor(Math.random() * cards.length)];
+    displayCard(card);
 
-    document.getElementById('card-name').textContent = card.name;
-    document.getElementById('card-type').textContent = card.type || '';
-    document.getElementById('card-desc').textContent = card.desc || '—';
+    // Prefetch de la suivante en arrière-plan
+    prefetchNext().catch(() => {});
 
-    const imgUrl = card.card_images?.[0]?.image_url_cropped || card.card_images?.[0]?.image_url_small || card.card_images?.[0]?.image_url;
-    if (imgUrl) {
-      img.onload  = () => { img.style.display = 'block'; spin.style.display = 'none'; };
-      img.onerror = () => { spin.textContent = '🃏'; };
-      img.src = imgUrl;
-    }
-
-    box.className = 'card-box';
-    document.getElementById('btn-staple').disabled = false;
-    document.getElementById('btn-not').disabled    = false;
-    document.getElementById('btn-staple').className = 'guess-btn staple';
-    document.getElementById('btn-not').className    = 'guess-btn not-staple';
-
-    load.style.display = 'none';
-    box.style.display  = 'flex';
-    btns.style.display = 'flex';
-
-  } catch(e) {
-    load.textContent = '❌ Erreur de chargement — Réessaie.';
+  } catch (e) {
+    const load = document.getElementById('sp-load');
+    load.textContent = '❌ Erreur de chargement. Clique pour réessayer.';
+    load.style.cursor = 'pointer';
+    load.onclick = () => { load.onclick = null; load.style.cursor = ''; nextCard(); };
   }
 }
 
@@ -301,37 +382,37 @@ function guess(guessStaple) {
   document.getElementById('btn-not').disabled    = true;
 
   const correct = guessStaple === isStaple;
-  const box     = document.getElementById('card-box');
-  const badge   = document.getElementById('staple-badge');
-  const btnS    = document.getElementById('btn-staple');
-  const btnN    = document.getElementById('btn-not');
+  const box   = document.getElementById('card-box');
+  const badge = document.getElementById('staple-badge');
+  const btnS  = document.getElementById('btn-staple');
+  const btnN  = document.getElementById('btn-not');
 
-  // Reveal badge
   badge.textContent = isStaple ? '💎 Staple confirmée' : '🪨 Pas une staple';
   badge.className   = 'staple-badge show ' + (isStaple ? 'yes' : 'no');
 
   if (correct) {
     good++; streak++;
     box.className = 'card-box correct';
-    if (guessStaple) { btnS.className = 'guess-btn revealed-correct'; btnN.className = 'guess-btn revealed-wrong'; }
-    else             { btnN.className = 'guess-btn revealed-correct'; btnS.className = 'guess-btn revealed-wrong'; }
+    btnS.className = guessStaple ? 'guess-btn revealed-correct' : 'guess-btn revealed-wrong';
+    btnN.className = guessStaple ? 'guess-btn revealed-wrong'   : 'guess-btn revealed-correct';
     const s = streak >= 3 ? ` · 🔥 ×${streak}` : '';
     showFlash('ok', '✅ Bonne réponse !' + (isStaple ? ' C\'est bien une staple.' : ' Pas une staple en effet.') + s);
   } else {
     bad++; streak = 0;
     box.className = 'card-box wrong';
-    if (guessStaple) { btnS.className = 'guess-btn revealed-wrong'; btnN.className = 'guess-btn revealed-correct'; }
-    else             { btnN.className = 'guess-btn revealed-wrong'; btnS.className = 'guess-btn revealed-correct'; }
+    btnS.className = guessStaple ? 'guess-btn revealed-wrong'   : 'guess-btn revealed-correct';
+    btnN.className = guessStaple ? 'guess-btn revealed-correct' : 'guess-btn revealed-wrong';
     showFlash('ko', '❌ Raté ! ' + (isStaple ? 'C\'était une staple !' : 'Ce n\'est pas une staple.'));
   }
 
   renderHUD();
-
-  setTimeout(() => {
-    nextCard();
-  }, 1200); // 1.2 secondes, tu peux ajuster
+  setTimeout(nextCard, 1200);
 }
 
+// ── INIT ──────────────────────────────────────────────
+// Précharge le pool staple + prefetch la première carte en parallèle
+loadStaplePool().catch(() => {});
+fillRandomBuffer().catch(() => {});
 nextCard();
 </script>
 </body>
