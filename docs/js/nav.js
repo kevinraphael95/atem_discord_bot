@@ -7,8 +7,8 @@
     { href: 'ygoguesser.html', label: 'YGO Guesser' },
   ];
   const themes = [
-    { id: 'shinigami', label: 'Royaumes des Ombres', icon: '⚔️' },
-    { id: 'quincy',    label: 'Dragon Blanc',        icon: '↗️' }
+    { id: 'shinigami', label: 'Royaumes des Ombres', icon: '👤' },
+    { id: 'quincy',    label: 'Dragon Blanc',        icon: '🐲' }
   ];
   const savedTheme = localStorage.getItem('atem-theme') || 'shinigami';
   document.documentElement.setAttribute('data-theme', savedTheme);
