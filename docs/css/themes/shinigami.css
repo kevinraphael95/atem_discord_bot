@@ -8,7 +8,7 @@
    - Effets & ambiance
    - UI spécifique
    ═══════════════════════════════════════════════════════ */
-[data-theme="shadow-realm"] {
+[data-theme="shinigami"] {
   /* === FONDS === */
   --void:    #12101a; /* fond page — noir violet */
   --deep:    #16141f; /* sections */
@@ -31,7 +31,7 @@
   --rei-pale: rgba(124,68,204,.16); /* fond */
   --rei-glow: rgba(124,68,204,.40); /* effet */
 
-  /* === ROUGE SOMBRE (danger / Seth) === */
+  /* === ROUGE SOMBRE (danger) === */
   --red:      #991622; /* base */
   --red-lt:   #d93248; /* hover */
   --red-pale: rgba(180,30,50,.13); /* fond */
@@ -49,15 +49,15 @@
   --ko-bg: #110510; --ko-bd: #991b1b; --ko-tx: #f87171; /* erreur */
   --yw-bg: #110d02; --yw-bd: #92400e; --yw-tx: #fbbf24; /* warning */
 
-  /* === SPÉCIAL (mode survie) === */
+  /* === SPÉCIAL === */
   --surv-bg: #0d0b1a;
   --surv-bd: rgba(180,138,255,.42);
   --surv-tx: #ede6ff;
 
   /* === EFFETS === */
-  --atmo-1: rgba(124,68,204,.22);  /* halo violet */
-  --atmo-2: rgba(201,144,42,.10);  /* halo or */
-  --atmo-3: rgba(124,68,204,.08);  /* fond subtil */
+  --atmo-1: rgba(124,68,204,.22); /* halo violet */
+  --atmo-2: rgba(201,144,42,.10); /* halo or */
+  --atmo-3: rgba(124,68,204,.08); /* fond subtil */
 
   /* === UI === */
   --top-bar-grad: linear-gradient(
