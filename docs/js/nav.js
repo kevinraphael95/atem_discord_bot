@@ -10,27 +10,49 @@
     { id: 'shinigami', label: 'Royaumes des Ombres', icon: '👤' },
     { id: 'quincy',    label: 'Dragon Blanc',        icon: '🐲' }
   ];
+
+  // ── CALCUL DU PRÉFIXE ─────────────────────────────────
+  // Détecte la profondeur dans l'arborescence et remonte si besoin
+  const parts = location.pathname.split('/').filter(Boolean);
+  // On cherche si on est dans un sous-dossier connu
+  const SUB_DIRS = ['minijeux']; // ajoute ici d'autres sous-dossiers si besoin
+  const inSub = parts.length >= 2 && SUB_DIRS.includes(parts[parts.length - 2]);
+  const prefix = inSub ? '../' : '';
+
+  const current = parts[parts.length - 1] || 'index.html';
+
   const savedTheme = localStorage.getItem('atem-theme') || 'shinigami';
   document.documentElement.setAttribute('data-theme', savedTheme);
-  const current = location.pathname.split('/').pop() || 'index.html';
+
+  // Détection page active : on compare juste le nom de fichier
+  function isActive(href) {
+    const hrefFile = href.split('/').pop();
+    return current === hrefFile || (current === '' && hrefFile === 'index.html');
+  }
+
   const navLinks = pages.map(p => {
-    const active = (current === p.href || (current === '' && p.href === 'index.html')) ? ' class="active"' : '';
-    return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
+    const active = isActive(p.href) ? ' class="active"' : '';
+    return `<li><a href="${prefix}${p.href}"${active}>${p.label}</a></li>`;
   }).join('\n    ');
+
   const drawerLinks = pages.map(p => {
-    const active = (current === p.href || (current === '' && p.href === 'index.html')) ? ' class="active"' : '';
-    return `<a href="${p.href}"${active} onclick="closeNav()">${p.label}</a>`;
+    const active = isActive(p.href) ? ' class="active"' : '';
+    return `<a href="${prefix}${p.href}"${active} onclick="closeNav()">${p.label}</a>`;
   }).join('\n  ');
+
   const themeOptions = themes.map(t =>
     `<button class="theme-opt" data-theme="${t.id}" title="${t.label}">${t.icon} ${t.label}</button>`
   ).join('');
+
   const drawerThemeOptions = themes.map(t =>
     `<button class="drawer-theme-opt" data-theme="${t.id}">${t.icon} ${t.label}</button>`
   ).join('');
+
   const activeTheme = themes.find(t => t.id === savedTheme) || themes[0];
+
   document.body.insertAdjacentHTML('afterbegin', `
 <nav>
-  <a class="nav-logo" href="index.html">⚡ Atem <span>Bot</span></a>
+  <a class="nav-logo" href="${prefix}index.html">⚡ Atem <span>Bot</span></a>
   <ul class="nav-links">
     ${navLinks}
   </ul>
@@ -55,10 +77,12 @@
   </div>
 </div>
 `);
+
   document.getElementById('themeToggle').addEventListener('click', function (e) {
     e.stopPropagation();
     document.getElementById('themeMenu').classList.toggle('open');
   });
+
   function updateThemeButtons(themeId) {
     document.querySelectorAll('.theme-opt, .drawer-theme-opt').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.theme === themeId);
@@ -68,7 +92,9 @@
       document.getElementById('themeToggle').textContent = `${active.icon} ${active.label}`;
     }
   }
+
   updateThemeButtons(savedTheme);
+
   document.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-theme]');
     if (btn) {
@@ -83,9 +109,7 @@
       if (m) m.classList.remove('open');
     }
   });
-  window.toggleThemeMenu = function () {
-    document.getElementById('themeMenu').classList.toggle('open');
-  };
+
   window.toggleNav = function () {
     document.getElementById('ham').classList.toggle('open');
     document.getElementById('drawer').classList.toggle('open');
