@@ -209,6 +209,13 @@ nav {
   max-width: 560px; margin-left: auto; margin-right: auto;
 }
 
+/* ── CONTENT WRAPPER ─────────────────────────────────── */
+.content {
+  position: relative; z-index: 1;
+  margin: 2rem auto 5rem;
+  padding: 0 3rem;
+}
+
 /* ── ORBES ───────────────────────────────────────────── */
 .orbs { display:flex; justify-content:center; gap:8px; margin:1.4rem 0 0; opacity:0; animation:rise .6s .55s forwards; }
 .orb  { width:6px; height:6px; border-radius:50%; background:var(--rei-mid); box-shadow:0 0 8px var(--rei-glow); animation:pulse 2.8s ease-in-out infinite; }
@@ -291,6 +298,7 @@ footer {
   .ham           { display: flex; }
   .phdr          { padding: 88px 1.2rem 0; }
   .divider       { padding: 0 1.2rem; }
+  .content       { padding: 0 1.2rem; }
   footer         { padding: 1.6rem 1.2rem; flex-direction: column; align-items: flex-start; }
   .foot-links    { gap: .9rem; }
   .theme-toggle  { font-size: .82rem; }
@@ -298,4 +306,3 @@ footer {
 @media (min-width: 701px) and (max-width: 1024px) {
   nav { padding: 0 1.8rem; }
 }
-
