@@ -216,25 +216,25 @@
     <button class="guess-btn not-staple" id="btn-not"    onclick="guess(false)">🪨 Pas Staple</button>
   </div>
 
-
-
   <a class="sp-back" href="../minijeux.html">← Retour aux mini-jeux</a>
 
 </div>
 
-
 <script>
-// ── STATE ───────────────────────────────────────────
+// ── STATE ────────────────────────────────────────────
 let good = 0, bad = 0, streak = 0;
 let isStaple = false;
 
-// ── POOLS (cache) ────────────────────────────────────
-let staplePool   = [];   // chargé une seule fois
-let randomPool   = [];   // buffer roulant de cartes random
-let nextCardData = null; // prefetch de la prochaine carte
+// ── POOLS & CACHE ────────────────────────────────────
+let staplePool   = [];   // liste EN des staples, chargée une fois
+let randomPool   = [];   // buffer roulant de cartes random FR
+let nextCardData = null; // carte préfetchée prête à afficher
 
-const RANDOM_BUFFER = 5; // nombre de cartes random à pré-charger
-const TOTAL_RANDOM  = 10000; // offset max pour l'API
+const RANDOM_BUFFER = 6;     // cartes random à garder en avance
+const TOTAL_RANDOM  = 10000; // offset max pour l'API random
+
+// Cache FR : nameEN → données FR (ou null si indispo)
+const frCache = new Map();
 
 // ── API HELPERS ──────────────────────────────────────
 async function fetchWithTimeout(url, ms = 8000) {
@@ -251,6 +251,7 @@ async function fetchWithTimeout(url, ms = 8000) {
   }
 }
 
+// Charge le pool staple EN une seule fois
 async function loadStaplePool() {
   if (staplePool.length) return;
   const data = await fetchWithTimeout(
@@ -259,16 +260,35 @@ async function loadStaplePool() {
   staplePool = data.data || [];
 }
 
+// Récupère la version FR d'une carte par son nom EN, avec cache
+async function fetchCardFR(nameEN) {
+  if (frCache.has(nameEN)) return frCache.get(nameEN);
+  try {
+    const data = await fetchWithTimeout(
+      `https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${encodeURIComponent(nameEN)}&language=fr`
+    );
+    const card = data.data?.[0] || null;
+    frCache.set(nameEN, card);
+    return card;
+  } catch {
+    frCache.set(nameEN, null);
+    return null;
+  }
+}
+
+// Remplit le buffer de cartes random directement en FR
 async function fillRandomBuffer() {
-  while (randomPool.length < RANDOM_BUFFER) {
+  let attempts = 0;
+  while (randomPool.length < RANDOM_BUFFER && attempts < 20) {
+    attempts++;
     const offset = Math.floor(Math.random() * TOTAL_RANDOM);
     try {
       const data = await fetchWithTimeout(
-        `https://db.ygoprodeck.com/api/v7/cardinfo.php?num=3&offset=${offset}`
+        `https://db.ygoprodeck.com/api/v7/cardinfo.php?num=3&offset=${offset}&language=fr`
       );
       const cards = (data.data || []).filter(c => c.card_images?.length);
       randomPool.push(...cards);
-    } catch { /* on retry silencieusement */ }
+    } catch { /* retry silencieux */ }
   }
 }
 
@@ -279,13 +299,30 @@ function pickRandom(arr) {
 // ── PREFETCH ─────────────────────────────────────────
 async function prefetchNext() {
   const willBeStaple = Math.random() < 0.5;
+
   if (willBeStaple) {
     await loadStaplePool();
-    nextCardData = { card: pickRandom(staplePool), staple: true };
+    const baseCard = pickRandom(staplePool);
+
+    // Enrichissement FR : fallback EN si pas de traduction dispo
+    const frCard = await fetchCardFR(baseCard.name);
+    const card = frCard
+      ? {
+          ...baseCard,
+          name: frCard.name || baseCard.name,
+          desc: frCard.desc || baseCard.desc,
+          type: frCard.type || baseCard.type,
+        }
+      : baseCard;
+
+    nextCardData = { card, staple: true };
+
   } else {
     await fillRandomBuffer();
-    nextCardData = { card: randomPool.shift(), staple: false };
-    fillRandomBuffer(); // re-remplit en arrière-plan
+    const card = randomPool.shift();
+    nextCardData = { card, staple: false };
+    // Refill en arrière-plan sans bloquer
+    fillRandomBuffer().catch(() => {});
   }
 }
 
@@ -298,7 +335,7 @@ function renderHUD() {
 
 function showFlash(type, msg) {
   const f = document.getElementById('sp-flash');
-  f.className = 'sp-flash on ' + type;
+  f.className   = 'sp-flash on ' + type;
   f.textContent = msg;
 }
 
@@ -347,9 +384,8 @@ function displayCard(card) {
     img.src = imgUrl;
   }
 
-  const load = document.getElementById('sp-load');
-  load.style.display = 'none';
-  document.getElementById('card-box').style.display  = 'flex';
+  document.getElementById('sp-load').style.display   = 'none';
+  document.getElementById('card-box').style.display   = 'flex';
   document.getElementById('guess-btns').style.display = 'flex';
 }
 
@@ -358,7 +394,6 @@ async function nextCard() {
   resetUI();
 
   try {
-    // Si prefetch prêt → instantané, sinon on charge
     if (!nextCardData) await prefetchNext();
     const { card, staple } = nextCardData;
     nextCardData = null;
@@ -371,7 +406,7 @@ async function nextCard() {
 
   } catch (e) {
     const load = document.getElementById('sp-load');
-    load.textContent = '❌ Erreur de chargement. Clique pour réessayer.';
+    load.textContent  = '❌ Erreur de chargement. Clique pour réessayer.';
     load.style.cursor = 'pointer';
     load.onclick = () => { load.onclick = null; load.style.cursor = ''; nextCard(); };
   }
@@ -382,24 +417,24 @@ function guess(guessStaple) {
   document.getElementById('btn-not').disabled    = true;
 
   const correct = guessStaple === isStaple;
-  const box   = document.getElementById('card-box');
+  const box  = document.getElementById('card-box');
   const badge = document.getElementById('staple-badge');
-  const btnS  = document.getElementById('btn-staple');
-  const btnN  = document.getElementById('btn-not');
+  const btnS = document.getElementById('btn-staple');
+  const btnN = document.getElementById('btn-not');
 
   badge.textContent = isStaple ? '💎 Staple confirmée' : '🪨 Pas une staple';
   badge.className   = 'staple-badge show ' + (isStaple ? 'yes' : 'no');
 
   if (correct) {
     good++; streak++;
-    box.className = 'card-box correct';
+    box.className  = 'card-box correct';
     btnS.className = guessStaple ? 'guess-btn revealed-correct' : 'guess-btn revealed-wrong';
     btnN.className = guessStaple ? 'guess-btn revealed-wrong'   : 'guess-btn revealed-correct';
     const s = streak >= 3 ? ` · 🔥 ×${streak}` : '';
     showFlash('ok', '✅ Bonne réponse !' + (isStaple ? ' C\'est bien une staple.' : ' Pas une staple en effet.') + s);
   } else {
     bad++; streak = 0;
-    box.className = 'card-box wrong';
+    box.className  = 'card-box wrong';
     btnS.className = guessStaple ? 'guess-btn revealed-wrong'   : 'guess-btn revealed-correct';
     btnN.className = guessStaple ? 'guess-btn revealed-correct' : 'guess-btn revealed-wrong';
     showFlash('ko', '❌ Raté ! ' + (isStaple ? 'C\'était une staple !' : 'Ce n\'est pas une staple.'));
@@ -409,11 +444,12 @@ function guess(guessStaple) {
   setTimeout(nextCard, 1200);
 }
 
-// ── INIT ──────────────────────────────────────────────
-// Précharge le pool staple + prefetch la première carte en parallèle
-loadStaplePool().catch(() => {});
-fillRandomBuffer().catch(() => {});
-nextCard();
+// ── INIT ─────────────────────────────────────────────
+// Préchargements parallèles au démarrage
+Promise.all([
+  loadStaplePool().catch(() => {}),
+  fillRandomBuffer().catch(() => {}),
+]).finally(() => nextCard());
 </script>
 </body>
 </html>
