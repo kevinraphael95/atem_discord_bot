@@ -216,9 +216,7 @@
     <button class="guess-btn not-staple" id="btn-not"    onclick="guess(false)">🪨 Pas Staple</button>
   </div>
 
-  <div class="sp-next-area" id="next-area">
-    <button class="sp-next-btn" onclick="nextCard()">Carte suivante →</button>
-  </div>
+
 
   <a class="sp-back" href="../minijeux.html">← Retour aux mini-jeux</a>
 
@@ -328,7 +326,10 @@ function guess(guessStaple) {
   }
 
   renderHUD();
-  document.getElementById('next-area').style.display = 'block';
+
+  setTimeout(() => {
+    nextCard();
+  }, 1200); // 1.2 secondes, tu peux ajuster
 }
 
 nextCard();
