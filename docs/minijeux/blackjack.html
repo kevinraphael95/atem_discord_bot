@@ -1,158 +1,208 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="shinigami">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Blackjack YGO — Atem</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+JP:wght@300;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/nav.js" defer></script>
 <style>
-  :root {
-    --black: #06050a; --ink: #131119;
-    --gold: #d4a843; --gold-light: #f0c860;
-    --silver: #8a8fa8; --white: #f0ecf5;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--black); color: var(--white); font-family: 'Crimson Pro', serif; min-height: 100vh; overflow-x: hidden; }
-  body::before {
-    content: ''; position: fixed; inset: 0;
-    background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(122,58,138,0.15) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
-  }
-  nav {
-    position: fixed; top: 0; width: 100%; z-index: 100;
-    padding: 1.2rem 3rem; display: flex; align-items: center; justify-content: space-between;
-    background: linear-gradient(to bottom, rgba(6,5,10,0.97) 0%, transparent 100%);
-    border-bottom: 1px solid rgba(212,168,67,0.1); backdrop-filter: blur(4px);
-  }
-  .nav-logo { font-family:'Cinzel',serif; font-weight:900; font-size:1.1rem; color:var(--gold); text-decoration:none; letter-spacing:0.2em; }
-  .nav-back { font-family:'Cinzel',serif; font-size:0.7rem; color:var(--silver); text-decoration:none; letter-spacing:0.2em; text-transform:uppercase; transition:color 0.3s; }
-  .nav-back:hover { color:var(--gold); }
+/* ── BLACKJACK LAYOUT ──────────────────────────────── */
+.bj-wrap {
+  position: relative; z-index: 1;
+  max-width: 700px; margin: 0 auto;
+  padding: 2rem 1.5rem 6rem;
+  display: flex; flex-direction: column; align-items: center; gap: 1.3rem;
+  opacity: 0; animation: rise .7s .4s forwards;
+}
 
-  main {
-    position: relative; z-index: 1; max-width: 700px; margin: 0 auto;
-    padding: 8rem 2rem 5rem; display: flex; flex-direction: column; align-items: center; gap: 1.8rem;
-  }
-  .game-title { font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.4em; color:var(--gold); text-transform:uppercase; }
+/* Score HUD */
+.hud {
+  display: flex; align-items: center; gap: 1.2rem;
+  flex-wrap: wrap; justify-content: center;
+}
+.hud-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font-family: 'Shippori Mincho', serif;
+}
+.hud-val  { font-size: 1.3rem; font-weight: 800; color: var(--gold-lt); line-height: 1; }
+.hud-lbl  { font-size: .52rem; letter-spacing: .15em; color: var(--muted); text-transform: uppercase; }
+.hud-div  { width: 1px; height: 28px; background: var(--border); }
 
-  /* Tableau de jeu */
-  .board { width: 100%; display: flex; flex-direction: column; gap: 1.2rem; }
+/* Main de jeu */
+.hand-section {
+  width: 100%; background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 1.4rem;
+}
+.hand-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Shippori Mincho', serif; font-size: .6rem;
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 1rem;
+}
+.hand-total {
+  font-family: 'Shippori Mincho', serif; font-size: 1.1rem;
+  font-weight: 800; color: var(--gold-lt); letter-spacing: .1em;
+}
+.hand-total.bust      { color: var(--ko-tx); }
+.hand-total.blackjack { color: var(--ok-tx); }
 
-  .hand-section {
-    background: var(--ink); border: 1px solid rgba(212,168,67,0.12); padding: 1.5rem;
-  }
-  .hand-label {
-    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase;
-    color: var(--silver); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;
-  }
-  .hand-total {
-    font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--gold-light); letter-spacing: 0.1em;
-  }
-  .hand-total.bust { color: #c44020; }
-  .hand-total.blackjack { color: #6fc87d; }
+.cards-list { display: flex; flex-wrap: wrap; gap: .7rem; }
 
-  .cards-list { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+.card-chip {
+  background: var(--gold-pale); border: 1px solid var(--gold-line);
+  padding: .4rem .9rem;
+  font-family: 'DM Sans', sans-serif; font-size: .82rem; color: var(--text);
+  display: flex; align-items: center; gap: .5rem;
+  animation: fadeUp .2s forwards;
+}
+.card-chip .level-badge {
+  font-family: 'Shippori Mincho', serif; font-size: .7rem;
+  color: var(--gold-lt); background: var(--gold-pale);
+  padding: .1rem .4rem; border: 1px solid var(--gold-line);
+}
+.card-chip.hidden {
+  background: var(--rei-pale); border-color: rgba(124,68,204,.22);
+  color: var(--muted); font-style: italic;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
 
-  .card-chip {
-    background: rgba(212,168,67,0.07); border: 1px solid rgba(212,168,67,0.2);
-    padding: 0.4rem 0.8rem; font-size: 0.85rem; color: var(--white);
-    display: flex; align-items: center; gap: 0.5rem;
-    animation: fadeUp 0.2s forwards;
-  }
-  .card-chip .level-badge {
-    font-family: 'Cinzel', serif; font-size: 0.75rem; color: var(--gold);
-    background: rgba(212,168,67,0.1); padding: 0.1rem 0.4rem;
-    border: 1px solid rgba(212,168,67,0.2);
-  }
-  .card-chip.hidden {
-    background: rgba(122,58,138,0.1); border-color: rgba(122,58,138,0.2); color: var(--silver);
-    font-style: italic;
-  }
+/* Boutons action */
+.action-btns { display: flex; gap: .8rem; width: 100%; }
+.action-btn {
+  flex: 1; padding: .9rem 1rem;
+  font-family: 'Shippori Mincho', serif; font-size: .68rem;
+  font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  border: 1px solid; cursor: pointer; transition: all .22s;
+  background: transparent;
+}
+.action-btn.hit   { color: var(--ok-tx); border-color: var(--ok-bd); }
+.action-btn.hit:hover:not(:disabled)   { background: var(--ok-bg); transform: translateY(-2px); box-shadow: 0 0 16px rgba(21,128,61,.2); }
+.action-btn.stand { color: var(--ko-tx); border-color: var(--ko-bd); }
+.action-btn.stand:hover:not(:disabled) { background: var(--ko-bg); transform: translateY(-2px); }
+.action-btn:disabled { opacity: .3; cursor: default; transform: none; box-shadow: none; }
 
-  /* Boutons action */
-  .action-btns { display: flex; gap: 1rem; width: 100%; }
-  .action-btn {
-    flex: 1; padding: 1rem; font-family: 'Cinzel', serif; font-size: 0.85rem;
-    letter-spacing: 0.2em; text-transform: uppercase; border: 1px solid; cursor: pointer; transition: all 0.25s;
-  }
-  .action-btn.hit { background: rgba(58,138,74,0.1); color: #6fc87d; border-color: rgba(58,138,74,0.3); }
-  .action-btn.hit:hover { background: rgba(58,138,74,0.2); transform: translateY(-2px); box-shadow: 0 0 20px rgba(58,138,74,0.15); }
-  .action-btn.stand { background: rgba(196,64,32,0.1); color: #e07060; border-color: rgba(196,64,32,0.3); }
-  .action-btn.stand:hover { background: rgba(196,64,32,0.2); transform: translateY(-2px); }
-  .action-btn:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
+/* Résultat */
+.bj-result {
+  width: 100%; padding: 1rem 1.5rem; text-align: center;
+  font-family: 'Shippori Mincho', serif; font-size: .9rem;
+  font-weight: 700; letter-spacing: .08em;
+  border: 1px solid; display: none; animation: flashIn .35s ease;
+}
+.bj-result.on   { display: block; }
+.bj-result.win  { background: var(--ok-bg); border-color: var(--ok-bd); color: var(--ok-tx); }
+.bj-result.lose { background: var(--ko-bg); border-color: var(--ko-bd); color: var(--ko-tx); }
+.bj-result.draw { background: var(--yw-bg); border-color: var(--yw-bd); color: var(--yw-tx); }
+@keyframes flashIn { from{opacity:0;transform:translateY(-6px);} to{opacity:1;transform:translateY(0);} }
 
-  /* Résultat */
-  .result-banner {
-    font-family: 'Cinzel', serif; font-size: 1.1rem; letter-spacing: 0.1em;
-    padding: 1rem 2rem; border: 1px solid; text-align: center; width: 100%;
-    animation: fadeUp 0.4s forwards;
-  }
-  .result-banner.win { background: rgba(58,138,74,0.1); border-color: rgba(58,138,74,0.4); color: #6fc87d; }
-  .result-banner.lose { background: rgba(138,58,58,0.1); border-color: rgba(138,58,58,0.4); color: #c44020; }
-  .result-banner.draw { background: rgba(212,168,67,0.07); border-color: rgba(212,168,67,0.3); color: var(--gold); }
+/* Loading */
+.bj-load {
+  font-family: 'Shippori Mincho', serif; font-size: .7rem;
+  letter-spacing: .15em; color: var(--muted); text-transform: uppercase;
+}
 
-  .btn { font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.25em; text-transform:uppercase; padding:0.9rem 2.2rem; border:1px solid; cursor:pointer; transition:all 0.3s; background:var(--gold); color:var(--black); border-color:var(--gold); text-decoration:none; display:inline-block; }
-  .btn:hover { background:var(--gold-light); box-shadow:0 0 30px rgba(212,168,67,0.35); transform:translateY(-2px); }
-  .btn-ghost { background:transparent; color:var(--silver); border-color:rgba(138,143,168,0.3); }
-  .btn-ghost:hover { color:var(--white); border-color:var(--white); }
+/* Sous-titre */
+.bj-sub {
+  font-family: 'DM Sans', sans-serif; font-style: italic;
+  font-size: .82rem; color: var(--muted); text-align: center;
+}
 
-  .score-bar { display:flex; gap:2rem; font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.2em; color:var(--silver); }
-  .score-bar span { color:var(--gold-light); font-size:1.1rem; }
+/* Boutons nav */
+.bj-btns {
+  display: none; gap: .8rem; flex-wrap: wrap; justify-content: center;
+}
+.bj-btn {
+  background: var(--gold); color: var(--void); border: none;
+  font-family: 'Shippori Mincho', serif; font-size: .65rem; font-weight: 700;
+  letter-spacing: .15em; text-transform: uppercase;
+  padding: .7rem 2rem; cursor: pointer; transition: all .2s;
+}
+.bj-btn:hover { background: var(--gold-lt); }
+.bj-back {
+  font-family: 'Shippori Mincho', serif; font-size: .65rem;
+  letter-spacing: .15em; text-transform: uppercase;
+  color: var(--muted); text-decoration: none;
+  border: 1px solid var(--border); padding: .55rem 1.2rem;
+  transition: all .2s;
+}
+.bj-back:hover { color: var(--gold-lt); border-color: var(--gold-line); }
 
-  .loading { font-style:italic; color:var(--silver); letter-spacing:0.15em; font-size:0.9rem; }
-
-  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-  @media (max-width:500px) { nav{padding:1rem 1.5rem;} main{padding:6rem 1rem 3rem;} }
+@media (max-width: 500px) {
+  .bj-wrap { padding: 1.5rem .9rem 5rem; }
+  .action-btns { flex-direction: column; }
+}
 </style>
 </head>
 <body>
-<nav>
-  <a class="nav-logo" href="../index.html">𓂀 ATEM</a>
-  <a class="nav-back" href="../minijeux.html">← Mini-jeux</a>
-</nav>
 
-<main>
-  <p class="game-title">🃏 Blackjack YGO</p>
-  <p style="font-style:italic;color:var(--silver);font-size:0.9rem;text-align:center">Valeur = niveau du monstre · Dépasse 21 → Bust</p>
+<div class="atmo"></div>
+<div class="top-bar"></div>
 
-  <div class="score-bar">
-    <div>🏆 Victoires : <span id="wins">0</span></div>
-    <div>💀 Défaites : <span id="losses">0</span></div>
-  </div>
+<div class="phdr">
+  <h1 class="pttl">
+    <span class="t1">Blackjack YGO</span>
+  </h1>
+  <p class="psub">Valeur = niveau du monstre · Dépasse 21 → Bust</p>
+  <div class="orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+</div>
 
-  <div id="loading" class="loading">Chargement des cartes…</div>
+<div class="bj-wrap">
 
-  <div id="board" class="board" style="display:none">
-    <div class="hand-section" id="dealer-section">
-      <div class="hand-label">
-        <span>Dealer</span>
-        <span class="hand-total" id="dealer-total">?</span>
-      </div>
-      <div class="cards-list" id="dealer-cards"></div>
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-stat">
+      <div class="hud-val" id="hWins">0</div>
+      <div class="hud-lbl">🏆 Victoires</div>
     </div>
-
-    <div class="hand-section" id="player-section">
-      <div class="hand-label">
-        <span>Toi</span>
-        <span class="hand-total" id="player-total">0</span>
-      </div>
-      <div class="cards-list" id="player-cards"></div>
+    <div class="hud-div"></div>
+    <div class="hud-stat">
+      <div class="hud-val" id="hLosses">0</div>
+      <div class="hud-lbl">💀 Défaites</div>
     </div>
   </div>
 
-  <div id="action-btns" class="action-btns" style="display:none">
-    <button class="action-btn hit" id="btn-hit" onclick="hit()">🃏 Tirer</button>
+  <!-- Loading -->
+  <div class="bj-load" id="bj-load">Chargement des cartes…</div>
+
+  <!-- Mains -->
+  <div id="dealer-section" class="hand-section" style="display:none">
+    <div class="hand-label">
+      <span>Dealer</span>
+      <span class="hand-total" id="dealer-total">?</span>
+    </div>
+    <div class="cards-list" id="dealer-cards"></div>
+  </div>
+
+  <div id="player-section" class="hand-section" style="display:none">
+    <div class="hand-label">
+      <span>Toi</span>
+      <span class="hand-total" id="player-total">0</span>
+    </div>
+    <div class="cards-list" id="player-cards"></div>
+  </div>
+
+  <!-- Boutons action -->
+  <div class="action-btns" id="action-btns" style="display:none">
+    <button class="action-btn hit"   id="btn-hit"   onclick="hit()">🃏 Tirer</button>
     <button class="action-btn stand" id="btn-stand" onclick="stand()">✋ Rester</button>
   </div>
 
-  <div id="result-banner" style="display:none"></div>
+  <!-- Résultat -->
+  <div class="bj-result" id="bj-result"></div>
 
-  <div id="new-game-btn" style="display:none">
-    <button class="btn" onclick="startGame()">Nouvelle partie</button>
+  <!-- Boutons nav -->
+  <div class="bj-btns" id="bj-btns">
+    <button class="bj-btn" onclick="startGame()">🔁 Nouvelle partie</button>
+    <a class="bj-back" href="../minijeux.html">← Retour</a>
   </div>
 
-  <a class="btn btn-ghost" href="../minijeux.html">← Retour</a>
-</main>
+  <!-- Retour permanent -->
+  <a class="bj-back" id="bj-back-static" href="../minijeux.html">← Retour aux mini-jeux</a>
+
+</div>
 
 <script>
 let deck = [];
@@ -161,20 +211,19 @@ let gameOver = false;
 let score = { wins: 0, losses: 0 };
 
 async function fetchDeck() {
-  const url = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr';
-  const res = await fetch(url);
+  const offset = Math.floor(Math.random() * 9000);
+  const url = `https://db.ygoprodeck.com/api/v7/cardinfo.php?format=tcg&num=80&offset=${offset}&language=fr`;
+  const res  = await fetch(url);
   const data = await res.json();
-  const monsters = (data.data || []).filter(c => c.type && c.type.includes('Monster') && c.level >= 1);
-  // shuffle
+  const monsters = (data.data || []).filter(c => c.type?.includes('Monster') && c.level >= 1);
   for (let i = monsters.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [monsters[i], monsters[j]] = [monsters[j], monsters[i]];
   }
-  return monsters.slice(0, 50);
+  return monsters.slice(0, 52);
 }
 
 function cardVal(card) { return card.level || 1; }
-
 function totalOf(cards) { return cards.reduce((s, c) => s + cardVal(c), 0); }
 
 function renderCard(card, hidden = false) {
@@ -190,7 +239,7 @@ function renderCard(card, hidden = false) {
 }
 
 function updateDisplay(showDealer = false) {
-  // player
+  // Joueur
   const pc = document.getElementById('player-cards');
   pc.innerHTML = '';
   playerCards.forEach(c => pc.appendChild(renderCard(c)));
@@ -199,7 +248,7 @@ function updateDisplay(showDealer = false) {
   ptEl.textContent = pt;
   ptEl.className = 'hand-total' + (pt > 21 ? ' bust' : pt === 21 ? ' blackjack' : '');
 
-  // dealer
+  // Dealer
   const dc = document.getElementById('dealer-cards');
   dc.innerHTML = '';
   if (showDealer) {
@@ -217,19 +266,20 @@ function updateDisplay(showDealer = false) {
 
 function endGame(msg, type) {
   gameOver = true;
-  document.getElementById('btn-hit').disabled = true;
+  document.getElementById('btn-hit').disabled   = true;
   document.getElementById('btn-stand').disabled = true;
 
-  const banner = document.getElementById('result-banner');
-  banner.className = 'result-banner ' + type;
-  banner.textContent = msg;
-  banner.style.display = 'block';
-  document.getElementById('new-game-btn').style.display = 'block';
+  const result = document.getElementById('bj-result');
+  result.className   = 'bj-result on ' + type;
+  result.textContent = msg;
 
-  if (type === 'win') score.wins++;
+  document.getElementById('bj-btns').style.display = 'flex';
+  document.getElementById('bj-back-static').style.display = 'none';
+
+  if (type === 'win')  score.wins++;
   else if (type === 'lose') score.losses++;
-  document.getElementById('wins').textContent = score.wins;
-  document.getElementById('losses').textContent = score.losses;
+  document.getElementById('hWins').textContent   = score.wins;
+  document.getElementById('hLosses').textContent = score.losses;
 
   updateDisplay(true);
 }
@@ -238,51 +288,52 @@ function hit() {
   if (gameOver || !deck.length) return;
   playerCards.push(deck.pop());
   updateDisplay();
-  const pt = totalOf(playerCards);
-  if (pt > 21) endGame('💀 Bust ! Tu as dépassé 21.', 'lose');
+  if (totalOf(playerCards) > 21) endGame('💀 Bust ! Tu as dépassé 21.', 'lose');
 }
 
 function stand() {
   if (gameOver) return;
-  // dealer draws until ≥ 17
-  while (totalOf(dealerCards) < 17 && deck.length) {
-    dealerCards.push(deck.pop());
-  }
+  while (totalOf(dealerCards) < 17 && deck.length) dealerCards.push(deck.pop());
   const pt = totalOf(playerCards);
   const dt = totalOf(dealerCards);
-  if (dt > 21 || pt > dt) endGame('🏆 Tu gagnes !', 'win');
-  else if (pt < dt) endGame('😢 Le dealer gagne…', 'lose');
-  else endGame('⚖️ Égalité !', 'draw');
+  if      (dt > 21 || pt > dt) endGame('🏆 Tu gagnes !', 'win');
+  else if (pt < dt)            endGame('😢 Le dealer gagne…', 'lose');
+  else                         endGame('⚖️ Égalité !', 'draw');
 }
 
 async function startGame() {
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('board').style.display = 'none';
-  document.getElementById('action-btns').style.display = 'none';
-  document.getElementById('result-banner').style.display = 'none';
-  document.getElementById('new-game-btn').style.display = 'none';
+  const load = document.getElementById('bj-load');
+  load.textContent    = 'Chargement des cartes…';
+  load.style.display  = 'block';
+
+  document.getElementById('dealer-section').style.display = 'none';
+  document.getElementById('player-section').style.display = 'none';
+  document.getElementById('action-btns').style.display    = 'none';
+  document.getElementById('bj-result').className          = 'bj-result';
+  document.getElementById('bj-btns').style.display        = 'none';
+  document.getElementById('bj-back-static').style.display = 'block';
   gameOver = false;
 
   try {
-    if (!deck.length) deck = await fetchDeck();
     if (deck.length < 10) deck = await fetchDeck();
 
     playerCards = [deck.pop(), deck.pop()];
     dealerCards = [deck.pop()];
 
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('board').style.display = 'flex';
-    document.getElementById('action-btns').style.display = 'flex';
-    document.getElementById('btn-hit').disabled = false;
+    load.style.display = 'none';
+    document.getElementById('dealer-section').style.display = 'block';
+    document.getElementById('player-section').style.display = 'block';
+    document.getElementById('action-btns').style.display    = 'flex';
+    document.getElementById('btn-hit').disabled   = false;
     document.getElementById('btn-stand').disabled = false;
 
     updateDisplay(false);
 
-    if (totalOf(playerCards) === 21) {
-      endGame('🎰 Blackjack ! Victoire instantanée !', 'win');
-    }
+    if (totalOf(playerCards) === 21) endGame('🎰 Blackjack ! Victoire instantanée !', 'win');
+
   } catch(e) {
-    document.getElementById('loading').textContent = '❌ Erreur de chargement. Réessaie.';
+    load.textContent = '❌ Erreur de chargement. Réessaie.';
+    document.getElementById('bj-btns').style.display = 'flex';
   }
 }
 
