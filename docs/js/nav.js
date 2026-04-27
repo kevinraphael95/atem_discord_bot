@@ -5,6 +5,7 @@
     { href: 'minijeux.html',   label: 'Mini-jeux' },
     { href: 'install.html',    label: 'Installation' },
     { href: 'ygoguesser.html', label: 'YGO Guesser' },
+    { href: 'yuginator.html',  label: 'Yuginator' },
   ];
   const themes = [
     { id: 'shinigami', label: 'Royaumes des Ombres', icon: '👤' },
