@@ -1,890 +1,513 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="shinigami">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yuginator</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<title>Yuginator — Atem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+JP:wght@300;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
 <style>
-  :root {
-    --void: #050409;
-    --deep: #0a0813;
-    --panel: #0f0c1a;
-    --border: rgba(180,140,60,0.25);
-    --gold: #c9a227;
-    --gold-lt: #e8c84a;
-    --gold-dim: rgba(201,162,39,0.15);
-    --text: #d4c9a8;
-    --muted: #7a7060;
-    --white: #f0ead6;
-    --ok: #4ade80;
-    --ko: #f87171;
-    --blue: #60a5fa;
-  }
+/* ── YUGINATOR — styles additionnels, variables du Guesser ─── */
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+.ywrap {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 700px;
+  margin: 0 auto; padding: .5rem 1.5rem 5rem;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  opacity: 0; animation: rise .7s .5s forwards;
+}
 
-  body {
-    background: var(--void);
-    color: var(--text);
-    font-family: 'EB Garamond', serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
+/* ── ORB ── */
+.y-orb {
+  width: 72px; height: 72px; border-radius: 50%;
+  border: 1px solid var(--gold-line);
+  background: var(--panel);
+  box-shadow: 0 0 28px rgba(212,168,67,.2), inset 0 0 20px rgba(212,168,67,.06);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem;
+  animation: yOrb 3.5s ease-in-out infinite;
+  transition: box-shadow .4s, border-color .4s;
+  flex-shrink: 0;
+}
+.y-orb.thinking {
+  animation: yOrbSpin 1s linear infinite;
+  box-shadow: 0 0 48px rgba(212,168,67,.5), inset 0 0 28px rgba(212,168,67,.15);
+}
+.y-orb.found {
+  border-color: var(--ok-bd);
+  box-shadow: 0 0 50px rgba(74,222,128,.35), inset 0 0 28px rgba(74,222,128,.08);
+}
+@keyframes yOrb {
+  0%,100% { box-shadow: 0 0 28px rgba(212,168,67,.2), inset 0 0 20px rgba(212,168,67,.06); }
+  50%      { box-shadow: 0 0 44px rgba(212,168,67,.38), inset 0 0 28px rgba(212,168,67,.1); }
+}
+@keyframes yOrbSpin {
+  0%   { box-shadow: 0 0 48px rgba(212,168,67,.5), 0 0 0 0 rgba(212,168,67,.35); }
+  100% { box-shadow: 0 0 48px rgba(212,168,67,.5), 0 0 0 16px rgba(212,168,67,0); }
+}
 
-  /* Background mystique */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; z-index: 0;
-    background:
-      radial-gradient(ellipse 60% 50% at 50% -10%, rgba(201,162,39,0.12) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 40% at 20% 80%, rgba(80,40,120,0.15) 0%, transparent 60%),
-      radial-gradient(ellipse 30% 30% at 80% 70%, rgba(30,60,120,0.1) 0%, transparent 60%);
-    pointer-events: none;
-  }
+/* ── PROGRESS ── */
+.y-prog {
+  width: 100%; max-width: 700px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Shippori Mincho', serif;
+  font-size: .6rem; letter-spacing: .1em; color: var(--muted); text-transform: uppercase;
+}
+.y-prog-bar { flex: 1; height: 2px; background: var(--rim); border-radius: 1px; overflow: hidden; }
+.y-prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--gold-lt));
+  border-radius: 1px; transition: width .5s ease;
+}
 
-  /* Particules étoiles */
-  .stars {
-    position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background-image:
-      radial-gradient(1px 1px at 15% 20%, rgba(201,162,39,0.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 70% 15%, rgba(201,162,39,0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 40% 60%, rgba(201,162,39,0.25) 0%, transparent 100%),
-      radial-gradient(1px 1px at 85% 45%, rgba(201,162,39,0.35) 0%, transparent 100%),
-      radial-gradient(1px 1px at 25% 80%, rgba(201,162,39,0.2) 0%, transparent 100%),
-      radial-gradient(1px 1px at 60% 85%, rgba(201,162,39,0.3) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 90% 10%, rgba(255,255,255,0.15) 0%, transparent 100%),
-      radial-gradient(1px 1px at 5% 50%, rgba(255,255,255,0.1) 0%, transparent 100%);
-  }
+/* ── BUBBLE — même look que .hpanel ── */
+.y-bubble {
+  width: 100%; max-width: 700px;
+  background: var(--panel); border: 1px solid var(--border);
+  padding: 1.1rem 1.3rem;
+  position: relative;
+  animation: rise .3s ease both;
+}
+.y-bubble::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-line), transparent);
+}
+.y-qnum {
+  font-family: 'Shippori Mincho', serif;
+  font-size: .55rem; font-weight: 700; letter-spacing: .15em;
+  color: var(--muted); text-transform: uppercase; margin-bottom: .45rem;
+}
+.y-qtext {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem; font-weight: 400; line-height: 1.6;
+  color: var(--white); font-style: italic;
+}
+.y-reason {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .75rem; color: var(--dim); margin-top: .45rem; line-height: 1.5;
+}
 
-  /* ── HEADER ── */
-  header {
-    position: relative; z-index: 1;
-    text-align: center;
-    padding: 2.5rem 1rem 1rem;
-  }
+/* Dots pensée */
+.y-dots { display: flex; gap: 5px; align-items: center; }
+.y-dots span {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
+  animation: yDot .8s ease-in-out infinite;
+}
+.y-dots span:nth-child(2) { animation-delay: .15s; }
+.y-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes yDot {
+  0%,80%,100% { transform: scale(.55); opacity: .35; }
+  40%          { transform: scale(1); opacity: 1; }
+}
 
-  .eye {
-    width: 80px; height: 80px;
-    margin: 0 auto 1rem;
-    position: relative;
-    animation: float 4s ease-in-out infinite;
-  }
+/* ── ANSWER BUTTONS — calquées sur .mbtn ── */
+.y-answers {
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+  width: 100%; max-width: 700px;
+}
+.y-btn {
+  font-family: 'Shippori Mincho', serif;
+  font-size: .65rem; font-weight: 400; letter-spacing: .12em; text-transform: uppercase;
+  padding: .6rem 1.3rem;
+  border: 1px solid var(--border); background: var(--panel);
+  color: var(--muted); cursor: pointer; transition: all .2s;
+}
+.y-btn:hover       { border-color: var(--gold-line); color: var(--gold-lt); background: var(--surface); }
+.y-btn.yes         { border-color: var(--ok-bd); color: var(--ok-tx); }
+.y-btn.yes:hover   { background: var(--ok-bg); }
+.y-btn.no          { border-color: var(--ko-bd); color: var(--ko-tx); }
+.y-btn.no:hover    { background: var(--ko-bg); }
+.y-btn.pyesbtn     { border-color: rgba(74,222,128,.3); color: rgba(74,222,128,.7); }
+.y-btn.pyesbtn:hover{ background: var(--ok-bg); color: var(--ok-tx); }
+.y-btn.pnobtn      { border-color: rgba(248,113,113,.3); color: rgba(248,113,113,.7); }
+.y-btn.pnobtn:hover { background: var(--ko-bg); color: var(--ko-tx); }
+.y-btn.idk         { border-color: rgba(94,176,255,.3); color: #8cc8ff; }
+.y-btn.idk:hover   { background: rgba(94,176,255,.07); }
 
-  .eye svg { width: 100%; height: 100%; filter: drop-shadow(0 0 20px rgba(201,162,39,0.6)); }
+/* ── HISTORY — fine liste compacte ── */
+.y-hist {
+  width: 100%; max-width: 700px;
+  max-height: 180px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.y-hist::-webkit-scrollbar { width: 2px; }
+.y-hist::-webkit-scrollbar-thumb { background: var(--border); }
+.y-hi {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: .75rem; padding: 5px 8px;
+  border-left: 2px solid var(--rim); color: var(--dim);
+  font-family: 'DM Sans', sans-serif; line-height: 1.4;
+}
+.y-hi .hq { flex: 1; font-style: italic; }
+.y-hi .ha {
+  font-family: 'Shippori Mincho', serif;
+  font-size: .55rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; white-space: nowrap;
+}
+.ha.yes   { color: var(--ok-tx); }
+.ha.no    { color: var(--ko-tx); }
+.ha.pyesbtn { color: rgba(74,222,128,.7); }
+.ha.pnobtn  { color: rgba(248,113,113,.7); }
+.ha.idk   { color: #8cc8ff; }
 
-  @keyframes float {
-    0%,100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
+/* ── RESULT BANNER — calquée sur .rbanner ── */
+.y-result {
+  width: 100%; max-width: 700px;
+  border: 1px solid; padding: 1.4rem 1.6rem; text-align: center;
+  display: none; flex-direction: column; gap: 10px;
+  animation: rise .45s ease both;
+}
+.y-result.on  { display: flex; }
+.y-result.win { border-color: var(--ok-bd); background: var(--ok-bg); }
+.y-result.def { border-color: var(--gold-line); background: var(--panel); }
+.y-rttl {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 1rem; font-weight: 900; letter-spacing: .1em;
+}
+.y-result.win  .y-rttl { color: var(--ok-tx); }
+.y-result.def  .y-rttl { color: var(--gold-lt); }
+.y-rcard {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 1.1rem; font-weight: 800; color: var(--gold-lt);
+}
+.y-rdesc {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .92rem; line-height: 1.65; font-style: italic; color: var(--text);
+}
 
-  h1 {
-    font-family: 'Cinzel Decorative', serif;
-    font-size: clamp(1.8rem, 5vw, 2.8rem);
-    font-weight: 900;
-    letter-spacing: .05em;
-    background: linear-gradient(135deg, #c9a227, #f0d060, #c9a227);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: none;
-    line-height: 1;
-  }
+/* ── RESTART — même que .xbtn ── */
+.y-restart {
+  align-self: center;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--gold-lt); font-family: 'Shippori Mincho', serif;
+  font-size: .65rem; font-weight: 700; letter-spacing: .12em;
+  padding: .55rem 1.4rem; cursor: pointer; transition: all .2s; text-transform: uppercase;
+  display: none;
+}
+.y-restart.on { display: block; }
+.y-restart:hover { background: var(--gold-pale); border-color: var(--gold); }
 
-  .subtitle {
-    font-family: 'Cinzel', serif;
-    font-size: .75rem;
-    letter-spacing: .25em;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-top: .5rem;
-  }
+/* ── START SCREEN ── */
+.y-start {
+  width: 100%; max-width: 700px;
+  background: var(--panel); border: 1px solid var(--border);
+  padding: 1.4rem 1.6rem; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.y-start p {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .92rem; line-height: 1.75; color: var(--text); font-style: italic;
+}
+.y-start p strong { color: var(--gold-lt); font-style: normal; }
+.y-hint {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .82rem; line-height: 1.65; color: var(--dim); text-align: left;
+  border-left: 2px solid var(--gold-line); padding-left: .8rem;
+}
+.y-hint strong { color: var(--gold-lt); }
+.y-startbtn {
+  font-family: 'Shippori Mincho', serif;
+  font-size: .7rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  padding: .75rem 2rem;
+  background: var(--gold); color: var(--void);
+  border: none; cursor: pointer; transition: all .2s;
+}
+.y-startbtn:hover { background: var(--gold-lt); }
 
-  /* ── MAIN CONTAINER ── */
-  main {
-    position: relative; z-index: 1;
-    width: 100%; max-width: 640px;
-    padding: 1rem 1.2rem 4rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.2rem;
-  }
+/* ── SEP ── */
+.y-sep { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); }
 
-  /* ── ORBE DU GÉNIE ── */
-  .orb-wrap {
-    width: 120px; height: 120px;
-    position: relative;
-    flex-shrink: 0;
-  }
+/* ── ORB + PROG row ── */
+.y-top { display: flex; align-items: center; gap: 14px; width: 100%; max-width: 700px; }
+.y-top .y-prog { flex: 1; }
 
-  .orb {
-    width: 100%; height: 100%;
-    border-radius: 50%;
-    background: radial-gradient(ellipse at 35% 35%, rgba(220,180,60,0.25), rgba(40,20,80,0.8));
-    border: 1px solid var(--gold);
-    box-shadow: 0 0 40px rgba(201,162,39,0.3), inset 0 0 30px rgba(201,162,39,0.1);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 3rem;
-    animation: pulse 3s ease-in-out infinite;
-    transition: all 0.5s;
-  }
+/* ── FLASH (identique) ── */
+.flash { width:100%; max-width:700px; padding:9px 18px; text-align:center; font-size:.78rem; font-weight:600; display:none; font-family:'Shippori Mincho',serif; letter-spacing:.06em; }
+.flash.on  { display:block; animation: flashP .25s ease; }
+.flash.ok  { background:var(--ok-bg); border:1px solid var(--ok-bd); color:var(--ok-tx); }
+.flash.ko  { background:var(--ko-bg); border:1px solid var(--ko-bd); color:var(--ko-tx); }
+@keyframes flashP { from{opacity:0;transform:scale(.97) translateY(-4px);} to{opacity:1;transform:scale(1) translateY(0);} }
 
-  .orb.thinking {
-    animation: spin-glow 1s linear infinite;
-    box-shadow: 0 0 60px rgba(201,162,39,0.6), inset 0 0 40px rgba(201,162,39,0.2);
-  }
-
-  .orb.found {
-    box-shadow: 0 0 80px rgba(74,222,128,0.5), inset 0 0 40px rgba(74,222,128,0.1);
-    border-color: var(--ok);
-  }
-
-  @keyframes pulse {
-    0%,100% { box-shadow: 0 0 40px rgba(201,162,39,0.3), inset 0 0 30px rgba(201,162,39,0.1); }
-    50%      { box-shadow: 0 0 60px rgba(201,162,39,0.5), inset 0 0 40px rgba(201,162,39,0.15); }
-  }
-
-  @keyframes spin-glow {
-    0%   { box-shadow: 0 0 60px rgba(201,162,39,0.6), 0 0 0 0 rgba(201,162,39,0.4); }
-    100% { box-shadow: 0 0 60px rgba(201,162,39,0.6), 0 0 0 20px rgba(201,162,39,0); }
-  }
-
-  /* ── SPEECH BUBBLE ── */
-  .bubble {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    padding: 1.2rem 1.4rem;
-    width: 100%;
-    position: relative;
-    text-align: center;
-    animation: fadeIn .4s ease;
-  }
-
-  .bubble::before {
-    content: '';
-    position: absolute;
-    top: -1px; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  }
-
-  .bubble .q-num {
-    font-family: 'Cinzel', serif;
-    font-size: .6rem;
-    letter-spacing: .2em;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: .5rem;
-  }
-
-  .bubble .q-text {
-    font-size: 1.15rem;
-    line-height: 1.6;
-    color: var(--white);
-    font-style: italic;
-  }
-
-  .bubble .reasoning {
-    font-size: .78rem;
-    color: var(--muted);
-    margin-top: .5rem;
-    font-style: normal;
-    line-height: 1.5;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  /* ── BOUTONS DE RÉPONSE ── */
-  .answers {
-    display: flex;
-    gap: .6rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: 100%;
-  }
-
-  .ans-btn {
-    font-family: 'Cinzel', serif;
-    font-size: .72rem;
-    font-weight: 600;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    padding: .7rem 1.4rem;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text);
-    cursor: pointer;
-    transition: all .2s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .ans-btn::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: var(--gold);
-    opacity: 0;
-    transition: opacity .2s;
-  }
-
-  .ans-btn:hover::after { opacity: .08; }
-  .ans-btn:hover { border-color: var(--gold); color: var(--gold-lt); }
-
-  .ans-btn.yes  { border-color: rgba(74,222,128,.4); color: var(--ok); }
-  .ans-btn.yes:hover { background: rgba(74,222,128,.08); }
-  .ans-btn.no   { border-color: rgba(248,113,113,.4); color: var(--ko); }
-  .ans-btn.no:hover  { background: rgba(248,113,113,.08); }
-  .ans-btn.prob-yes { border-color: rgba(74,222,128,.25); color: rgba(74,222,128,.7); }
-  .ans-btn.prob-no  { border-color: rgba(248,113,113,.25); color: rgba(248,113,113,.7); }
-  .ans-btn.idk  { border-color: rgba(96,165,250,.3); color: var(--blue); }
-  .ans-btn.idk:hover { background: rgba(96,165,250,.08); }
-
-  /* ── PROGRESS ── */
-  .progress {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: .8rem;
-    font-family: 'Cinzel', serif;
-    font-size: .6rem;
-    letter-spacing: .1em;
-    color: var(--muted);
-    text-transform: uppercase;
-  }
-
-  .prog-bar {
-    flex: 1;
-    height: 2px;
-    background: rgba(255,255,255,.05);
-    border-radius: 1px;
-    overflow: hidden;
-  }
-
-  .prog-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--gold), var(--gold-lt));
-    transition: width .5s ease;
-    border-radius: 1px;
-  }
-
-  /* ── HISTORIQUE ── */
-  .history {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: .3rem;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .history::-webkit-scrollbar { width: 3px; }
-  .history::-webkit-scrollbar-track { background: transparent; }
-  .history::-webkit-scrollbar-thumb { background: var(--border); }
-
-  .hist-item {
-    display: flex;
-    align-items: flex-start;
-    gap: .7rem;
-    font-size: .8rem;
-    padding: .4rem .6rem;
-    border-left: 2px solid var(--border);
-    color: var(--muted);
-    line-height: 1.4;
-  }
-
-  .hist-item .hi-q { flex: 1; font-style: italic; }
-  .hist-item .hi-a {
-    font-family: 'Cinzel', serif;
-    font-size: .6rem;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .hi-a.yes  { color: var(--ok); }
-  .hi-a.no   { color: var(--ko); }
-  .hi-a.prob-yes { color: rgba(74,222,128,.6); }
-  .hi-a.prob-no  { color: rgba(248,113,113,.6); }
-  .hi-a.idk  { color: var(--blue); }
-
-  /* ── RESULT ── */
-  .result {
-    width: 100%;
-    border: 1px solid var(--gold);
-    background: linear-gradient(135deg, rgba(201,162,39,0.08), rgba(40,20,80,0.4));
-    padding: 1.8rem;
-    text-align: center;
-    display: none;
-    flex-direction: column;
-    gap: 1rem;
-    animation: fadeIn .5s ease;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .result::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  }
-
-  .result.on { display: flex; }
-
-  .result .r-label {
-    font-family: 'Cinzel', serif;
-    font-size: .65rem;
-    letter-spacing: .25em;
-    color: var(--muted);
-    text-transform: uppercase;
-  }
-
-  .result .r-card {
-    font-family: 'Cinzel Decorative', serif;
-    font-size: clamp(1.2rem, 4vw, 1.8rem);
-    font-weight: 700;
-    color: var(--gold-lt);
-    line-height: 1.2;
-  }
-
-  .result .r-desc {
-    font-size: .95rem;
-    line-height: 1.7;
-    font-style: italic;
-    color: var(--text);
-  }
-
-  .result .r-emoji { font-size: 3rem; }
-
-  /* ── BOUTON RESTART ── */
-  .restart-btn {
-    font-family: 'Cinzel', serif;
-    font-size: .7rem;
-    font-weight: 700;
-    letter-spacing: .15em;
-    text-transform: uppercase;
-    padding: .8rem 2rem;
-    border: 1px solid var(--gold);
-    background: transparent;
-    color: var(--gold-lt);
-    cursor: pointer;
-    transition: all .2s;
-    display: none;
-  }
-
-  .restart-btn.on { display: block; }
-  .restart-btn:hover { background: var(--gold-dim); }
-
-  /* ── SEPARATOR ── */
-  .sep {
-    width: 100%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--border), transparent);
-  }
-
-  /* ── THINKING INDICATOR ── */
-  .thinking-dots {
-    display: flex; gap: 4px; align-items: center; justify-content: center;
-    padding: .5rem 0;
-  }
-
-  .thinking-dots span {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--gold);
-    animation: dot-bounce .8s ease-in-out infinite;
-  }
-
-  .thinking-dots span:nth-child(2) { animation-delay: .15s; }
-  .thinking-dots span:nth-child(3) { animation-delay: .3s; }
-
-  @keyframes dot-bounce {
-    0%,80%,100% { transform: scale(.6); opacity: .4; }
-    40%          { transform: scale(1);  opacity: 1; }
-  }
-
-  /* ── START SCREEN ── */
-  .start-screen {
-    width: 100%;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .start-screen p {
-    font-size: 1rem;
-    line-height: 1.8;
-    color: var(--text);
-    max-width: 480px;
-    font-style: italic;
-  }
-
-  .start-btn {
-    font-family: 'Cinzel', serif;
-    font-size: .8rem;
-    font-weight: 700;
-    letter-spacing: .2em;
-    text-transform: uppercase;
-    padding: 1rem 2.5rem;
-    border: 1px solid var(--gold);
-    background: linear-gradient(135deg, rgba(201,162,39,0.15), rgba(201,162,39,0.05));
-    color: var(--gold-lt);
-    cursor: pointer;
-    transition: all .3s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .start-btn::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(201,162,39,0.2), transparent);
-    opacity: 0;
-    transition: opacity .3s;
-  }
-
-  .start-btn:hover::before { opacity: 1; }
-  .start-btn:hover { box-shadow: 0 0 30px rgba(201,162,39,0.3); }
-
-  .hint-box {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    padding: 1rem 1.2rem;
-    width: 100%;
-    font-size: .85rem;
-    line-height: 1.7;
-    color: var(--muted);
-  }
-
-  .hint-box strong { color: var(--gold-lt); font-style: normal; }
-
-  /* ── GUESS ATTEMPT ── */
-  .guess-result {
-    width: 100%;
-    padding: 1rem 1.2rem;
-    border: 1px solid;
-    text-align: center;
-    display: none;
-    flex-direction: column;
-    gap: .5rem;
-    animation: fadeIn .3s ease;
-  }
-
-  .guess-result.on { display: flex; }
-  .guess-result.wrong { border-color: rgba(248,113,113,.4); background: rgba(248,113,113,.05); }
-  .guess-result.right { border-color: rgba(74,222,128,.4); background: rgba(74,222,128,.05); }
-
-  .gr-title {
-    font-family: 'Cinzel', serif;
-    font-size: .7rem;
-    letter-spacing: .15em;
-    text-transform: uppercase;
-  }
-
-  .guess-result.wrong .gr-title { color: var(--ko); }
-  .guess-result.right .gr-title { color: var(--ok); }
-
-  .gr-card {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--white);
-    font-style: italic;
-  }
-
-  @media (max-width: 500px) {
-    .ans-btn { font-size: .65rem; padding: .6rem 1rem; }
-    .orb-wrap { width: 90px; height: 90px; }
-    .orb { font-size: 2.2rem; }
-  }
+@media (max-width: 600px) {
+  .ywrap { padding: .5rem .7rem 4rem; }
+  .y-btn { font-size: .6rem; padding: .55rem .9rem; }
+  .y-top .y-orb { width: 54px; height: 54px; font-size: 1.5rem; }
+}
 </style>
 </head>
 <body>
 
-<div class="stars"></div>
+<div class="atmo"></div>
+<div class="top-bar"></div>
 
-<header>
-  <div class="eye">
-    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Pyramide -->
-      <polygon points="40,8 72,68 8,68" fill="rgba(201,162,39,0.08)" stroke="rgba(201,162,39,0.6)" stroke-width="1.5"/>
-      <!-- Oeil -->
-      <ellipse cx="40" cy="44" rx="14" ry="9" fill="rgba(201,162,39,0.15)" stroke="rgba(201,162,39,0.8)" stroke-width="1"/>
-      <circle cx="40" cy="44" r="5" fill="rgba(201,162,39,0.9)"/>
-      <circle cx="40" cy="44" r="2.5" fill="#050409"/>
-      <!-- Rayons -->
-      <line x1="40" y1="8" x2="40" y2="25" stroke="rgba(201,162,39,0.3)" stroke-width="1" stroke-dasharray="2,2"/>
-      <line x1="20" y1="60" x2="30" y2="50" stroke="rgba(201,162,39,0.2)" stroke-width="1"/>
-      <line x1="60" y1="60" x2="50" y2="50" stroke="rgba(201,162,39,0.2)" stroke-width="1"/>
-    </svg>
-  </div>
-  <h1>Yuginator</h1>
-  <p class="subtitle">Le génie des cartes</p>
-</header>
+<div class="phdr">
+  <h1 class="pttl">
+    <span class="t1">Yuginator</span>
+    <span class="t2">Le génie des cartes</span>
+  </h1>
+  <p class="psub">Pensez à une carte Yu-Gi-Oh! — le génie va tenter de la deviner.</p>
+  <div class="orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+</div>
 
-<main>
+<div class="ywrap" id="ywrap">
 
-  <!-- START -->
-  <div class="start-screen" id="startScreen">
-    <p>Pensez à une carte <strong style="color:var(--gold-lt);font-style:normal">Yu-Gi-Oh!</strong> — monstre, magie ou piège — et je vais tenter de la deviner grâce à mes questions mystiques.</p>
-    <div class="hint-box">
-      <strong>Comment jouer :</strong> Répondez honnêtement à chaque question par <em>Oui, Plutôt oui, Plutôt non, Non</em> ou <em>Je ne sais pas</em>. Le génie tentera de deviner votre carte !
+  <!-- START SCREEN -->
+  <div class="y-start" id="yStart">
+    <div class="y-orb" id="orbStart">🔮</div>
+    <p>Pensez à une carte <strong>Yu-Gi-Oh!</strong> — monstre, magie ou piège — et le génie va tenter de la deviner grâce à ses questions mystiques.</p>
+    <div class="y-hint">
+      <strong>Comment jouer :</strong> répondez honnêtement à chaque question. Le génie affine ses déductions au fil des réponses et tentera de deviner votre carte dès qu'il sera suffisamment confiant.
     </div>
-    <button class="start-btn" onclick="startGame()">🔮 Invoquer le Yuginator</button>
+    <button class="y-startbtn" onclick="startGame()">🔮 INVOQUER LE YUGINATOR</button>
   </div>
 
-  <!-- GAME -->
-  <div id="gameArea" style="display:none; width:100%; display:none; flex-direction:column; align-items:center; gap:1rem;">
+  <!-- GAME AREA -->
+  <div id="yGame" style="display:none; flex-direction:column; align-items:center; gap:10px; width:100%;">
 
-    <div class="orb-wrap">
-      <div class="orb" id="orb">🔮</div>
+    <div class="y-top">
+      <div class="y-orb" id="yOrb">🔮</div>
+      <div class="y-prog">
+        <span id="yProgLabel">Question 1</span>
+        <div class="y-prog-bar"><div class="y-prog-fill" id="yProgFill" style="width:0%"></div></div>
+        <span id="yConf">Conf. 0%</span>
+      </div>
     </div>
 
-    <div class="progress">
-      <span id="progLabel">Question 1</span>
-      <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
-      <span id="confidence">Conf. 0%</span>
+    <div class="y-bubble" id="yBubble">
+      <div class="y-qnum" id="yQnum">QUESTION 1</div>
+      <div class="y-qtext" id="yQtext">Je me concentre…</div>
+      <div class="y-reason" id="yQreason" style="display:none"></div>
     </div>
 
-    <div class="bubble" id="bubble">
-      <div class="q-num" id="qNum">QUESTION 1</div>
-      <div class="q-text" id="qText">Je me concentre…</div>
-      <div class="reasoning" id="qReason" style="display:none"></div>
+    <div class="y-answers" id="yAnswers">
+      <button class="y-btn yes"     onclick="answer('oui')">✅ OUI</button>
+      <button class="y-btn pyesbtn" onclick="answer('plutot_oui')">🟡 PLUTÔT OUI</button>
+      <button class="y-btn pnobtn"  onclick="answer('plutot_non')">🟠 PLUTÔT NON</button>
+      <button class="y-btn no"      onclick="answer('non')">❌ NON</button>
+      <button class="y-btn idk"     onclick="answer('ne_sais_pas')">🤷 JE NE SAIS PAS</button>
     </div>
 
-    <div class="answers" id="answers">
-      <button class="ans-btn yes"      onclick="answer('oui')">✅ Oui</button>
-      <button class="ans-btn prob-yes" onclick="answer('plutot_oui')">🟡 Plutôt oui</button>
-      <button class="ans-btn prob-no"  onclick="answer('plutot_non')">🟠 Plutôt non</button>
-      <button class="ans-btn no"       onclick="answer('non')">❌ Non</button>
-      <button class="ans-btn idk"      onclick="answer('ne_sais_pas')">🤷 Je ne sais pas</button>
+    <div class="flash" id="yFlash"></div>
+
+    <div class="y-sep" id="ySep" style="display:none"></div>
+    <div class="y-hist" id="yHist"></div>
+
+    <div class="y-result" id="yResult">
+      <div class="y-rttl" id="yRttl"></div>
+      <div class="y-rcard" id="yRcard"></div>
+      <div class="y-rdesc" id="yRdesc"></div>
     </div>
 
-    <div class="sep"></div>
-
-    <!-- History -->
-    <div class="history" id="historyList"></div>
-
-    <!-- Guess result -->
-    <div class="guess-result" id="guessResult">
-      <div class="gr-title" id="grTitle"></div>
-      <div class="gr-card" id="grCard"></div>
-    </div>
-
-    <!-- Final result -->
-    <div class="result" id="resultBanner">
-      <div class="r-emoji" id="rEmoji"></div>
-      <div class="r-label" id="rLabel"></div>
-      <div class="r-card" id="rCard"></div>
-      <div class="r-desc" id="rDesc"></div>
-    </div>
-
-    <button class="restart-btn" id="restartBtn" onclick="restart()">🔄 Nouvelle partie</button>
+    <button class="y-restart" id="yRestart" onclick="restart()">🔄 NOUVELLE PARTIE</button>
 
   </div>
 
-</main>
+</div>
 
 <script>
 // ── STATE ─────────────────────────────────────────────────
-let history = [];
-let questionCount = 0;
-let gameOver = false;
-let isThinking = false;
+let hist = [], qCount = 0, gameOver = false, thinking = false;
 
-const SYSTEM_PROMPT = `Tu es le Yuginator, un génie mystique qui tente de deviner la carte Yu-Gi-Oh! à laquelle pense l'utilisateur.
+const SYSTEM = `Tu es le Yuginator, un génie mystique expert en cartes Yu-Gi-Oh! qui devine la carte à laquelle l'utilisateur pense, à la manière d'Akinator.
 
-Tu poses des questions stratégiques pour affiner ta déduction, comme Akinator. Tu dois:
-1. Poser une question YES/NO sur la carte (max 1 question à la fois)
-2. Estimer ta confiance en %
-3. Si confiance > 85% ou après 15 questions, tenter une devinette
+Stratégie :
+- Pose UNE seule question yes/no stratégique à la fois
+- Commence large (type, catégorie) puis affine progressivement
+- Utilise l'historique pour ne jamais répéter une question
+- Estime ta confiance en %
+- Tente une devinette si confiance > 85% ou après 15 questions
 
-Règles:
-- Questions pertinentes: type (monstre/magie/piège), attribut, niveau, archétype, effet, popularité, anime, etc.
-- Commence large puis affine selon les réponses
-- Utilise l'historique pour ne pas répéter
-- Si tu devines: indique "DEVINETTE:" suivi du nom de la carte
+Questions pertinentes : type (monstre/magie/piège), attribut, niveau/rang, archétype, effet notable, popularité, série anime, format, banlist, etc.
 
-Réponds TOUJOURS en JSON strict (sans markdown):
+Réponds UNIQUEMENT en JSON valide, sans markdown ni texte avant/après :
 {
   "question": "Ta question ici ?",
-  "reasoning": "Courte explication de pourquoi cette question (1 phrase)",
+  "reasoning": "Une phrase expliquant pourquoi cette question",
   "confidence": 25,
   "guess": null
 }
 
-Ou si tu tentes de deviner:
+Ou pour deviner :
 {
   "question": null,
-  "reasoning": "J'ai assez d'indices pour deviner",
+  "reasoning": "J'ai assez d'indices",
   "confidence": 90,
-  "guess": "Nom de la carte en français ou anglais"
+  "guess": "Nom exact de la carte en français ou anglais"
 }`;
+
+const $ = id => document.getElementById(id);
 
 // ── START ─────────────────────────────────────────────────
 function startGame() {
-  document.getElementById('startScreen').style.display = 'none';
-  const ga = document.getElementById('gameArea');
-  ga.style.display = 'flex';
-  ga.style.flexDirection = 'column';
-  ga.style.alignItems = 'center';
-  ga.style.gap = '1rem';
-  ga.style.width = '100%';
+  $('yStart').style.display = 'none';
+  const g = $('yGame'); g.style.display = 'flex';
   askNext();
 }
 
 // ── ANSWER ───────────────────────────────────────────────
 async function answer(ans) {
-  if (isThinking || gameOver) return;
-
-  const labels = {
-    oui: 'OUI', plutot_oui: 'PLUTÔT OUI',
-    plutot_non: 'PLUTÔT NON', non: 'NON', ne_sais_pas: 'JE NE SAIS PAS'
-  };
-  const cls = { oui:'yes', plutot_oui:'prob-yes', plutot_non:'prob-no', non:'no', ne_sais_pas:'idk' };
-
-  const currentQ = document.getElementById('qText').textContent;
-  history.push({ q: currentQ, a: ans, label: labels[ans], cls: cls[ans] });
-  addToHistory(currentQ, labels[ans], cls[ans]);
-
-  questionCount++;
+  if (thinking || gameOver) return;
+  const labels = { oui:'OUI', plutot_oui:'PLUTÔT OUI', plutot_non:'PLUTÔT NON', non:'NON', ne_sais_pas:'JE NE SAIS PAS' };
+  const cls    = { oui:'yes', plutot_oui:'pyesbtn', plutot_non:'pnobtn', non:'no', ne_sais_pas:'idk' };
+  const curQ   = $('yQtext').textContent;
+  hist.push({ q: curQ, a: ans, lbl: labels[ans], cls: cls[ans] });
+  addHist(curQ, labels[ans], cls[ans]);
+  $('ySep').style.display = '';
+  qCount++;
   await askNext();
 }
 
-// ── ASK NEXT ─────────────────────────────────────────────
+// ── ASK ───────────────────────────────────────────────────
 async function askNext() {
-  if (gameOver) return;
-  isThinking = true;
-  setThinking(true);
-
-  const messages = buildMessages();
-
+  thinking = true; setThinking(true);
+  const msgs = buildMsgs();
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        system: SYSTEM_PROMPT,
-        messages
+        system: SYSTEM,
+        messages: msgs
       })
     });
-
-    const data = await resp.json();
+    const data = await res.json();
     const text = data.content?.find(b => b.type === 'text')?.text || '';
-
-    // Parse JSON
     let parsed;
-    try {
-      const clean = text.replace(/```json|```/g, '').trim();
-      parsed = JSON.parse(clean);
-    } catch {
-      // Fallback
-      parsed = { question: "Est-ce un monstre ?", reasoning: "", confidence: 10, guess: null };
-    }
-
-    setThinking(false);
-    isThinking = false;
-
-    if (parsed.guess) {
-      // Tentative de devinette
-      showGuess(parsed.guess, parsed.confidence);
-    } else {
-      // Nouvelle question
-      showQuestion(parsed.question, parsed.reasoning, parsed.confidence);
-    }
-
-  } catch (err) {
-    setThinking(false);
-    isThinking = false;
-    showQuestion("Est-ce que cette carte est un monstre ?", "Erreur de connexion, question par défaut.", 10);
+    try { parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); }
+    catch { parsed = { question: "Est-ce un monstre ?", reasoning: "", confidence: 10, guess: null }; }
+    setThinking(false); thinking = false;
+    if (parsed.guess) showGuess(parsed.guess, parsed.confidence);
+    else showQuestion(parsed.question, parsed.reasoning, parsed.confidence);
+  } catch {
+    setThinking(false); thinking = false;
+    showQuestion("Est-ce que cette carte est un monstre ?", "Erreur réseau.", 10);
   }
 }
 
-// ── BUILD MESSAGES ────────────────────────────────────────
-function buildMessages() {
-  if (history.length === 0) {
-    return [{ role: 'user', content: "L'utilisateur a pensé à une carte Yu-Gi-Oh!. Pose ta première question." }];
-  }
-
-  const histStr = history.map((h, i) =>
-    `Q${i+1}: "${h.q}" → Réponse: ${h.label}`
-  ).join('\n');
-
-  return [{
-    role: 'user',
-    content: `L'utilisateur a pensé à une carte Yu-Gi-Oh!. Voici l'historique:\n${histStr}\n\nPose la prochaine question ou tente de deviner si tu es suffisamment confiant.`
-  }];
-}
-
-// ── SHOW GUESS ────────────────────────────────────────────
-function showGuess(cardName, confidence) {
-  // Désactiver les boutons
-  document.getElementById('answers').style.display = 'none';
-
-  // Mise à jour de l'orbe
-  document.getElementById('qNum').textContent = '🎯 MA DEVINETTE';
-  document.getElementById('qText').textContent = `Est-ce que tu penses à... ${cardName} ?`;
-  document.getElementById('qReason').style.display = 'none';
-  updateProgress(questionCount, confidence);
-
-  // Boutons OUI/NON pour confirmer
-  const answers = document.getElementById('answers');
-  answers.innerHTML = `
-    <button class="ans-btn yes" onclick="confirmGuess(true, '${cardName.replace(/'/g,"\\'")}')">✅ Oui, c'est ça !</button>
-    <button class="ans-btn no"  onclick="confirmGuess(false, '${cardName.replace(/'/g,"\\'")}')">❌ Non, ce n'est pas ça</button>
-  `;
-  answers.style.display = 'flex';
-}
-
-// ── CONFIRM GUESS ─────────────────────────────────────────
-async function confirmGuess(correct, cardName) {
-  if (correct) {
-    // Victoire !
-    document.getElementById('answers').style.display = 'none';
-    document.getElementById('orb').classList.add('found');
-    document.getElementById('orb').textContent = '✨';
-
-    const rb = document.getElementById('resultBanner');
-    document.getElementById('rEmoji').textContent = '🏆';
-    document.getElementById('rLabel').textContent = `Trouvé en ${questionCount} question${questionCount > 1 ? 's' : ''} !`;
-    document.getElementById('rCard').textContent = cardName;
-    document.getElementById('rDesc').textContent = `Le Yuginator a percé le voile des ténèbres et deviné votre carte. La magie des Duels n'a plus de secret pour lui…`;
-    rb.classList.add('on', 'win');
-    rb.style.borderColor = 'rgba(74,222,128,0.6)';
-    rb.style.background = 'linear-gradient(135deg,rgba(74,222,128,0.08),rgba(40,20,80,0.4))';
-
-    document.getElementById('restartBtn').classList.add('on');
-    gameOver = true;
-
-  } else {
-    // Mauvaise devinette → continuer
-    history.push({ q: `Est-ce ${cardName} ?`, a: 'non', label: 'NON (mauvaise devinette)', cls: 'no' });
-    addToHistory(`Est-ce ${cardName} ?`, 'NON ❌', 'no');
-    questionCount++;
-
-    // Réafficher les boutons normaux
-    document.getElementById('answers').innerHTML = `
-      <button class="ans-btn yes"      onclick="answer('oui')">✅ Oui</button>
-      <button class="ans-btn prob-yes" onclick="answer('plutot_oui')">🟡 Plutôt oui</button>
-      <button class="ans-btn prob-no"  onclick="answer('plutot_non')">🟠 Plutôt non</button>
-      <button class="ans-btn no"       onclick="answer('non')">❌ Non</button>
-      <button class="ans-btn idk"      onclick="answer('ne_sais_pas')">🤷 Je ne sais pas</button>
-    `;
-
-    if (questionCount >= 20) {
-      showGiveUp();
-    } else {
-      await askNext();
-    }
-  }
-}
-
-// ── GIVE UP ───────────────────────────────────────────────
-function showGiveUp() {
-  document.getElementById('answers').style.display = 'none';
-  gameOver = true;
-
-  const rb = document.getElementById('resultBanner');
-  document.getElementById('rEmoji').textContent = '😔';
-  document.getElementById('rLabel').textContent = 'Le Yuginator s\'incline…';
-  document.getElementById('rCard').textContent = '???';
-  document.getElementById('rDesc').textContent = 'Votre carte a résisté à la sagesse du génie. Quelle était-elle ? Le Yuginator apprendra de cette défaite…';
-  rb.classList.add('on');
-  rb.style.borderColor = 'var(--gold)';
-  rb.style.background = 'linear-gradient(135deg,rgba(201,162,39,0.05),rgba(40,20,80,0.4))';
-
-  document.getElementById('restartBtn').classList.add('on');
+function buildMsgs() {
+  if (!hist.length) return [{ role:'user', content:"L'utilisateur a pensé à une carte Yu-Gi-Oh!. Pose ta première question." }];
+  const hStr = hist.map((h,i) => `Q${i+1}: "${h.q}" → ${h.lbl}`).join('\n');
+  return [{ role:'user', content:`Historique :\n${hStr}\n\nPose la prochaine question ou devine si suffisamment confiant.` }];
 }
 
 // ── SHOW QUESTION ─────────────────────────────────────────
-function showQuestion(question, reasoning, confidence) {
-  document.getElementById('qNum').textContent = `QUESTION ${questionCount + 1}`;
-  document.getElementById('qText').textContent = question;
+function showQuestion(q, reason, conf) {
+  $('yQnum').textContent = `QUESTION ${qCount + 1}`;
+  $('yQtext').textContent = q;
+  const r = $('yQreason');
+  if (reason) { r.textContent = reason; r.style.display = ''; } else r.style.display = 'none';
+  updProg(qCount, conf);
+  setAnswers('normal');
+  animBubble();
+}
 
-  const rEl = document.getElementById('qReason');
-  if (reasoning && reasoning.length > 0) {
-    rEl.textContent = reasoning;
-    rEl.style.display = 'block';
+// ── SHOW GUESS ────────────────────────────────────────────
+function showGuess(card, conf) {
+  $('yQnum').textContent = '🎯 MA DEVINETTE';
+  $('yQtext').textContent = `Est-ce que tu penses à… ${card} ?`;
+  $('yQreason').style.display = 'none';
+  updProg(qCount, conf);
+  setAnswers('guess', card);
+  animBubble();
+}
+
+// ── CONFIRM ───────────────────────────────────────────────
+async function confirmGuess(ok, card) {
+  if (ok) {
+    $('yOrb').classList.add('found'); $('yOrb').textContent = '✨';
+    setAnswers('none');
+    const r = $('yResult');
+    r.className = 'y-result on win';
+    $('yRttl').textContent = `🃏 TROUVÉ EN ${qCount} QUESTION${qCount>1?'S':''}`;
+    $('yRcard').textContent = card;
+    $('yRdesc').textContent = `Le Yuginator a percé le voile et deviné votre carte. La sagesse du génie est sans limite…`;
+    $('yRestart').classList.add('on');
+    gameOver = true;
   } else {
-    rEl.style.display = 'none';
+    hist.push({ q:`Est-ce ${card} ?`, a:'non', lbl:'NON (mauvaise)', cls:'no' });
+    addHist(`Est-ce ${card} ?`, 'NON ❌', 'no');
+    qCount++;
+    if (qCount >= 20) showGiveUp();
+    else await askNext();
   }
+}
 
-  updateProgress(questionCount, confidence);
-
-  // Réafficher les boutons
-  const answers = document.getElementById('answers');
-  answers.innerHTML = `
-    <button class="ans-btn yes"      onclick="answer('oui')">✅ Oui</button>
-    <button class="ans-btn prob-yes" onclick="answer('plutot_oui')">🟡 Plutôt oui</button>
-    <button class="ans-btn prob-no"  onclick="answer('plutot_non')">🟠 Plutôt non</button>
-    <button class="ans-btn no"       onclick="answer('non')">❌ Non</button>
-    <button class="ans-btn idk"      onclick="answer('ne_sais_pas')">🤷 Je ne sais pas</button>
-  `;
-  answers.style.display = 'flex';
-
-  // Re-animate bubble
-  const bubble = document.getElementById('bubble');
-  bubble.style.animation = 'none';
-  bubble.offsetHeight;
-  bubble.style.animation = '';
+function showGiveUp() {
+  setAnswers('none'); gameOver = true;
+  const r = $('yResult');
+  r.className = 'y-result on def';
+  $('yRttl').textContent = '☠ LE YUGINATOR S\'INCLINE';
+  $('yRcard').textContent = '???';
+  $('yRdesc').textContent = 'Votre carte a résisté à la sagesse du génie. Quelle était-elle ? Il apprendra de cette défaite…';
+  $('yRestart').classList.add('on');
 }
 
 // ── HELPERS ───────────────────────────────────────────────
 function setThinking(on) {
-  const orb = document.getElementById('orb');
-  const answers = document.getElementById('answers');
+  const orb = $('yOrb');
   if (on) {
-    orb.classList.add('thinking');
-    orb.textContent = '⚡';
-    answers.style.display = 'none';
-    document.getElementById('qText').innerHTML = '<span style="display:flex;gap:4px;justify-content:center"><span style="animation:dot-bounce .8s infinite">·</span><span style="animation:dot-bounce .8s .15s infinite">·</span><span style="animation:dot-bounce .8s .3s infinite">·</span></span>';
-    document.getElementById('qNum').textContent = 'LE GÉNIE RÉFLÉCHIT…';
-    document.getElementById('qReason').style.display = 'none';
+    orb.classList.add('thinking'); orb.textContent = '⚡';
+    setAnswers('none');
+    $('yQnum').textContent = 'LE GÉNIE RÉFLÉCHIT…';
+    $('yQtext').innerHTML = '<span class="y-dots"><span></span><span></span><span></span></span>';
+    $('yQreason').style.display = 'none';
   } else {
-    orb.classList.remove('thinking');
-    orb.textContent = '🔮';
+    orb.classList.remove('thinking'); orb.textContent = '🔮';
   }
 }
 
-function updateProgress(q, conf) {
-  const pct = Math.min(100, conf || 0);
-  document.getElementById('progFill').style.width = pct + '%';
-  document.getElementById('progLabel').textContent = `Question ${q + 1}`;
-  document.getElementById('confidence').textContent = `Conf. ${pct}%`;
+function setAnswers(mode, card) {
+  const el = $('yAnswers');
+  if (mode === 'none') { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  if (mode === 'normal') {
+    el.innerHTML = `
+      <button class="y-btn yes"     onclick="answer('oui')">✅ OUI</button>
+      <button class="y-btn pyesbtn" onclick="answer('plutot_oui')">🟡 PLUTÔT OUI</button>
+      <button class="y-btn pnobtn"  onclick="answer('plutot_non')">🟠 PLUTÔT NON</button>
+      <button class="y-btn no"      onclick="answer('non')">❌ NON</button>
+      <button class="y-btn idk"     onclick="answer('ne_sais_pas')">🤷 JE NE SAIS PAS</button>`;
+  } else if (mode === 'guess') {
+    const safe = (card||'').replace(/'/g,"\\'");
+    el.innerHTML = `
+      <button class="y-btn yes" onclick="confirmGuess(true,'${safe}')">✅ OUI, C'EST ÇA !</button>
+      <button class="y-btn no"  onclick="confirmGuess(false,'${safe}')">❌ NON, CE N'EST PAS ÇA</button>`;
+  }
 }
 
-function addToHistory(question, answer, cls) {
-  const list = document.getElementById('historyList');
-  const item = document.createElement('div');
-  item.className = 'hist-item';
-  item.innerHTML = `<span class="hi-q">${question}</span><span class="hi-a ${cls}">${answer}</span>`;
+function updProg(q, conf) {
+  const pct = Math.min(100, conf || 0);
+  $('yProgFill').style.width = pct + '%';
+  $('yProgLabel').textContent = `Question ${q + 1}`;
+  $('yConf').textContent = `Conf. ${pct}%`;
+}
+
+function addHist(question, answer, cls) {
+  const list = $('yHist');
+  const item = document.createElement('div'); item.className = 'y-hi';
+  item.innerHTML = `<span class="hq">${question}</span><span class="ha ${cls}">${answer}</span>`;
   list.prepend(item);
 }
 
+function animBubble() {
+  const b = $('yBubble');
+  b.style.animation = 'none'; b.offsetHeight; b.style.animation = '';
+}
+
 function restart() {
-  history = [];
-  questionCount = 0;
-  gameOver = false;
-  isThinking = false;
-
-  document.getElementById('orb').textContent = '🔮';
-  document.getElementById('orb').className = 'orb';
-  document.getElementById('historyList').innerHTML = '';
-  document.getElementById('resultBanner').classList.remove('on');
-  document.getElementById('restartBtn').classList.remove('on');
-  document.getElementById('guessResult').classList.remove('on');
-  document.getElementById('progFill').style.width = '0%';
-  document.getElementById('confidence').textContent = 'Conf. 0%';
-
+  hist = []; qCount = 0; gameOver = false; thinking = false;
+  $('yOrb').textContent = '🔮'; $('yOrb').className = 'y-orb';
+  $('yHist').innerHTML = '';
+  $('yResult').className = 'y-result';
+  $('yRestart').classList.remove('on');
+  $('yProgFill').style.width = '0%';
+  $('yConf').textContent = 'Conf. 0%';
+  $('ySep').style.display = 'none';
+  $('yFlash').className = 'flash';
   askNext();
 }
 </script>
