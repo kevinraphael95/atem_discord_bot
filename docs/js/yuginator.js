@@ -143,7 +143,22 @@ function buildQuestions(pool) {
   const noArchPool   = pool.length - hasArchPool;
   const archetypes   = [...new Set(pool.map(c => c.archetype))].filter(v => v && v !== '—');
 
-  // ── Type de carte (frameType)
+  // ── Questions synthétiques monstre / magie / piège (groupe 'cardcat')
+  // Posées EN PREMIER via la priorité, avant le détail des frameTypes
+  const nMonsters = pool.filter(c => MONSTER_FRAMES.has(c.frameType)).length;
+  const nSpells   = pool.filter(c => SPELL_FRAMES.has(c.frameType)).length;
+  const nTraps    = pool.filter(c => TRAP_FRAMES.has(c.frameType)).length;
+  if (nMonsters > 0 && (nSpells > 0 || nTraps > 0)) {
+    qs.push({ label: "Est-ce un monstre ?", key: 'cat_monster', test: c => MONSTER_FRAMES.has(c.frameType), group: 'cardcat' });
+  }
+  if (nSpells > 0 && (nMonsters > 0 || nTraps > 0)) {
+    qs.push({ label: "Est-ce une carte Magie ?", key: 'cat_spell', test: c => SPELL_FRAMES.has(c.frameType), group: 'cardcat' });
+  }
+  if (nTraps > 0 && (nMonsters > 0 || nSpells > 0)) {
+    qs.push({ label: "Est-ce une carte Piège ?", key: 'cat_trap', test: c => TRAP_FRAMES.has(c.frameType), group: 'cardcat' });
+  }
+
+  // ── Type de carte détaillé (frameType) — posé après cardcat
   frames.forEach(v => qs.push({
     label: `Est-ce une carte "${v}" ?`,
     key: 'frameType_eq_' + v,
@@ -234,7 +249,7 @@ function buildQuestions(pool) {
 
   // ── Questions sur le nom — seulement quand pool assez petit (évite de court-circuiter
   //    les questions de type/archétype sur le pool global)
-  const NAME_POOL_THRESHOLD = 500;
+  const NAME_POOL_THRESHOLD = 1500;
 
   if (pool.length <= NAME_POOL_THRESHOLD) {
     // Tranches d'initiale larges
@@ -302,7 +317,7 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
 
   // Groupes prioritaires : on les force avant tout le reste
   // Ordre : frameType → attribute → race → has_archetype → archetype → reste
-  const PRIORITY = ['frameType', 'attribute', 'race', 'has_archetype', 'archetype'];
+  const PRIORITY = ['cardcat', 'frameType', 'attribute', 'race', 'has_archetype', 'archetype'];
 
   let best = null, bestScore = -1;
 
@@ -324,10 +339,9 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (best) return best;
   }
 
-  // Sinon, meilleur score global sur les groupes non prioritaires
+  // Sinon, meilleur score global toutes questions
   best = null; bestScore = -1;
   for (const q of qs) {
-    if (PRIORITY.includes(q.group)) continue; // déjà traités ou résolus
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
     if (yes === 0 || no === 0) continue;
@@ -462,14 +476,18 @@ function yugiAnswer(ans) {
   if (ans === 'oui' && q.key.includes('_eq_')) {
     yResolved.add(q.group);
   }
-  // "Pas d'archétype" → skip tous les archétypes individuels
-  if (ans === 'non' && q.key === 'has_archetype') {
-    yResolved.add('archetype');
-    yResolved.add('has_archetype');
+  // cardcat résolu dès qu'une réponse franche est donnée
+  if (q.group === 'cardcat' && (ans === 'oui' || ans === 'non')) {
+    yResolved.add('cardcat');
   }
-  // "A un archétype" → marque has_archetype résolu
-  if (ans === 'oui' && q.key === 'has_archetype') {
-    yResolved.add('has_archetype');
+  // has_archetype : toute réponse nuancée ou franche résout le groupe
+  if (q.key === 'has_archetype') {
+    if (ans === 'non' || ans === 'plutot_non') {
+      yResolved.add('archetype');
+      yResolved.add('has_archetype');
+    } else {
+      yResolved.add('has_archetype');
+    }
   }
   const ansLabel = { oui:'OUI', non:'NON', plutot_oui:'~OUI', plutot_non:'~NON', ne_sais_pas:'?' };
   yHistory.push({ label: q.label, ans: ansLabel[ans] || ans, pool: yPool.length });
