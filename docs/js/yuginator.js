@@ -252,16 +252,23 @@ function buildQuestions(pool) {
   const NAME_POOL_THRESHOLD = 1500;
 
   if (pool.length <= NAME_POOL_THRESHOLD) {
-    // Tranches d'initiale larges
+    // Tranches d'initiale — hiérarchie à 3 niveaux pour affiner progressivement
     const nameInRange = (c, a, z) => { const l = (c.name[0] || '').toUpperCase(); return l >= a && l <= z; };
+    // Niveau 1 : moitiés A-M / N-Z
     [
-      { label: "Le nom commence-t-il par une lettre entre A et H ?", key: 'name_AH', test: c => nameInRange(c,'A','H') },
-      { label: "Le nom commence-t-il par une lettre entre I et P ?", key: 'name_IP', test: c => nameInRange(c,'I','P') },
-      { label: "Le nom commence-t-il par une lettre entre Q et Z ?", key: 'name_QZ', test: c => nameInRange(c,'Q','Z') },
+      { label: "Le nom commence-t-il par une lettre entre A et M ?", key: 'name_AM', test: c => nameInRange(c,'A','M') },
+      { label: "Le nom commence-t-il par une lettre entre N et Z ?", key: 'name_NZ', test: c => nameInRange(c,'N','Z') },
     ].forEach(q => qs.push({ ...q, group: 'name_alpha' }));
+    // Niveau 2 : quarts
+    [
+      { label: "Le nom commence-t-il par une lettre entre A et F ?", key: 'name_AF', test: c => nameInRange(c,'A','F') },
+      { label: "Le nom commence-t-il par une lettre entre G et M ?", key: 'name_GM', test: c => nameInRange(c,'G','M') },
+      { label: "Le nom commence-t-il par une lettre entre N et S ?", key: 'name_NS', test: c => nameInRange(c,'N','S') },
+      { label: "Le nom commence-t-il par une lettre entre T et Z ?", key: 'name_TZ', test: c => nameInRange(c,'T','Z') },
+    ].forEach(q => qs.push({ ...q, group: 'name_alpha2' }));
 
-    // Lettre exacte si pool suffisamment réduit
-    if (pool.length <= 80) {
+    // Lettre exacte si pool réduit
+    if (pool.length <= 200) {
       'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
         label: `Le nom commence-t-il par la lettre "${l}" ?`,
         key: 'name_letter_' + l,
@@ -270,9 +277,9 @@ function buildQuestions(pool) {
       }));
     }
 
-    // Nombre de mots dans le nom (plus naturel que les caractères)
+    // Nombre de mots dans le nom
     const wordCount = c => c.name.trim().split(/\s+/).length;
-    [1, 2, 3, 4].forEach(t => qs.push({
+    [1, 2, 3, 4, 5].forEach(t => qs.push({
       label: `Le nom contient-il plus de ${t} mot${t > 1 ? 's' : ''} ?`,
       key: 'name_words_' + t,
       test: c => wordCount(c) > t,
@@ -317,7 +324,7 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
 
   // Groupes prioritaires : on les force avant tout le reste
   // Ordre : frameType → attribute → race → has_archetype → archetype → reste
-  const PRIORITY = ['cardcat', 'frameType', 'attribute', 'race', 'has_archetype', 'archetype'];
+  const PRIORITY = ['cardcat', 'frameType', 'attribute', 'race', 'has_archetype', 'archetype', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word'];
 
   let best = null, bestScore = -1;
 
@@ -368,7 +375,7 @@ let yQCount    = 0;
 // Pool trié mémorisé pour la phase devinette (stable entre tentatives)
 let ySortedPool = [];
 
-const GUESS_THRESHOLD = 5;
+const GUESS_THRESHOLD = 3;
 
 // ── INIT ──────────────────────────────────────────────────
 
