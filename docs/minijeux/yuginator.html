@@ -10,12 +10,23 @@
 <link rel="stylesheet" href="../css/yuginator.css">
 <script src="../js/nav.js" defer></script>
 <script src="../js/yuginator.js" defer></script>
+<script>
+  function startGame() {
+    document.getElementById('yStart').style.display = 'none';
+    document.getElementById('yGame').style.display = 'flex';
+    yugiLoadCards();
+  }
+  function answer(ans) { yugiAnswer(ans); }
+  function restart() {
+    document.getElementById('yStart').style.display = 'none';
+    document.getElementById('yGame').style.display = 'flex';
+    yugiRestart();
+  }
+</script>
 </head>
 <body>
-
 <div class="atmo"></div>
 <div class="top-bar"></div>
-
 <div class="phdr">
   <h1 class="pttl">
     <span class="t1">Yuginator</span>
@@ -24,9 +35,7 @@
   <p class="psub">Pensez à une carte Yu-Gi-Oh! — le génie va tenter de la deviner.</p>
   <div class="orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
 </div>
-
 <div class="ywrap" id="ywrap">
-
   <!-- START SCREEN -->
   <div class="y-start" id="yStart">
     <div class="y-orb" id="orbStart">🔮</div>
@@ -36,49 +45,39 @@
     </div>
     <button class="y-startbtn" onclick="startGame()">🔮 INVOQUER LE YUGINATOR</button>
   </div>
-
+  <!-- LOADING BAR -->
+  <div id="yLoadBar" style="display:none; width:100%; max-width:700px; text-align:center;
+       font-family:'Shippori Mincho',serif; font-size:.7rem; letter-spacing:.1em;
+       color:var(--muted); padding:.6rem; border:1px solid var(--border); background:var(--panel);">
+    ⚡ Chargement des cartes…
+  </div>
   <!-- GAME AREA -->
   <div id="yGame" style="display:none; flex-direction:column; align-items:center; gap:10px; width:100%;">
-
     <div class="y-top">
       <div class="y-orb" id="yOrb">🔮</div>
       <div class="y-prog">
         <span id="yProgLabel">Question 1</span>
         <div class="y-prog-bar"><div class="y-prog-fill" id="yProgFill" style="width:0%"></div></div>
-        <span id="yConf">Conf. 0%</span>
+        <span id="yConf">0%</span>
       </div>
     </div>
-
     <div class="y-bubble" id="yBubble">
       <div class="y-qnum" id="yQnum">QUESTION 1</div>
       <div class="y-qtext" id="yQtext">Je me concentre…</div>
       <div class="y-reason" id="yQreason" style="display:none"></div>
     </div>
-
-    <div class="y-answers" id="yAnswers">
-      <button class="y-btn yes"     onclick="answer('oui')">✅ OUI</button>
-      <button class="y-btn pyesbtn" onclick="answer('plutot_oui')">🟡 PLUTÔT OUI</button>
-      <button class="y-btn pnobtn"  onclick="answer('plutot_non')">🟠 PLUTÔT NON</button>
-      <button class="y-btn no"      onclick="answer('non')">❌ NON</button>
-      <button class="y-btn idk"     onclick="answer('ne_sais_pas')">🤷 JE NE SAIS PAS</button>
-    </div>
-
+    <div class="y-answers" id="yAnswers" style="display:flex;"></div>
     <div class="flash" id="yFlash"></div>
-
     <div class="y-sep" id="ySep" style="display:none"></div>
     <div class="y-hist" id="yHist"></div>
-
     <div class="y-result" id="yResult">
       <div class="y-rttl" id="yRttl"></div>
       <div class="y-rcard" id="yRcard"></div>
+      <img id="yRimg" style="display:none; max-width:100px; margin:0 auto; border:1px solid var(--border);">
       <div class="y-rdesc" id="yRdesc"></div>
     </div>
-
     <button class="y-restart" id="yRestart" onclick="restart()">🔄 NOUVELLE PARTIE</button>
-
   </div>
-
 </div>
-
 </body>
 </html>
