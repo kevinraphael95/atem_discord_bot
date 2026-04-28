@@ -206,7 +206,7 @@ function buildQuestions(pool) {
     }));
   }
 
-  // ── Seuils ATK / DEF / Niveau (seulement si pertinents dans le pool)
+  // ── Seuils ATK / DEF / Niveau
   const hasAtk = pool.some(c => c.atk >= 0);
   const hasDef = pool.some(c => c.def >= 0);
   const hasLvl = pool.some(c => c.level > 0);
@@ -231,6 +231,57 @@ function buildQuestions(pool) {
     test: c => c.level >= t,
     group: 'level',
   }));
+
+  // ── Initiale du nom : tranches larges d'abord, puis lettre exacte si pool petit
+  if (pool.length > 10) {
+    const nameInRange = (c, a, z) => { const l = (c.name[0] || '').toUpperCase(); return l >= a && l <= z; };
+    [
+      { label: "Le nom commence-t-il par une lettre entre A et H ?", key: 'name_AH', test: c => nameInRange(c,'A','H') },
+      { label: "Le nom commence-t-il par une lettre entre I et P ?", key: 'name_IP', test: c => nameInRange(c,'I','P') },
+      { label: "Le nom commence-t-il par une lettre entre Q et Z ?", key: 'name_QZ', test: c => nameInRange(c,'Q','Z') },
+    ].forEach(q => qs.push({ ...q, group: 'name_alpha' }));
+
+    if (pool.length <= 80) {
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
+        label: `Le nom commence-t-il par la lettre "${l}" ?`,
+        key: 'name_letter_' + l,
+        test: c => (c.name[0] || '').toUpperCase() === l,
+        group: 'name_letter',
+      }));
+    }
+
+    // Longueur du nom
+    [5, 8, 12, 18, 25].forEach(t => qs.push({
+      label: `Le nom contient-il plus de ${t} caractères ?`,
+      key: 'name_len_' + t,
+      test: c => c.name.length > t,
+      group: 'name_len',
+    }));
+  }
+
+  // ── Mots fréquents du nom (discriminants, 10-90% du pool)
+  if (pool.length > 6) {
+    const STOP = new Set(['de','du','des','le','la','les','un','une','et','en','a','au','aux',
+      'par','sur','dans','pour','avec','sans','que','qui','ou','the','of','to','an','and','in','on','for','with','from']);
+    const freq = {};
+    pool.forEach(c => {
+      c.name.split(/[\s\-\/''!?,.:]+/).forEach(w => {
+        const wl = w.toLowerCase().replace(/[^a-zÀ-ɏ]/gi,'').toLowerCase();
+        if (wl.length >= 3 && !STOP.has(wl)) freq[wl] = (freq[wl]||0) + 1;
+      });
+    });
+    const total = pool.length;
+    Object.entries(freq)
+      .filter(([,cnt]) => cnt >= total*0.1 && cnt <= total*0.9)
+      .sort((a,b) => Math.abs(a[1]/total-0.5) - Math.abs(b[1]/total-0.5))
+      .slice(0, 20)
+      .forEach(([w]) => qs.push({
+        label: `Le nom de la carte contient-il "${w}" ?`,
+        key: 'name_word_' + w,
+        test: c => c.name.toLowerCase().includes(w),
+        group: 'name_word',
+      }));
+  }
 
   return qs;
 }
