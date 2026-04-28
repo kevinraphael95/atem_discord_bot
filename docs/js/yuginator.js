@@ -300,8 +300,34 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     !askedKeys.has(q.key) && !resolvedGroups.has(q.group)
   );
 
+  // Groupes prioritaires : on les force avant tout le reste
+  // Ordre : frameType → attribute → race → has_archetype → archetype → reste
+  const PRIORITY = ['frameType', 'attribute', 'race', 'has_archetype', 'archetype'];
+
   let best = null, bestScore = -1;
+
+  // Cherche d'abord dans les groupes prioritaires (dans l'ordre)
+  for (const grp of PRIORITY) {
+    if (resolvedGroups.has(grp)) continue;
+    const candidates = qs.filter(q => q.group === grp);
+    if (candidates.length === 0) continue;
+    // Parmi les candidats du groupe, prend celui au meilleur score entropique
+    for (const q of candidates) {
+      const yes = pool.filter(q.test).length;
+      const no  = pool.length - yes;
+      if (yes === 0 || no === 0) continue;
+      const ratio = yes / pool.length;
+      const score = 1 - Math.abs(ratio - 0.5) * 2;
+      if (score > bestScore) { bestScore = score; best = q; }
+    }
+    // Si on a trouvé une question utile dans ce groupe prioritaire, on s'arrête
+    if (best) return best;
+  }
+
+  // Sinon, meilleur score global sur les groupes non prioritaires
+  best = null; bestScore = -1;
   for (const q of qs) {
+    if (PRIORITY.includes(q.group)) continue; // déjà traités ou résolus
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
     if (yes === 0 || no === 0) continue;
@@ -458,9 +484,17 @@ function yugiAnswer(ans) {
 // ── PHASE DEVINETTE ───────────────────────────────────────
 
 function enterGuessPhase() {
-  // Construit le pool trié une seule fois à l'entrée en phase devinette
+  // Si le pool est encore grand, tente de poser des questions sur le nom
+  // avant de basculer en devinette carte par carte
+  if (yPool.length > GUESS_THRESHOLD) {
+    const q = bestQuestion(yPool, yAsked, yResolved);
+    // bestQuestion retourne null seulement si vraiment plus rien à demander
+    // Dans ce cas on force la devinette
+    if (q) { yCurQ = q; showQuestion(q); return; }
+  }
+
+  // Construit le pool trié une seule fois à l'entrée en devinette finale
   ySortedPool = yPool.slice().sort((a, b) => {
-    // Heuristique notoriété : ATK élevée + niveau élevé en priorité
     const sa = (a.atk > 0 ? a.atk : 0) + (a.level > 0 ? a.level * 50 : 0);
     const sb = (b.atk > 0 ? b.atk : 0) + (b.level > 0 ? b.level * 50 : 0);
     return sb - sa;
