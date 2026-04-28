@@ -137,8 +137,11 @@ function buildQuestions(pool) {
   const frames     = [...new Set(pool.map(c => c.frameType))].filter(v => v && v !== '—');
   const attrs      = [...new Set(pool.map(c => c.attribute))].filter(v => v && v !== '—');
   const races      = [...new Set(pool.map(c => c.race))].filter(v => v && v !== '—');
-  const archetypes = [...new Set(pool.map(c => c.archetype))].filter(v => v && v !== '—');
   const bans       = [...new Set(pool.map(c => c.ban))];
+
+  const hasArchPool  = pool.filter(c => c.archetype !== '—').length;
+  const noArchPool   = pool.length - hasArchPool;
+  const archetypes   = [...new Set(pool.map(c => c.archetype))].filter(v => v && v !== '—');
 
   // ── Type de carte (frameType)
   frames.forEach(v => qs.push({
@@ -167,8 +170,26 @@ function buildQuestions(pool) {
     group: 'race',
   }));
 
-  // ── Archétype
-  archetypes.forEach(v => qs.push({
+  // ── Archétype : d'abord "a-t-elle un archétype ?" si pertinent
+  if (hasArchPool > 0 && noArchPool > 0) {
+    qs.push({
+      label: `Est-ce que la carte appartient à un archétype ?`,
+      key: 'has_archetype',
+      test: c => c.archetype !== '—',
+      group: 'has_archetype',
+    });
+  }
+
+  // Ensuite les archétypes individuels — limités au top 40 les plus proches de 50/50
+  // (évite de lister 500 archétypes si le pool est énorme)
+  const MAX_ARCH = 40;
+  const archScored = archetypes.map(v => {
+    const yes = pool.filter(c => c.archetype === v).length;
+    const ratio = yes / pool.length;
+    return { v, score: 1 - Math.abs(ratio - 0.5) * 2 };
+  }).sort((a, b) => b.score - a.score).slice(0, MAX_ARCH);
+
+  archScored.forEach(({ v }) => qs.push({
     label: `Est-ce une carte de l'archétype "${v}" ?`,
     key: 'arch_eq_' + v,
     test: c => c.archetype === v,
@@ -354,11 +375,19 @@ function yugiAnswer(ans) {
   const newPool = applyAnswer(yPool, q, ans);
   yPool = newPool;
 
-  // Marque le groupe résolu seulement pour une réponse franche "oui" exacte
+  // Marque le groupe résolu pour une réponse franche "oui" exacte
   if (ans === 'oui' && q.key.includes('_eq_')) {
     yResolved.add(q.group);
   }
-
+  // "Pas d'archétype" → skip tous les archétypes individuels
+  if (ans === 'non' && q.key === 'has_archetype') {
+    yResolved.add('archetype');
+    yResolved.add('has_archetype');
+  }
+  // "A un archétype" → marque has_archetype résolu
+  if (ans === 'oui' && q.key === 'has_archetype') {
+    yResolved.add('has_archetype');
+  }
   const ansLabel = { oui:'OUI', non:'NON', plutot_oui:'~OUI', plutot_non:'~NON', ne_sais_pas:'?' };
   yHistory.push({ label: q.label, ans: ansLabel[ans] || ans, pool: yPool.length });
   renderHistory();
