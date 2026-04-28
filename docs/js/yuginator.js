@@ -3,7 +3,15 @@
 //  Branché sur YGOPRODeck (même normalize() que guesser.js)
 // ══════════════════════════════════════════════════════════
 
-// ── NORMALISATION (identique à guesser.js) ────────────────
+// ── NORMALISATION ─────────────────────────────────────────
+
+// Catégories de frameType pour distinguer monstre/magie/piège
+const MONSTER_FRAMES = new Set(['Normal','Effet','Rituel','Fusion','Synchro','XYZ','Link','Pendule','Jeton','Skill']);
+const SPELL_FRAMES   = new Set(['Magie']);
+const TRAP_FRAMES    = new Set(['Piège']);
+
+// Sous-types "race" qui appartiennent aux sorts/pièges
+const SPELL_RACES = new Set(['Normal','Continu','Contre','Jeu rapide','Équipement','Terrain','Rituel']);
 
 function normFrame(f) {
   const map = {
@@ -47,13 +55,6 @@ function normBan(info) {
   const map = { 'Banned':'Interdit','Limited':'Limité','Semi-Limited':'Semi-Limité' };
   return map[b] || b;
 }
-function normFormat(misc) {
-  if (!misc) return 'TCG';
-  const f = misc.formats || [];
-  if (f.includes('tcg')) return 'TCG';
-  if (f.includes('ocg')) return 'OCG';
-  return (f[0] || 'TCG').toUpperCase();
-}
 function normalize(raw) {
   return {
     id:        raw.id,
@@ -66,7 +67,6 @@ function normalize(raw) {
     def:       raw.def ?? -1,
     archetype: raw.archetype || '—',
     ban:       normBan(raw.banlist_info),
-    format:    normFormat(raw.misc_info?.[0]),
     img:       raw.card_images?.[0]?.image_url_small || '',
   };
 }
@@ -78,7 +78,7 @@ let yugiLoaded = false;
 
 async function yugiLoadCards() {
   const bar = document.getElementById('yLoadBar');
-  if (bar) bar.style.display = 'flex';
+  if (bar) { bar.style.display = 'flex'; bar.textContent = '⚡ Chargement des cartes…'; }
 
   try {
     const resp = await fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?misc=yes&language=fr');
@@ -91,7 +91,7 @@ async function yugiLoadCards() {
     yugiLoaded = true;
     if (bar) {
       bar.textContent = '✅ ' + ALL_CARDS.length.toLocaleString('fr') + ' cartes chargées';
-      setTimeout(() => bar.style.display = 'none', 1200);
+      setTimeout(() => { bar.style.display = 'none'; }, 1200);
     }
     yugiInit();
   } catch(e) {
@@ -101,51 +101,73 @@ async function yugiLoadCards() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  MOTEUR ENTROPIQUE
+//  GÉNÉRATEUR DE QUESTIONS
 // ══════════════════════════════════════════════════════════
-
-// ── GÉNÉRATEUR DE QUESTIONS ───────────────────────────────
-// Chaque question est un prédicat sur une carte.
-// On génère dynamiquement les questions depuis les valeurs
-// présentes dans le pool courant.
 
 const ATK_THRESHOLDS = [500, 1000, 1500, 2000, 2500, 3000, 3500];
 const DEF_THRESHOLDS = [500, 1000, 1500, 2000, 2500, 3000];
 const LVL_THRESHOLDS = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12];
 
+// Détermine si le pool contient surtout des monstres, sorts, pièges ou un mix
+function poolContext(pool) {
+  const monsters = pool.filter(c => MONSTER_FRAMES.has(c.frameType)).length;
+  const spells   = pool.filter(c => SPELL_FRAMES.has(c.frameType)).length;
+  const traps    = pool.filter(c => TRAP_FRAMES.has(c.frameType)).length;
+  const total    = pool.length;
+  if (monsters / total > 0.8) return 'monster';
+  if (spells   / total > 0.8) return 'spell';
+  if (traps    / total > 0.8) return 'trap';
+  return 'mixed';
+}
+
+// Label contextuel pour la race (sous-type)
+function raceLabel(v, ctx) {
+  if (ctx === 'monster') return `Est-ce un monstre de type "${v}" ?`;
+  if (ctx === 'spell')   return `Est-ce une carte Magie de type "${v}" ?`;
+  if (ctx === 'trap')    return `Est-ce une carte Piège de type "${v}" ?`;
+  // mixed : détermine au cas par cas
+  if (SPELL_RACES.has(v)) return `Est-ce une carte Magie/Piège de sous-type "${v}" ?`;
+  return `Est-ce un monstre de type "${v}" ?`;
+}
+
 function buildQuestions(pool) {
-  const qs = [];
+  const qs  = [];
+  const ctx = poolContext(pool);
 
-  // Valeurs distinctes dans le pool
-  const frames    = [...new Set(pool.map(c => c.frameType))].filter(v => v && v !== '—');
-  const attrs     = [...new Set(pool.map(c => c.attribute))].filter(v => v && v !== '—');
-  const races     = [...new Set(pool.map(c => c.race))].filter(v => v && v !== '—');
-  const archetypes= [...new Set(pool.map(c => c.archetype))].filter(v => v && v !== '—');
-  const bans      = [...new Set(pool.map(c => c.ban))];
-  const formats   = [...new Set(pool.map(c => c.format))];
+  const frames     = [...new Set(pool.map(c => c.frameType))].filter(v => v && v !== '—');
+  const attrs      = [...new Set(pool.map(c => c.attribute))].filter(v => v && v !== '—');
+  const races      = [...new Set(pool.map(c => c.race))].filter(v => v && v !== '—');
+  const archetypes = [...new Set(pool.map(c => c.archetype))].filter(v => v && v !== '—');
+  const bans       = [...new Set(pool.map(c => c.ban))];
 
-  // Questions par valeur exacte (frameType, attribut, race, archétype, ban, format)
+  // ── Type de carte (frameType)
   frames.forEach(v => qs.push({
-    label: `Est-ce une carte de type "${v}" ?`,
+    label: `Est-ce une carte "${v}" ?`,
     key: 'frameType_eq_' + v,
     test: c => c.frameType === v,
     group: 'frameType',
   }));
 
-  attrs.forEach(v => qs.push({
-    label: `Est-ce que l'attribut est "${v}" ?`,
-    key: 'attr_eq_' + v,
-    test: c => c.attribute === v,
-    group: 'attribute',
-  }));
+  // ── Attribut (monstres)
+  attrs.forEach(v => {
+    if (v === '—') return;
+    qs.push({
+      label: `Est-ce que l'attribut est "${v}" ?`,
+      key: 'attr_eq_' + v,
+      test: c => c.attribute === v,
+      group: 'attribute',
+    });
+  });
 
+  // ── Race / sous-type (label adapté au contexte)
   races.forEach(v => qs.push({
-    label: `Est-ce un monstre de type "${v}" ?`,
+    label: raceLabel(v, ctx),
     key: 'race_eq_' + v,
     test: c => c.race === v,
     group: 'race',
   }));
 
+  // ── Archétype
   archetypes.forEach(v => qs.push({
     label: `Est-ce une carte de l'archétype "${v}" ?`,
     key: 'arch_eq_' + v,
@@ -153,37 +175,37 @@ function buildQuestions(pool) {
     group: 'archetype',
   }));
 
-  bans.forEach(v => qs.push({
-    label: `Est-ce que la carte est "${v}" sur la Banlist ?`,
-    key: 'ban_eq_' + v,
-    test: c => c.ban === v,
-    group: 'ban',
-  }));
+  // ── Banlist (seulement si plusieurs valeurs présentes)
+  if (bans.length > 1) {
+    bans.forEach(v => qs.push({
+      label: `Est-ce que la carte est "${v}" sur la Banlist TCG ?`,
+      key: 'ban_eq_' + v,
+      test: c => c.ban === v,
+      group: 'ban',
+    }));
+  }
 
-  formats.forEach(v => qs.push({
-    label: `Est-ce une carte du format "${v}" ?`,
-    key: 'format_eq_' + v,
-    test: c => c.format === v,
-    group: 'format',
-  }));
+  // ── Seuils ATK / DEF / Niveau (seulement si pertinents dans le pool)
+  const hasAtk = pool.some(c => c.atk >= 0);
+  const hasDef = pool.some(c => c.def >= 0);
+  const hasLvl = pool.some(c => c.level > 0);
 
-  // Questions de seuil (ATK, DEF, Niveau)
-  ATK_THRESHOLDS.forEach(t => qs.push({
-    label: `Est-ce que l'ATK est supérieure ou égale à ${t} ?`,
+  if (hasAtk) ATK_THRESHOLDS.forEach(t => qs.push({
+    label: `Est-ce que l'ATK est ≥ ${t} ?`,
     key: 'atk_gte_' + t,
     test: c => c.atk >= 0 && c.atk >= t,
     group: 'atk',
   }));
 
-  DEF_THRESHOLDS.forEach(t => qs.push({
-    label: `Est-ce que la DEF est supérieure ou égale à ${t} ?`,
+  if (hasDef) DEF_THRESHOLDS.forEach(t => qs.push({
+    label: `Est-ce que la DEF est ≥ ${t} ?`,
     key: 'def_gte_' + t,
     test: c => c.def >= 0 && c.def >= t,
     group: 'def',
   }));
 
-  LVL_THRESHOLDS.forEach(t => qs.push({
-    label: `Est-ce que le Niveau / Rang est supérieur ou égal à ${t} ?`,
+  if (hasLvl) LVL_THRESHOLDS.forEach(t => qs.push({
+    label: `Est-ce que le Niveau / Rang est ≥ ${t} ?`,
     key: 'lvl_gte_' + t,
     test: c => c.level >= t,
     group: 'level',
@@ -193,9 +215,7 @@ function buildQuestions(pool) {
 }
 
 // ── SCORE D'ENTROPIE ──────────────────────────────────────
-// Score = 1 - |ratio - 0.5| * 2   → 1.0 si 50/50, 0 si 100/0
-// On filtre les questions déjà posées et celles dont le groupe
-// est déjà résolu (on connaît déjà la valeur exacte).
+// Score = 1 - |ratio - 0.5| * 2  →  1.0 si 50/50, 0 si 100/0
 
 function bestQuestion(pool, askedKeys, resolvedGroups) {
   const qs = buildQuestions(pool).filter(q =>
@@ -206,70 +226,70 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   for (const q of qs) {
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
-    if (yes === 0 || no === 0) continue; // question inutile
+    if (yes === 0 || no === 0) continue;
     const ratio = yes / pool.length;
     const score = 1 - Math.abs(ratio - 0.5) * 2;
     if (score > bestScore) { bestScore = score; best = q; }
   }
-  return best; // null si plus rien à demander
+  return best;
 }
 
 // ══════════════════════════════════════════════════════════
 //  ÉTAT DU JEU
 // ══════════════════════════════════════════════════════════
 
-let yPool = [];          // cartes candidates restantes
-let yAsked = new Set();  // clés des questions posées
-let yResolved = new Set(); // groupes dont la valeur est fixée
-let yHistory = [];       // [{q, label, ans}]
-let yGuessIdx = 0;       // index dans les candidates triées pour devinette
-let yGameOver = false;
-let yCurQ = null;        // question courante {label, key, test, group}
-let yThinking = false;
-let yQCount = 0;
+let yPool      = [];
+let yAsked     = new Set();
+let yResolved  = new Set();
+let yHistory   = [];
+let yGuessIdx  = 0;
+let yGameOver  = false;
+let yCurQ      = null;
+let yThinking  = false;
+let yQCount    = 0;
+// Pool trié mémorisé pour la phase devinette (stable entre tentatives)
+let ySortedPool = [];
 
-const GUESS_THRESHOLD = 4; // devine quand pool ≤ N cartes
+const GUESS_THRESHOLD = 5;
 
 // ── INIT ──────────────────────────────────────────────────
 
 function yugiInit() {
-  yPool = ALL_CARDS.slice();
-  yAsked = new Set();
-  yResolved = new Set();
-  yHistory = [];
-  yGuessIdx = 0;
-  yGameOver = false;
-  yCurQ = null;
-  yThinking = false;
-  yQCount = 0;
+  yPool      = ALL_CARDS.slice();
+  yAsked     = new Set();
+  yResolved  = new Set();
+  yHistory   = [];
+  yGuessIdx  = 0;
+  yGameOver  = false;
+  yCurQ      = null;
+  yThinking  = false;
+  yQCount    = 0;
+  ySortedPool = [];
+
+  document.getElementById('yResult').className = 'y-result';
+  document.getElementById('yRestart').classList.remove('on');
+  const rimg = document.getElementById('yRimg');
+  if (rimg) { rimg.src = ''; rimg.style.display = 'none'; }
 
   renderHistory();
   updatePoolInfo();
   nextStep();
 }
 
-// ── ÉTAPE SUIVANTE : question ou devinette ─────────────────
+// ── ÉTAPE SUIVANTE ─────────────────────────────────────────
 
 function nextStep() {
   if (yGameOver) return;
 
-  // Si pool assez petit → devinette
-  if (yPool.length <= GUESS_THRESHOLD && yPool.length > 0) {
-    showGuessStep();
-    return;
-  }
-  if (yPool.length === 0) {
-    showGiveUp();
+  if (yPool.length === 0) { showGiveUp(); return; }
+
+  if (yPool.length <= GUESS_THRESHOLD) {
+    enterGuessPhase();
     return;
   }
 
-  // Cherche la meilleure question
   const q = bestQuestion(yPool, yAsked, yResolved);
-  if (!q) {
-    // Plus de questions utiles → devinette forcée
-    showGuessStep();
-    return;
-  }
+  if (!q) { enterGuessPhase(); return; }
 
   yCurQ = q;
   showQuestion(q);
@@ -282,12 +302,47 @@ function showQuestion(q) {
   setUI('question');
   document.getElementById('yQnum').textContent = 'QUESTION ' + (yQCount + 1);
   document.getElementById('yQtext').textContent = q.label;
+  updateProgress();
+}
+
+function updateProgress() {
   const pct = Math.round(Math.max(5, Math.min(95, (1 - yPool.length / ALL_CARDS.length) * 100)));
   document.getElementById('yConf').textContent = pct + '%';
   document.getElementById('yProgFill').style.width = pct + '%';
 }
 
 // ── RÉPONSE UTILISATEUR ───────────────────────────────────
+// "plutôt oui" → garde 80 % des cartes qui passent le test + 20 % qui ne passent pas
+// "plutôt non" → inverse
+// Cela conserve l'incertitude sans bloquer complètement les candidats
+
+function applyAnswer(pool, q, ans) {
+  if (ans === 'oui') {
+    const filtered = pool.filter(q.test);
+    return filtered.length > 0 ? filtered : pool;
+  }
+  if (ans === 'non') {
+    const filtered = pool.filter(c => !q.test(c));
+    return filtered.length > 0 ? filtered : pool;
+  }
+  if (ans === 'plutot_oui') {
+    // Garde les "oui" + 15 % des "non" (bruit)
+    const yes = pool.filter(q.test);
+    const no  = pool.filter(c => !q.test(c));
+    const kept = no.filter((_, i) => i % 7 === 0); // ~14 %
+    const merged = [...yes, ...kept];
+    return merged.length > 0 ? merged : pool;
+  }
+  if (ans === 'plutot_non') {
+    const yes = pool.filter(q.test);
+    const no  = pool.filter(c => !q.test(c));
+    const kept = yes.filter((_, i) => i % 7 === 0);
+    const merged = [...no, ...kept];
+    return merged.length > 0 ? merged : pool;
+  }
+  // ne_sais_pas → pas de filtre
+  return pool;
+}
 
 function yugiAnswer(ans) {
   if (yThinking || yGameOver || !yCurQ) return;
@@ -296,58 +351,51 @@ function yugiAnswer(ans) {
   yAsked.add(q.key);
   yQCount++;
 
-  // Filtre le pool
-  let newPool;
-  if (ans === 'oui') {
-    newPool = yPool.filter(q.test);
-    // Si réponse exacte connue → marque le groupe comme résolu
-    if (q.key.includes('_eq_')) yResolved.add(q.group);
-  } else if (ans === 'non') {
-    newPool = yPool.filter(c => !q.test(c));
-  } else {
-    // "je ne sais pas" → on ne filtre pas, on marque juste comme posée
-    newPool = yPool;
+  const newPool = applyAnswer(yPool, q, ans);
+  yPool = newPool;
+
+  // Marque le groupe résolu seulement pour une réponse franche "oui" exacte
+  if (ans === 'oui' && q.key.includes('_eq_')) {
+    yResolved.add(q.group);
   }
 
-  // Évite un pool vide suite à une mauvaise réponse de l'utilisateur
-  yPool = newPool.length > 0 ? newPool : yPool;
-
-  // Historique
-  const labels = { oui:'OUI', non:'NON', ne_sais_pas:'?' };
-  yHistory.push({ label: q.label, ans: labels[ans] || ans, pool: yPool.length });
+  const ansLabel = { oui:'OUI', non:'NON', plutot_oui:'~OUI', plutot_non:'~NON', ne_sais_pas:'?' };
+  yHistory.push({ label: q.label, ans: ansLabel[ans] || ans, pool: yPool.length });
   renderHistory();
   updatePoolInfo();
 
-  // Pause visuelle
   yThinking = true;
   setUI('thinking');
   setTimeout(() => nextStep(), 500);
 }
 
-// ── DEVINETTE ─────────────────────────────────────────────
+// ── PHASE DEVINETTE ───────────────────────────────────────
 
-function showGuessStep() {
-  // Trie le pool par "notoriété" approximative : on devine d'abord
-  // les cartes avec ATK/DEF/level les plus iconiques (heuristique simple)
-  const sorted = yPool.slice().sort((a, b) => {
-    // Favorise les cartes avec attribut connu et ATK élevée
+function enterGuessPhase() {
+  // Construit le pool trié une seule fois à l'entrée en phase devinette
+  ySortedPool = yPool.slice().sort((a, b) => {
+    // Heuristique notoriété : ATK élevée + niveau élevé en priorité
     const sa = (a.atk > 0 ? a.atk : 0) + (a.level > 0 ? a.level * 50 : 0);
     const sb = (b.atk > 0 ? b.atk : 0) + (b.level > 0 ? b.level * 50 : 0);
     return sb - sa;
   });
+  yGuessIdx = 0;
+  showGuessStep();
+}
 
-  if (yGuessIdx >= sorted.length) { showGiveUp(); return; }
-  const card = sorted[yGuessIdx];
+function showGuessStep() {
+  if (yGuessIdx >= ySortedPool.length) { showGiveUp(); return; }
+  const card = ySortedPool[yGuessIdx];
   yGuessIdx++;
 
   setUI('guess');
   document.getElementById('yQnum').textContent = '🎯 DEVINETTE ' + yGuessIdx;
   document.getElementById('yQtext').textContent = 'Est-ce que vous pensez à… ' + card.name + ' ?';
-  const pct = Math.round(Math.min(98, 70 + yQCount * 2));
+
+  const pct = Math.min(99, 65 + yQCount * 3);
   document.getElementById('yConf').textContent = pct + '%';
   document.getElementById('yProgFill').style.width = pct + '%';
 
-  // Stocke la carte pour confirmGuess
   document.getElementById('yAnswers').dataset.guessCard = card.name;
   document.getElementById('yAnswers').dataset.guessImg  = card.img || '';
 }
@@ -355,22 +403,26 @@ function showGuessStep() {
 function yugiConfirmGuess(ok) {
   const name = document.getElementById('yAnswers').dataset.guessCard;
   const img  = document.getElementById('yAnswers').dataset.guessImg;
+
   if (ok) {
     yGameOver = true;
     setUI('none');
     showResult(true, name, img);
   } else {
-    // Retire la carte du pool et continue
-    yPool = yPool.filter(c => c.name !== name);
+    // Retire la carte du pool global ET du pool trié
+    yPool       = yPool.filter(c => c.name !== name);
+    ySortedPool = ySortedPool.filter(c => c.name !== name);
+
     yHistory.push({ label: 'Est-ce ' + name + ' ?', ans: 'NON', pool: yPool.length });
     renderHistory();
     updatePoolInfo();
+
     yThinking = true;
     setUI('thinking');
     setTimeout(() => {
-      if (yPool.length === 0) { showGiveUp(); return; }
+      if (ySortedPool.length === 0) { showGiveUp(); return; }
       showGuessStep();
-    }, 500);
+    }, 400);
   }
 }
 
@@ -389,13 +441,21 @@ function showResult(won, name, img) {
     ? '🃏 TROUVÉ EN ' + yQCount + ' QUESTION' + (yQCount > 1 ? 'S' : '')
     : '☠ LE YUGINATOR S\'INCLINE';
   document.getElementById('yRcard').textContent = won ? name : '???';
-  if (img && document.getElementById('yRimg')) {
-    document.getElementById('yRimg').src = img;
-    document.getElementById('yRimg').style.display = img ? 'block' : 'none';
+
+  const rimg = document.getElementById('yRimg');
+  if (rimg) {
+    if (won && img) {
+      rimg.src = img;
+      rimg.style.display = 'block';
+    } else {
+      rimg.style.display = 'none';
+    }
   }
+
   document.getElementById('yRdesc').textContent = won
-    ? 'Le Yuginator a percé le voile en analysant ' + yQCount + ' réponses et ' + ALL_CARDS.length.toLocaleString('fr') + ' cartes.'
-    : 'Votre carte a résisté à l\'analyse. ' + yPool.length + ' candidates restaient. Quelle était-elle ?';
+    ? 'Le Yuginator a percé le voile en ' + yQCount + ' réponse' + (yQCount > 1 ? 's' : '') + ' sur ' + ALL_CARDS.length.toLocaleString('fr') + ' cartes.'
+    : 'Votre carte a résisté à l\'analyse. ' + yPool.length + ' candidate' + (yPool.length > 1 ? 's' : '') + ' restai' + (yPool.length > 1 ? 'ent' : 't') + '. Quelle était-elle ?';
+
   document.getElementById('yRestart').classList.add('on');
 }
 
@@ -406,7 +466,8 @@ function setUI(mode) {
   const orb = document.getElementById('yOrb');
 
   if (mode === 'thinking') {
-    orb.classList.add('thinking'); orb.textContent = '⚡';
+    orb.classList.add('thinking');
+    orb.textContent = '⚡';
     document.getElementById('yQnum').textContent = 'ANALYSE EN COURS…';
     document.getElementById('yQtext').textContent = '…';
     ans.style.display = 'none';
@@ -436,7 +497,10 @@ function setUI(mode) {
 
 function updatePoolInfo() {
   const el = document.getElementById('yPoolInfo');
-  if (el) el.textContent = yPool.length.toLocaleString('fr') + ' carte' + (yPool.length > 1 ? 's' : '') + ' restante' + (yPool.length > 1 ? 's' : '');
+  if (el) {
+    const n = yPool.length;
+    el.textContent = n.toLocaleString('fr') + ' carte' + (n > 1 ? 's' : '') + ' restante' + (n > 1 ? 's' : '');
+  }
 }
 
 function renderHistory() {
@@ -444,32 +508,31 @@ function renderHistory() {
   if (!list) return;
   list.innerHTML = '';
   [...yHistory].reverse().forEach(h => {
-    const item = document.createElement('div'); item.className = 'y-hi';
-    const cls = h.ans === 'OUI' ? 'yes' : h.ans === 'NON' ? 'no' : 'idk';
+    const item = document.createElement('div');
+    item.className = 'y-hi';
+    const clsMap = { 'OUI':'yes', 'NON':'no', '~OUI':'pyesbtn', '~NON':'pnobtn', '?':'idk' };
+    const cls = clsMap[h.ans] || 'idk';
     item.innerHTML = `<span class="hq">${h.label}</span><span class="ha ${cls}">${h.ans}</span>`;
     if (h.pool !== undefined) {
       const pi = document.createElement('span');
       pi.className = 'hpool';
-      pi.textContent = h.pool.toLocaleString('fr') + ' restantes';
+      pi.textContent = h.pool.toLocaleString('fr');
       item.appendChild(pi);
     }
     list.appendChild(item);
   });
+  // Scroll vers le haut (entrée la plus récente)
+  list.scrollTop = 0;
 }
 
 function yugiRestart() {
-  document.getElementById('yResult').className = 'y-result';
-  document.getElementById('yRestart').classList.remove('on');
   document.getElementById('yOrb').textContent = '🔮';
   document.getElementById('yOrb').className = 'y-orb';
   document.getElementById('yHist').innerHTML = '';
   document.getElementById('yProgFill').style.width = '0%';
   document.getElementById('yConf').textContent = '0%';
-  const rimg = document.getElementById('yRimg');
-  if (rimg) { rimg.src = ''; rimg.style.display = 'none'; }
   yugiInit();
 }
 
-// ── BOOTSTRAP ─────────────────────────────────────────────
-// Appelé par le HTML quand la page est prête :
-//   yugiLoadCards();
+// ── BOOTSTRAP (appelé depuis le HTML) ─────────────────────
+// startGame() → yugiLoadCards() → yugiInit()
