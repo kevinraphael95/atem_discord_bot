@@ -232,8 +232,12 @@ function buildQuestions(pool) {
     group: 'level',
   }));
 
-  // ── Initiale du nom : tranches larges d'abord, puis lettre exacte si pool petit
-  if (pool.length > 10) {
+  // ── Questions sur le nom — seulement quand pool assez petit (évite de court-circuiter
+  //    les questions de type/archétype sur le pool global)
+  const NAME_POOL_THRESHOLD = 500;
+
+  if (pool.length <= NAME_POOL_THRESHOLD) {
+    // Tranches d'initiale larges
     const nameInRange = (c, a, z) => { const l = (c.name[0] || '').toUpperCase(); return l >= a && l <= z; };
     [
       { label: "Le nom commence-t-il par une lettre entre A et H ?", key: 'name_AH', test: c => nameInRange(c,'A','H') },
@@ -241,6 +245,7 @@ function buildQuestions(pool) {
       { label: "Le nom commence-t-il par une lettre entre Q et Z ?", key: 'name_QZ', test: c => nameInRange(c,'Q','Z') },
     ].forEach(q => qs.push({ ...q, group: 'name_alpha' }));
 
+    // Lettre exacte si pool suffisamment réduit
     if (pool.length <= 80) {
       'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
         label: `Le nom commence-t-il par la lettre "${l}" ?`,
@@ -250,23 +255,24 @@ function buildQuestions(pool) {
       }));
     }
 
-    // Longueur du nom
-    [5, 8, 12, 18, 25].forEach(t => qs.push({
-      label: `Le nom contient-il plus de ${t} caractères ?`,
-      key: 'name_len_' + t,
-      test: c => c.name.length > t,
-      group: 'name_len',
+    // Nombre de mots dans le nom (plus naturel que les caractères)
+    const wordCount = c => c.name.trim().split(/\s+/).length;
+    [1, 2, 3, 4].forEach(t => qs.push({
+      label: `Le nom contient-il plus de ${t} mot${t > 1 ? 's' : ''} ?`,
+      key: 'name_words_' + t,
+      test: c => wordCount(c) > t,
+      group: 'name_words',
     }));
   }
 
-  // ── Mots fréquents du nom (discriminants, 10-90% du pool)
-  if (pool.length > 6) {
+  // ── Mots fréquents du nom — actifs dès que pool <= 500
+  if (pool.length > 6 && pool.length <= NAME_POOL_THRESHOLD) {
     const STOP = new Set(['de','du','des','le','la','les','un','une','et','en','a','au','aux',
       'par','sur','dans','pour','avec','sans','que','qui','ou','the','of','to','an','and','in','on','for','with','from']);
     const freq = {};
     pool.forEach(c => {
       c.name.split(/[\s\-\/''!?,.:]+/).forEach(w => {
-        const wl = w.toLowerCase().replace(/[^a-zÀ-ɏ]/gi,'').toLowerCase();
+        const wl = w.toLowerCase().replace(/[^a-z\u00c0-\u024f]/gi,'');
         if (wl.length >= 3 && !STOP.has(wl)) freq[wl] = (freq[wl]||0) + 1;
       });
     });
@@ -276,7 +282,7 @@ function buildQuestions(pool) {
       .sort((a,b) => Math.abs(a[1]/total-0.5) - Math.abs(b[1]/total-0.5))
       .slice(0, 20)
       .forEach(([w]) => qs.push({
-        label: `Le nom de la carte contient-il "${w}" ?`,
+        label: `Le nom contient-il le mot "${w}" ?`,
         key: 'name_word_' + w,
         test: c => c.name.toLowerCase().includes(w),
         group: 'name_word',
