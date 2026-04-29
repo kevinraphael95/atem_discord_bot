@@ -123,6 +123,23 @@
 .y-btn.idk         { border-color: rgba(94,176,255,.3); color: #8cc8ff; }
 .y-btn.idk:hover   { background: rgba(94,176,255,.07); }
 
+/* ── BOUTON RETOUR ── */
+.y-btn.undo {
+  border-color: rgba(255, 255, 255, .12);
+  color: var(--dim);
+  font-size: .58rem;
+  opacity: .7;
+  width: 100%;
+  text-align: center;
+  letter-spacing: .18em;
+}
+.y-btn.undo:hover {
+  border-color: var(--gold-line);
+  color: var(--muted);
+  background: var(--surface);
+  opacity: 1;
+}
+
 /* ── HISTORY — fine liste compacte ── */
 .y-hist {
   width: 100%; max-width: 700px;
@@ -148,6 +165,16 @@
 .ha.pyesbtn { color: rgba(74,222,128,.7); }
 .ha.pnobtn  { color: rgba(248,113,113,.7); }
 .ha.idk     { color: #8cc8ff; }
+
+/* ── COMPTEUR DE CARTES dans l'historique ── */
+.y-hi .hpool {
+  font-family: 'Shippori Mincho', serif;
+  font-size: .52rem;
+  color: var(--dim);
+  opacity: .6;
+  white-space: nowrap;
+  padding-left: 6px;
+}
 
 /* ── RESULT BANNER — calquée sur .rbanner ── */
 .y-result {
