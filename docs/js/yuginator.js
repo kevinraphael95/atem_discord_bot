@@ -50,8 +50,12 @@ function normBan(info) {
   if (!info) return 'Autorisé';
   const b = info.ban_tcg;
   if (!b) return 'Autorisé';
-  const map = { 'Banned':'Interdit','Limited':'Limité','Semi-Limited':'Semi-Limité' };
-  return map[b] || b;
+  const map = {
+    'Banned':'Interdit', 'Forbidden':'Interdit',
+    'Limited':'Limité',
+    'Semi-Limited':'Semi-Limité',
+  };
+  return map[b] || 'Autorisé';
 }
 function normalize(raw) {
   return {
@@ -679,6 +683,14 @@ function showResult(won, name, img) {
   document.getElementById('yRdesc').textContent = won
     ? 'Le Yuginator a percé le voile en ' + yQCount + ' réponse' + (yQCount > 1 ? 's' : '') + ' sur ' + ALL_CARDS.length.toLocaleString('fr') + ' cartes.'
     : 'Votre carte a résisté à l\'analyse. ' + yPool.length + ' candidate' + (yPool.length > 1 ? 's' : '') + ' restai' + (yPool.length > 1 ? 'ent' : 't') + '. Quelle était-elle ?';
+
+  // En cas d'échec, liste les derniers candidats (max 8) pour aider au diagnostic
+  if (!won && yPool.length > 0 && yPool.length <= 20) {
+    const extra = document.createElement('div');
+    extra.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:.78rem;color:var(--dim);margin-top:.5rem;font-style:italic;';
+    extra.textContent = 'Candidats restants : ' + yPool.slice(0, 8).map(c => c.name).join(', ') + (yPool.length > 8 ? '…' : '');
+    document.getElementById('yResult').appendChild(extra);
+  }
 
   document.getElementById('yRestart').classList.add('on');
 }
