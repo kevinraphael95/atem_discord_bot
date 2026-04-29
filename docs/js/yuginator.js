@@ -345,13 +345,22 @@ function buildQuestions(pool) {
 
 // ── SCORE D'ENTROPIE ──────────────────────────────────────
 
+// Nombre max d'archétypes posés d'affilée avant de forcer une pause
+const MAX_CONSEC_ARCH = 3;
+
 function bestQuestion(pool, askedKeys, resolvedGroups) {
   const qs = buildQuestions(pool).filter(q =>
     !askedKeys.has(q.key) && !resolvedGroups.has(q.group)
   );
 
-  const PRIORITY = ['cardcat', 'frameType', 'attribute', 'race', 'has_archetype', 'archetype',
-    'atk_vs_def', 'name_len', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word'];
+  // Si on a posé trop d'archétypes de suite, on les bloque temporairement
+  const blockArch = yConsecArch >= MAX_CONSEC_ARCH;
+
+  const PRIORITY = ['cardcat', 'frameType', 'attribute', 'race', 'has_archetype',
+    ...(blockArch ? [] : ['archetype']),
+    'atk_vs_def', 'ban', 'name_len', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
+    ...(blockArch ? ['archetype'] : []),  // archetype repoussé en fin si trop consécutifs
+  ];
 
   let best = null, bestScore = -1;
 
@@ -370,14 +379,27 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (best) return best;
   }
 
+  // Fallback global (hors archetype si bloqué)
   best = null; bestScore = -1;
   for (const q of qs) {
+    if (blockArch && q.group === 'archetype') continue;
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
     if (yes === 0 || no === 0) continue;
     const ratio = yes / pool.length;
     const score = 1 - Math.abs(ratio - 0.5) * 2;
     if (score > bestScore) { bestScore = score; best = q; }
+  }
+  // Si vraiment rien d'autre, on débloque les archétypes
+  if (!best) {
+    for (const q of qs) {
+      const yes = pool.filter(q.test).length;
+      const no  = pool.length - yes;
+      if (yes === 0 || no === 0) continue;
+      const ratio = yes / pool.length;
+      const score = 1 - Math.abs(ratio - 0.5) * 2;
+      if (score > bestScore) { bestScore = score; best = q; }
+    }
   }
   return best;
 }
@@ -397,6 +419,7 @@ let yCurQ           = null;
 let yThinking       = false;
 let yQCount         = 0;
 let ySortedPool     = [];
+let yConsecArch     = 0;    // nb d'archétypes posés consécutivement
 
 const GUESS_THRESHOLD = 3;
 
@@ -414,6 +437,7 @@ function yugiInit() {
   yThinking       = false;
   yQCount         = 0;
   ySortedPool     = [];
+  yConsecArch     = 0;
 
   document.getElementById('yResult').className = 'y-result';
   document.getElementById('yRestart').classList.remove('on');
@@ -475,6 +499,7 @@ function yugiUndo() {
   yHistory  = snap.history;
   yQCount   = snap.qCount;
   yCurQ     = snap.curQ;
+  yConsecArch = snap.consecArch ?? 0;
   yGuessIdx = 0;
   yThinking = false;
   ySortedPool = [];
@@ -517,18 +542,26 @@ function yugiAnswer(ans) {
 
   const q = yCurQ;
 
-  // ← NOUVEAU : sauvegarde de l'état AVANT de modifier quoi que ce soit
+  // sauvegarde de l'état AVANT de modifier quoi que ce soit
   yHistory_states.push({
-    pool:     yPool.slice(),
-    asked:    new Set(yAsked),
-    resolved: new Set(yResolved),
-    history:  yHistory.slice(),
-    qCount:   yQCount,
-    curQ:     yCurQ,
+    pool:       yPool.slice(),
+    asked:      new Set(yAsked),
+    resolved:   new Set(yResolved),
+    history:    yHistory.slice(),
+    qCount:     yQCount,
+    curQ:       yCurQ,
+    consecArch: yConsecArch,
   });
 
   yAsked.add(q.key);
   yQCount++;
+
+  // Mise à jour du compteur archétypes consécutifs
+  if (q.group === 'archetype') {
+    yConsecArch++;
+  } else {
+    yConsecArch = 0;
+  }
 
   const newPool = applyAnswer(yPool, q, ans);
   yPool = newPool;
