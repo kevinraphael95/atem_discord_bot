@@ -372,6 +372,16 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     !askedKeys.has(q.key) && !resolvedGroups.has(q.group)
   );
 
+  // Score entropique + petit bruit aleatoire pour varier les parties
+  const scoreQ = q => {
+    const yes = pool.filter(q.test).length;
+    const no  = pool.length - yes;
+    if (yes === 0 || no === 0) return -1;
+    const ratio = yes / pool.length;
+    const base = 1 - Math.abs(ratio - 0.5) * 2;
+    return base + (Math.random() * 0.08 - 0.04); // +/- 4% bruit
+  };
+
   const PRIORITY = [
     'cardcat', 'frameType', 'attribute', 'race', 'has_archetype',
     'arch_alpha', 'arch_alpha2', 'arch_letter', 'archetype',
@@ -379,9 +389,9 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     'atk', 'def', 'level', 'level_exact', 'atk_exact', 'ban',
   ];
 
-  // Seuil minimal d'entropie : une question doit éliminer au moins 15% du pool
-  // sinon elle est ignorée dans la passe prioritaire (passera en fallback)
-  const MIN_SCORE = 0.15;
+  // Seuil minimal : question doit eliminer au moins 10% du pool
+  // sinon ignoree dans la passe prioritaire (tombera en fallback)
+  const MIN_SCORE = 0.10;
 
   for (const grp of PRIORITY) {
     if (resolvedGroups.has(grp)) continue;
@@ -389,25 +399,17 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (candidates.length === 0) continue;
     let best = null, bestScore = -1;
     for (const q of candidates) {
-      const yes = pool.filter(q.test).length;
-      const no  = pool.length - yes;
-      if (yes === 0 || no === 0) continue;
-      const ratio = yes / pool.length;
-      const score = 1 - Math.abs(ratio - 0.5) * 2;
-      if (score >= MIN_SCORE && score > bestScore) { bestScore = score; best = q; }
+      const s = scoreQ(q);
+      if (s >= MIN_SCORE && s > bestScore) { bestScore = s; best = q; }
     }
     if (best) return best;
   }
 
-  // Fallback global : meilleure entropie toutes catégories
+  // Fallback global sans seuil minimum (on pose ce qu'on peut)
   let best = null, bestScore = -1;
   for (const q of qs) {
-    const yes = pool.filter(q.test).length;
-    const no  = pool.length - yes;
-    if (yes === 0 || no === 0) continue;
-    const ratio = yes / pool.length;
-    const score = 1 - Math.abs(ratio - 0.5) * 2;
-    if (score > bestScore) { bestScore = score; best = q; }
+    const s = scoreQ(q);
+    if (s > bestScore) { bestScore = s; best = q; }
   }
   return best;
 }
@@ -428,7 +430,7 @@ let yThinking       = false;
 let yQCount         = 0;
 let ySortedPool     = [];
 
-const GUESS_THRESHOLD = 3;
+const GUESS_THRESHOLD = 1;
 
 // ── INIT ──────────────────────────────────────────────────
 
@@ -601,10 +603,12 @@ function enterGuessPhase() {
     if (q) { yCurQ = q; showQuestion(q); return; }
   }
 
+  // Tri : cartes avec stats en premier (plus reconnaissables), puis alphabétique
   ySortedPool = yPool.slice().sort((a, b) => {
     const sa = (a.atk > 0 ? a.atk : 0) + (a.level > 0 ? a.level * 50 : 0);
     const sb = (b.atk > 0 ? b.atk : 0) + (b.level > 0 ? b.level * 50 : 0);
-    return sb - sa;
+    if (sa !== sb) return sb - sa;
+    return a.name.localeCompare(b.name, 'fr');
   });
   yGuessIdx = 0;
   showGuessStep();
