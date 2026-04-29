@@ -450,7 +450,13 @@ function nextStep() {
 
   if (yPool.length === 0) { showGiveUp(); return; }
 
-  if (yPool.length === 1) { enterGuessPhase(); return; }
+  if (yPool.length === 1) {
+    const card = yPool[0];
+    yGameOver = true;
+    setUI('none');
+    showResult(true, card.name, card.img);
+    return;
+  }
 
   if (yPool.length <= GUESS_THRESHOLD) {
     enterGuessPhase();
