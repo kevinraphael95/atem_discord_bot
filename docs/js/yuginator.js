@@ -465,27 +465,32 @@ function yugiInit() {
 function nextStep() {
   if (yGameOver) return;
 
-  if (yPool.length === 0) { showGiveUp(); return; }
-
-  if (yPool.length === 1) {
-    const card = yPool[0];
-    yGameOver = true;
-    setUI('none');
-    showResult(true, card.name, card.img);
+  // Aucun candidat → vrai abandon
+  if (yPool.length === 0) {
+    showGiveUp();
     return;
   }
 
-  // On cherche d'abord une bonne question
+  // 🔥 Si très peu de cartes → on devine directement
+  if (yPool.length <= 5) {
+    enterGuessPhase();
+    return;
+  }
+
+  // On cherche la meilleure question
   const q = bestQuestion(yPool, yAsked, yResolved);
-  if (q) {
-    yCurQ = q;
-    showQuestion(q);
+
+  // 🔥 Plus de questions pertinentes → devinette
+  if (!q) {
+    enterGuessPhase();
     return;
   }
 
-  // Plus de questions disponibles : on devine carte par carte, JAMAIS d'abandon
-  enterGuessPhase();
+  // Sinon → question normale
+  yCurQ = q;
+  showQuestion(q);
 }
+
 
 // ── AFFICHAGE QUESTION ────────────────────────────────────
 
@@ -662,6 +667,12 @@ function yugiConfirmGuess(ok) {
 }
 
 function showGiveUp() {
+  // 🔥 NE JAMAIS abandonner s'il reste des cartes
+  if (yPool.length > 0) {
+    enterGuessPhase();
+    return;
+  }
+
   yGameOver = true;
   setUI('none');
   showResult(false, null, null);
