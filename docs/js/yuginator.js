@@ -26,7 +26,7 @@ function normFrame(f) {
 function normRace(r) {
   const map = {
     'Spellcaster':'Magicien','Warrior':'Guerrier','Dragon':'Dragon',
-    'Beast':'Bête','Beast-Warrior':'Bête-Guerrier','Winged Beast:Bête Ailée','Fiend':'Démon',
+    'Beast':'Bête','Beast-Warrior':'Bête-Guerrier','Winged Beast':'Bête Ailée','Fiend':'Démon',
     'Fairy':'Elfe','Insect':'Insecte','Dinosaur':'Dinosaure',
     'Reptile':'Reptile','Fish':'Poisson','Sea Serpent':'Serpent marin',
     'Aqua':'Aqua','Pyro':'Pyro','Thunder':'Tonnerre','Machine':'Machine',
