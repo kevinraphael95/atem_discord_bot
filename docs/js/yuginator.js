@@ -276,16 +276,6 @@ function buildQuestions(pool) {
     });
   }
 
-  // ── Longueur du nom en caractères (pool réduit)
-  if (pool.length <= 800) {
-    [5, 8, 12, 18].forEach(t => qs.push({
-      label: `Le nom contient-il plus de ${t} caractères (espaces exclus) ?`,
-      key: 'name_len_' + t,
-      test: c => c.name.replace(/\s/g, '').length > t,
-      group: 'name_len',
-    }));
-  }
-
   // ── Questions sur le nom
   const NAME_POOL_THRESHOLD = 1500;
 
