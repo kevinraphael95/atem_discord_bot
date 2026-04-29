@@ -217,7 +217,8 @@ function buildQuestions(pool) {
       { label: "L'archétype commence-t-il par T–Z ?", key: 'arch_TZ', test: c => archInRange(c,'T','Z') },
     ].forEach(q => qs.push({ ...q, group: 'arch_alpha2' }));
     if (pool.length <= 300) {
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
+      const letters2 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').sort(() => Math.random() - 0.5);
+      letters2.forEach(l => qs.push({
         label: `L'archétype commence-t-il par la lettre "${l}" ?`,
         key: 'arch_letter_' + l,
         test: c => c.archetype !== '—' && (c.archetype[0] || '').toUpperCase() === l,
@@ -320,7 +321,9 @@ function buildQuestions(pool) {
     ].forEach(q => qs.push({ ...q, group: 'name_alpha2' }));
 
     if (pool.length <= 200) {
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
+      // Mélange aleatoire pour varier l'ordre de proposition des lettres
+      const letters1 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').sort(() => Math.random() - 0.5);
+      letters1.forEach(l => qs.push({
         label: `Le nom commence-t-il par la lettre "${l}" ?`,
         key: 'name_letter_' + l,
         test: c => (c.name[0] || '').toUpperCase() === l,
@@ -472,16 +475,16 @@ function nextStep() {
     return;
   }
 
-  if (yPool.length <= GUESS_THRESHOLD) {
-    enterGuessPhase();
+  // On cherche d'abord une bonne question
+  const q = bestQuestion(yPool, yAsked, yResolved);
+  if (q) {
+    yCurQ = q;
+    showQuestion(q);
     return;
   }
 
-  const q = bestQuestion(yPool, yAsked, yResolved);
-  if (!q) { enterGuessPhase(); return; }
-
-  yCurQ = q;
-  showQuestion(q);
+  // Plus de questions disponibles : on devine carte par carte, JAMAIS d'abandon
+  enterGuessPhase();
 }
 
 // ── AFFICHAGE QUESTION ────────────────────────────────────
@@ -598,12 +601,7 @@ function yugiAnswer(ans) {
 // ── PHASE DEVINETTE ───────────────────────────────────────
 
 function enterGuessPhase() {
-  if (yPool.length > GUESS_THRESHOLD) {
-    const q = bestQuestion(yPool, yAsked, yResolved);
-    if (q) { yCurQ = q; showQuestion(q); return; }
-  }
-
-  // Tri : cartes avec stats en premier (plus reconnaissables), puis alphabétique
+  // Tri : cartes avec stats en premier, puis alphabétique
   ySortedPool = yPool.slice().sort((a, b) => {
     const sa = (a.atk > 0 ? a.atk : 0) + (a.level > 0 ? a.level * 50 : 0);
     const sb = (b.atk > 0 ? b.atk : 0) + (b.level > 0 ? b.level * 50 : 0);
@@ -651,7 +649,13 @@ function yugiConfirmGuess(ok) {
     yThinking = true;
     setUI('thinking');
     setTimeout(() => {
-      if (ySortedPool.length === 0) { showGiveUp(); return; }
+      // Jamais d'abandon : si plus de cartes dans ySortedPool mais yPool non vide,
+      // relancer nextStep pour poser de nouvelles questions
+      if (ySortedPool.length === 0) {
+        if (yPool.length === 0) { showGiveUp(); return; }
+        nextStep();
+        return;
+      }
       showGuessStep();
     }, 400);
   }
