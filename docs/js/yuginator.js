@@ -57,6 +57,7 @@ function normBan(info) {
   };
   return map[b] || 'Autorisé';
 }
+
 function normalize(raw) {
   return {
     id:        raw.id,
@@ -90,6 +91,7 @@ async function yugiLoadCards() {
     for (const c of (json.data || [])) {
       if (!seen.has(c.id)) { seen.add(c.id); ALL_CARDS.push(normalize(c)); }
     }
+
     yugiLoaded = true;
     if (bar) {
       bar.textContent = '✅ ' + ALL_CARDS.length.toLocaleString('fr') + ' cartes chargées';
@@ -128,6 +130,11 @@ function raceLabel(v, ctx) {
   if (SPELL_RACES.has(v)) return `Est-ce une carte Magie/Piège de sous-type "${v}" ?`;
   return `Est-ce un monstre de type "${v}" ?`;
 }
+
+// ── Nom affiché : FR si disponible, sinon EN ──────────────
+// (le vrai nom anglais), car c'est ce que le joueur connaît
+// quand la carte n'a pas de traduction officielle.
+// Pour l'affichage dans la question on montre le nom FR.
 
 function buildQuestions(pool) {
   const qs  = [];
@@ -183,7 +190,7 @@ function buildQuestions(pool) {
     group: 'race',
   }));
 
-  // ── Archétype
+  // ── Archétype (has_archetype)
   if (hasArchPool > 0 && noArchPool > 0) {
     qs.push({
       label: `Est-ce que la carte appartient à un archétype ?`,
@@ -193,7 +200,10 @@ function buildQuestions(pool) {
     });
   }
 
-  const MAX_ARCH = 40;
+  // ── Archétypes individuels
+  // FIX 1 : MAX_ARCH augmenté à 200, plus de limite artificielle
+  // FIX 2 : score calculé sur le pool actuel uniquement (pas global)
+  const MAX_ARCH = 200;
   const archScored = archetypes.map(v => {
     const yes = pool.filter(c => c.archetype === v).length;
     const ratio = yes / pool.length;
@@ -243,8 +253,6 @@ function buildQuestions(pool) {
     group: 'level',
   }));
 
-  // ══ NOUVELLES QUESTIONS ══════════════════════════════════
-
   // ── Niveau EXACT (pool réduit)
   if (hasLvl && pool.length <= 400) {
     [1,2,3,4,5,6,7,8,10,12].forEach(n => qs.push({
@@ -276,7 +284,9 @@ function buildQuestions(pool) {
     });
   }
 
-  // ── Questions sur le nom
+  // ── Questions sur le nom ──────────────────────────────
+  // car c'est le nom que le joueur a en tête (anglais pour les cartes non traduites)
+  // Mais on affiche aussi "(nom FR)" dans la question si différent.
   const NAME_POOL_THRESHOLD = 1500;
 
   if (pool.length <= NAME_POOL_THRESHOLD) {
@@ -310,7 +320,6 @@ function buildQuestions(pool) {
     }));
   }
 
-  // ── Mots fréquents du nom
   if (pool.length > 6 && pool.length <= NAME_POOL_THRESHOLD) {
     const STOP = new Set(['de','du','des','le','la','les','un','une','et','en','a','au','aux',
       'par','sur','dans','pour','avec','sans','que','qui','ou','the','of','to','an','and','in','on','for','with','from']);
@@ -338,30 +347,25 @@ function buildQuestions(pool) {
 }
 
 // ── SCORE D'ENTROPIE ──────────────────────────────────────
-
-// Nombre max d'archétypes posés d'affilée avant de forcer une pause
-const MAX_CONSEC_ARCH = 3;
+// FIX : suppression complète de MAX_CONSEC_ARCH et du blocage des archétypes
+// Le moteur choisit toujours la meilleure question entropique sans restriction
 
 function bestQuestion(pool, askedKeys, resolvedGroups) {
   const qs = buildQuestions(pool).filter(q =>
     !askedKeys.has(q.key) && !resolvedGroups.has(q.group)
   );
 
-  // Si on a posé trop d'archétypes de suite, on les bloque temporairement
-  const blockArch = yConsecArch >= MAX_CONSEC_ARCH;
-
-  const PRIORITY = ['cardcat', 'frameType', 'attribute', 'race', 'has_archetype',
-    ...(blockArch ? [] : ['archetype']),
-    'atk_vs_def', 'ban', 'name_len', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
-    ...(blockArch ? ['archetype'] : []),  // archetype repoussé en fin si trop consécutifs
+  const PRIORITY = [
+    'cardcat', 'frameType', 'attribute', 'race', 'has_archetype', 'archetype',
+    'atk_vs_def', 'ban', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
+    'atk', 'def', 'level', 'level_exact', 'atk_exact',
   ];
-
-  let best = null, bestScore = -1;
 
   for (const grp of PRIORITY) {
     if (resolvedGroups.has(grp)) continue;
     const candidates = qs.filter(q => q.group === grp);
     if (candidates.length === 0) continue;
+    let best = null, bestScore = -1;
     for (const q of candidates) {
       const yes = pool.filter(q.test).length;
       const no  = pool.length - yes;
@@ -373,27 +377,15 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (best) return best;
   }
 
-  // Fallback global (hors archetype si bloqué)
-  best = null; bestScore = -1;
+  // Fallback global : meilleure entropie toutes catégories
+  let best = null, bestScore = -1;
   for (const q of qs) {
-    if (blockArch && q.group === 'archetype') continue;
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
     if (yes === 0 || no === 0) continue;
     const ratio = yes / pool.length;
     const score = 1 - Math.abs(ratio - 0.5) * 2;
     if (score > bestScore) { bestScore = score; best = q; }
-  }
-  // Si vraiment rien d'autre, on débloque les archétypes
-  if (!best) {
-    for (const q of qs) {
-      const yes = pool.filter(q.test).length;
-      const no  = pool.length - yes;
-      if (yes === 0 || no === 0) continue;
-      const ratio = yes / pool.length;
-      const score = 1 - Math.abs(ratio - 0.5) * 2;
-      if (score > bestScore) { bestScore = score; best = q; }
-    }
   }
   return best;
 }
@@ -406,14 +398,13 @@ let yPool           = [];
 let yAsked          = new Set();
 let yResolved       = new Set();
 let yHistory        = [];
-let yHistory_states = [];   // ← NOUVEAU : pile d'états pour le retour arrière
+let yHistory_states = [];
 let yGuessIdx       = 0;
 let yGameOver       = false;
 let yCurQ           = null;
 let yThinking       = false;
 let yQCount         = 0;
 let ySortedPool     = [];
-let yConsecArch     = 0;    // nb d'archétypes posés consécutivement
 
 const GUESS_THRESHOLD = 3;
 
@@ -431,7 +422,6 @@ function yugiInit() {
   yThinking       = false;
   yQCount         = 0;
   ySortedPool     = [];
-  yConsecArch     = 0;
 
   document.getElementById('yResult').className = 'y-result';
   document.getElementById('yRestart').classList.remove('on');
@@ -463,7 +453,7 @@ function nextStep() {
     return;
   }
 
-  const q = bestQuestion(yPool, yAsked, yResolved, yQCount);
+  const q = bestQuestion(yPool, yAsked, yResolved);
   if (!q) { enterGuessPhase(); return; }
 
   yCurQ = q;
@@ -487,7 +477,6 @@ function updateProgress() {
 }
 
 // ── RETOUR ARRIÈRE ────────────────────────────────────────
-// ← NOUVELLE FONCTION
 
 function yugiUndo() {
   if (yHistory_states.length === 0 || yGameOver) return;
@@ -499,7 +488,6 @@ function yugiUndo() {
   yHistory  = snap.history;
   yQCount   = snap.qCount;
   yCurQ     = snap.curQ;
-  yConsecArch = snap.consecArch ?? 0;
   yGuessIdx = 0;
   yThinking = false;
   ySortedPool = [];
@@ -542,26 +530,18 @@ function yugiAnswer(ans) {
 
   const q = yCurQ;
 
-  // sauvegarde de l'état AVANT de modifier quoi que ce soit
+  // Sauvegarde état avant modification
   yHistory_states.push({
-    pool:       yPool.slice(),
-    asked:      new Set(yAsked),
-    resolved:   new Set(yResolved),
-    history:    yHistory.slice(),
-    qCount:     yQCount,
-    curQ:       yCurQ,
-    consecArch: yConsecArch,
+    pool:     yPool.slice(),
+    asked:    new Set(yAsked),
+    resolved: new Set(yResolved),
+    history:  yHistory.slice(),
+    qCount:   yQCount,
+    curQ:     yCurQ,
   });
 
   yAsked.add(q.key);
   yQCount++;
-
-  // Mise à jour du compteur archétypes consécutifs
-  if (q.group === 'archetype') {
-    yConsecArch++;
-  } else {
-    yConsecArch = 0;
-  }
 
   const newPool = applyAnswer(yPool, q, ans);
   yPool = newPool;
@@ -595,7 +575,7 @@ function yugiAnswer(ans) {
 
 function enterGuessPhase() {
   if (yPool.length > GUESS_THRESHOLD) {
-    const q = bestQuestion(yPool, yAsked, yResolved, yQCount);
+    const q = bestQuestion(yPool, yAsked, yResolved);
     if (q) { yCurQ = q; showQuestion(q); return; }
   }
 
@@ -615,6 +595,7 @@ function showGuessStep() {
 
   setUI('guess');
   document.getElementById('yQnum').textContent = '🎯 DEVINETTE ' + yGuessIdx;
+
   document.getElementById('yQtext').textContent = 'Est-ce que vous pensez à… ' + card.name + ' ?';
 
   const pct = Math.min(99, 65 + yQCount * 3);
@@ -680,7 +661,6 @@ function showResult(won, name, img) {
     ? 'Le Yuginator a percé le voile en ' + yQCount + ' réponse' + (yQCount > 1 ? 's' : '') + ' sur ' + ALL_CARDS.length.toLocaleString('fr') + ' cartes.'
     : 'Votre carte a résisté à l\'analyse. ' + yPool.length + ' candidate' + (yPool.length > 1 ? 's' : '') + ' restai' + (yPool.length > 1 ? 'ent' : 't') + '. Quelle était-elle ?';
 
-  // En cas d'échec, liste les derniers candidats (max 8) pour aider au diagnostic
   if (!won && yPool.length > 0 && yPool.length <= 20) {
     const extra = document.createElement('div');
     extra.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:.78rem;color:var(--dim);margin-top:.5rem;font-style:italic;';
@@ -726,7 +706,6 @@ function setUI(mode) {
       <button class="y-btn no"  onclick="yugiConfirmGuess(false)">❌ NON, CE N'EST PAS ÇA</button>`;
   }
 
-  // ← NOUVEAU : bouton retour ajouté dynamiquement si historique disponible
   if (yHistory_states.length > 0) {
     const undoBtn = document.createElement('button');
     undoBtn.className = 'y-btn undo';
@@ -774,21 +753,6 @@ function yugiRestart() {
   document.getElementById('yConf').textContent = '0%';
   yugiInit();
 }
-
-// ── CSS pour le bouton undo (à coller dans votre <style>) ──────────────────
-/*
-.y-btn.undo {
-  background: #2a2a3a;
-  color: #aaa;
-  border: 1px solid #444;
-  font-size: 0.8em;
-  opacity: 0.8;
-}
-.y-btn.undo:hover {
-  background: #3a3a4a;
-  opacity: 1;
-}
-*/
 
 // ── BOOTSTRAP ─────────────────────────────────────────────
 // startGame() → yugiLoadCards() → yugiInit()
