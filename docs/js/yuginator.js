@@ -200,22 +200,39 @@ function buildQuestions(pool) {
     });
   }
 
-  // ── Archétypes individuels
-  // FIX 1 : MAX_ARCH augmenté à 200, plus de limite artificielle
-  // FIX 2 : score calculé sur le pool actuel uniquement (pas global)
-  const MAX_ARCH = 200;
-  const archScored = archetypes.map(v => {
-    const yes = pool.filter(c => c.archetype === v).length;
-    const ratio = yes / pool.length;
-    return { v, score: 1 - Math.abs(ratio - 0.5) * 2 };
-  }).sort((a, b) => b.score - a.score).slice(0, MAX_ARCH);
-
-  archScored.forEach(({ v }) => qs.push({
-    label: `Est-ce une carte de l'archétype "${v}" ?`,
-    key: 'arch_eq_' + v,
-    test: c => c.archetype === v,
-    group: 'archetype',
-  }));
+  // ── Archétypes : dichotomie par lettre puis nom exact si pool réduit
+  if (archetypes.length > 0) {
+    const archInRange = (c, a, z) => {
+      const l = (c.archetype[0] || '').toUpperCase();
+      return c.archetype !== '—' && l >= a && l <= z;
+    };
+    [
+      { label: "L'archétype commence-t-il par A–M ?", key: 'arch_AM', test: c => archInRange(c,'A','M') },
+      { label: "L'archétype commence-t-il par N–Z ?", key: 'arch_NZ', test: c => archInRange(c,'N','Z') },
+    ].forEach(q => qs.push({ ...q, group: 'arch_alpha' }));
+    [
+      { label: "L'archétype commence-t-il par A–F ?", key: 'arch_AF', test: c => archInRange(c,'A','F') },
+      { label: "L'archétype commence-t-il par G–M ?", key: 'arch_GM', test: c => archInRange(c,'G','M') },
+      { label: "L'archétype commence-t-il par N–S ?", key: 'arch_NS', test: c => archInRange(c,'N','S') },
+      { label: "L'archétype commence-t-il par T–Z ?", key: 'arch_TZ', test: c => archInRange(c,'T','Z') },
+    ].forEach(q => qs.push({ ...q, group: 'arch_alpha2' }));
+    if (pool.length <= 300) {
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
+        label: `L'archétype commence-t-il par la lettre "${l}" ?`,
+        key: 'arch_letter_' + l,
+        test: c => c.archetype !== '—' && (c.archetype[0] || '').toUpperCase() === l,
+        group: 'arch_letter',
+      }));
+    }
+    if (archetypes.length <= 20) {
+      archetypes.forEach(v => qs.push({
+        label: `Est-ce une carte de l'archétype "${v}" ?`,
+        key: 'arch_eq_' + v,
+        test: c => c.archetype === v,
+        group: 'archetype',
+      }));
+    }
+  }
 
   // ── Banlist
   if (bans.length > 1) {
@@ -356,7 +373,8 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   );
 
   const PRIORITY = [
-    'cardcat', 'frameType', 'attribute', 'race', 'has_archetype', 'archetype',
+    'cardcat', 'frameType', 'attribute', 'race', 'has_archetype',
+    'arch_alpha', 'arch_alpha2', 'arch_letter', 'archetype',
     'atk_vs_def', 'ban', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
     'atk', 'def', 'level', 'level_exact', 'atk_exact',
   ];
