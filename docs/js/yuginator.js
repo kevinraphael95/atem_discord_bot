@@ -375,9 +375,13 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   const PRIORITY = [
     'cardcat', 'frameType', 'attribute', 'race', 'has_archetype',
     'arch_alpha', 'arch_alpha2', 'arch_letter', 'archetype',
-    'atk_vs_def', 'ban', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
-    'atk', 'def', 'level', 'level_exact', 'atk_exact',
+    'atk_vs_def', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
+    'atk', 'def', 'level', 'level_exact', 'atk_exact', 'ban',
   ];
+
+  // Seuil minimal d'entropie : une question doit éliminer au moins 15% du pool
+  // sinon elle est ignorée dans la passe prioritaire (passera en fallback)
+  const MIN_SCORE = 0.15;
 
   for (const grp of PRIORITY) {
     if (resolvedGroups.has(grp)) continue;
@@ -390,7 +394,7 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
       if (yes === 0 || no === 0) continue;
       const ratio = yes / pool.length;
       const score = 1 - Math.abs(ratio - 0.5) * 2;
-      if (score > bestScore) { bestScore = score; best = q; }
+      if (score >= MIN_SCORE && score > bestScore) { bestScore = score; best = q; }
     }
     if (best) return best;
   }
