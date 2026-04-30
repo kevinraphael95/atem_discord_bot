@@ -163,14 +163,6 @@ function buildQuestions(pool) {
     qs.push({ label: "Est-ce une carte Piège ?", key: 'cat_trap', test: c => TRAP_FRAMES.has(c.frameType), group: 'cardcat' });
   }
 
-  // ── FrameType détaillé
-  frames.forEach(v => qs.push({
-    label: `Est-ce une carte "${v}" ?`,
-    key: 'frameType_eq_' + v,
-    test: c => c.frameType === v,
-    group: 'frameType',
-  }));
-
   // ── Attribut
   attrs.forEach(v => {
     if (v === '—') return;
@@ -244,6 +236,51 @@ function buildQuestions(pool) {
       group: 'ban',
     }));
   }
+  
+  // ── Catégorie Extra Deck / Main Deck
+  const EXTRA_DECK = new Set(['Fusion','Synchro','XYZ','Link']);
+  const MAIN_DECK  = new Set(['Normal','Effet','Rituel','Pendule']);
+  
+  const nExtra = pool.filter(c => EXTRA_DECK.has(c.frameType)).length;
+  const nMain  = pool.filter(c => MAIN_DECK.has(c.frameType)).length;
+  
+  if (nExtra > 0 && nMain > 0) {
+    qs.push({
+      label: "Est-ce un monstre de l'Extra Deck (Fusion, Synchro, Xyz ou Link) ?",
+      key: 'cat_extra',
+      test: c => EXTRA_DECK.has(c.frameType),
+      group: 'deckzone',
+    });
+  }
+  
+  // ── Monstre Normal (sans effet) vs Effet
+  const nNormal = pool.filter(c => c.frameType === 'Normal').length;
+  const nEffet  = pool.filter(c => c.frameType === 'Effet').length;
+  if (nNormal > 0 && nEffet > 0) {
+    qs.push({
+      label: "Est-ce un monstre Normal (sans effet, cadre jaune) ?",
+      key: 'frame_normal',
+      test: c => c.frameType === 'Normal',
+      group: 'frameType',
+    });
+  }
+  
+  // ── Détail Extra Deck (seulement si pool déjà filtré Extra)
+  ['Fusion','Synchro','XYZ','Link'].forEach(v => qs.push({
+    label: `Est-ce une carte ${v} ?`,
+    key: 'frameType_eq_' + v,
+    test: c => c.frameType === v,
+    group: 'frameType',
+  }));
+  
+  
+  // ── Rituel / Pendule
+  ['Rituel','Pendule'].forEach(v => qs.push({
+    label: `Est-ce une carte ${v} ?`,
+    key: 'frameType_eq_' + v,
+    test: c => c.frameType === v,
+    group: 'frameType',
+  }));  
 
   // ── Seuils ATK / DEF / Niveau
   const hasAtk = pool.some(c => c.atk >= 0);
@@ -386,7 +423,7 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   };
 
   const PRIORITY = [
-    'cardcat', 'frameType', 'attribute', 'race', 'has_archetype',
+    'cardcat', 'deckzone', 'attribute', 'race', 'has_archetype',
     'arch_alpha', 'arch_alpha2', 'arch_letter', 'archetype',
     'atk_vs_def', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
     'atk', 'def', 'level', 'level_exact', 'atk_exact', 'ban',
