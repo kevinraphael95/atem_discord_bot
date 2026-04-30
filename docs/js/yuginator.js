@@ -58,6 +58,76 @@ function normBan(info) {
   return map[b] || 'Autorisé';
 }
 
+const ARCHETYPE_FR = {
+  // B
+  'Blue-Eyes': 'Yeux Bleus',
+  'Black Luster Soldier': 'Soldat du Lustre Noir',
+  'Blackwing': 'Aile Noire',
+  'Burning Abyss': 'Abîme Ardent',
+  // C
+  'Cyber Dragon': 'Cyber Dragon',
+  // D
+  'Dark Magician': 'Magicien des Ténèbres',
+  'Dark World': 'Monde des Ténèbres',
+  'Dragon Ruler': 'Seigneur Dragon',
+  // E
+  'Elemental HERO': 'HÉROS Élémentaire',
+  'Evil HERO': 'Mauvais HÉROS',
+  'Exodia': 'Exodia',
+  // F
+  'Fluffal': 'Peluche',
+  'Fortune Lady': 'Dame Fortune',
+  // G
+  'Galaxy': 'Galaxie',
+  'Ghostrick': 'Farfadet',
+  'HERO': 'HÉROS',
+  // I
+  'Infernity': 'Infernité',
+  // K
+  'Kaiju': 'Kaiju',
+  // L
+  'Laval': 'Laval',
+  // M
+  'Madolche': 'Madolché',
+  'Magician': 'Magicien',
+  'Mermail': 'Aquamer',
+  'Monarchs': 'Monarques',
+  // N
+  'Nekroz': 'Nékroz',
+  'Numeron': 'Numéron',
+  'Number': 'Numéro',
+  // P
+  'Phantom Knights': 'Chevaliers Fantômes',
+  'Prophecy': 'Prophétie',
+  // R
+  'Raidraptor': 'Raidraptor',
+  'Red-Eyes': 'Yeux Rouges',
+  // S
+  'Satellarknight': 'Satellachevalier',
+  'Six Samurai': 'Six Samouraïs',
+  'Speedroid': 'Speedroïd',
+  'Stardust': 'Poussière d\'Étoiles',
+  'Superheavy Samurai': 'Samouraï Superpesant',
+  // T
+  'The Phantom Knights': 'Chevaliers Fantômes',
+  'Toon': 'Toon',
+  // W
+  'Wind-Up': 'Remontoir',
+  // X
+  'X-Saber': 'X-Sabre',
+  'XYZ': 'Xyz',
+  // Y
+  'Yang Zing': 'Yang Zing',
+  'Yosenju': 'Yosenju',
+  // Z
+  'Zombie': 'Zombi',
+};
+
+function normArchetype(a) {
+  if (!a) return '—';
+  return ARCHETYPE_FR[a] || a;
+}
+
 function normalize(raw) {
   return {
     id:        raw.id,
@@ -68,7 +138,7 @@ function normalize(raw) {
     level:     raw.level ?? raw.linkval ?? 0,
     atk:       raw.atk ?? -1,
     def:       raw.def ?? -1,
-    archetype: raw.archetype || '—',
+    archetype: normArchetype(raw.archetype),
     ban:       normBan(raw.banlist_info),
     img:       raw.card_images?.[0]?.image_url_small || '',
   };
