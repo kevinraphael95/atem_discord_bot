@@ -585,11 +585,12 @@ function yugiAnswer(ans) {
     yResolved.add('cardcat');
   }
   if (q.key === 'has_archetype') {
-    if (ans === 'non' || ans === 'plutot_non') {
+    yResolved.add('has_archetype');
+    if (ans === 'non' || ans === 'plutot_non' || ans === 'ne_sais_pas') {
       yResolved.add('archetype');
-      yResolved.add('has_archetype');
-    } else {
-      yResolved.add('has_archetype');
+      yResolved.add('arch_alpha');
+      yResolved.add('arch_alpha2');
+      yResolved.add('arch_letter');
     }
   }
 
