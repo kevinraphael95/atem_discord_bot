@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════
-//  YUGINATOR — moteur entropique pur JS, zéro IA
-//  Branché sur YGOPRODeck (même normalize() que guesser.js)
+//  YUGINATOR — moteur probabiliste à la Akinator, zéro IA
+//  Branché sur YGOPRODeck
 // ══════════════════════════════════════════════════════════
 
 // ── NORMALISATION ─────────────────────────────────────────
@@ -8,8 +8,7 @@
 const MONSTER_FRAMES = new Set(['Normal','Effet','Rituel','Fusion','Synchro','XYZ','Link','Pendule','Jeton','Skill']);
 const SPELL_FRAMES   = new Set(['Magie']);
 const TRAP_FRAMES    = new Set(['Piège']);
-
-const SPELL_RACES = new Set(['Normal','Continu','Contre','Jeu rapide','Équipement','Terrain','Rituel']);
+const SPELL_RACES    = new Set(['Normal','Continu','Contre','Jeu rapide','Équipement','Terrain','Rituel']);
 
 function normFrame(f) {
   const map = {
@@ -23,6 +22,7 @@ function normFrame(f) {
   };
   return map[(f || '').toLowerCase()] || f || '—';
 }
+
 function normRace(r) {
   const map = {
     'Spellcaster':'Magicien','Warrior':'Guerrier','Dragon':'Dragon',
@@ -39,6 +39,7 @@ function normRace(r) {
   };
   return map[r] || r || '—';
 }
+
 function normAttr(a) {
   const map = {
     'DARK':'TÉNÈBRES','LIGHT':'LUMIÈRE','WATER':'EAU',
@@ -46,15 +47,12 @@ function normAttr(a) {
   };
   return map[a] || a || '—';
 }
+
 function normBan(info) {
   if (!info) return 'Autorisé';
   const b = info.ban_tcg;
   if (!b) return 'Autorisé';
-  const map = {
-    'Banned':'Interdit', 'Forbidden':'Interdit',
-    'Limited':'Limité',
-    'Semi-Limited':'Semi-Limité',
-  };
+  const map = { 'Banned':'Interdit','Forbidden':'Interdit','Limited':'Limité','Semi-Limited':'Semi-Limité' };
   return map[b] || 'Autorisé';
 }
 
@@ -76,13 +74,12 @@ function normalize(raw) {
 
 // ── CHARGEMENT ────────────────────────────────────────────
 
-let ALL_CARDS = [];
+let ALL_CARDS  = [];
 let yugiLoaded = false;
 
 async function yugiLoadCards() {
   const bar = document.getElementById('yLoadBar');
   if (bar) { bar.style.display = 'flex'; bar.textContent = '⚡ Chargement des cartes…'; }
-
   try {
     const resp = await fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?misc=yes&language=fr');
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -91,7 +88,6 @@ async function yugiLoadCards() {
     for (const c of (json.data || [])) {
       if (!seen.has(c.id)) { seen.add(c.id); ALL_CARDS.push(normalize(c)); }
     }
-
     yugiLoaded = true;
     if (bar) {
       bar.textContent = '✅ ' + ALL_CARDS.length.toLocaleString('fr') + ' cartes chargées';
@@ -105,6 +101,71 @@ async function yugiLoadCards() {
 }
 
 // ══════════════════════════════════════════════════════════
+//  SYSTÈME DE SCORES PROBABILISTES
+// ══════════════════════════════════════════════════════════
+
+// Facteurs multiplicatifs selon la réponse
+// oui        : cartes qui matchent ×1,    qui ne matchent pas ×FACTOR_NO
+// plutot_oui : cartes qui matchent ×1,    qui ne matchent pas ×FACTOR_PNO
+// plutot_non : cartes qui matchent ×FACTOR_PNO, qui ne matchent pas ×1
+// non        : cartes qui matchent ×FACTOR_NO,  qui ne matchent pas ×1
+// ne_sais_pas: aucun changement
+
+const FACTOR_NO  = 0.05;  // quasi-certain que non
+const FACTOR_PNO = 0.30;  // probablement non
+
+// yScores : Map<cardId, number>  score entre 0 et 1 (initialisé à 1/N)
+let yScores = new Map();
+
+function initScores() {
+  yScores = new Map();
+  const init = 1 / ALL_CARDS.length;
+  for (const c of ALL_CARDS) yScores.set(c.id, init);
+}
+
+function applyScores(q, ans) {
+  if (ans === 'ne_sais_pas') return; // rien ne change
+
+  let factorMatch, factorNoMatch;
+  if      (ans === 'oui')        { factorMatch = 1;          factorNoMatch = FACTOR_NO;  }
+  else if (ans === 'plutot_oui') { factorMatch = 1;          factorNoMatch = FACTOR_PNO; }
+  else if (ans === 'plutot_non') { factorMatch = FACTOR_PNO; factorNoMatch = 1;          }
+  else if (ans === 'non')        { factorMatch = FACTOR_NO;  factorNoMatch = 1;          }
+  else return;
+
+  // Applique les facteurs
+  for (const c of ALL_CARDS) {
+    const s = yScores.get(c.id) || 0;
+    const matches = q.test(c);
+    yScores.set(c.id, s * (matches ? factorMatch : factorNoMatch));
+  }
+
+  // Renormalise pour éviter l'underflow numérique
+  normalizeScores();
+}
+
+function normalizeScores() {
+  let total = 0;
+  for (const v of yScores.values()) total += v;
+  if (total === 0) return;
+  for (const [id, v] of yScores) yScores.set(id, v / total);
+}
+
+// Retourne les cartes triées par score décroissant, filtrées au-dessus d'un seuil
+function getActivePool(minScore = 1e-6) {
+  return ALL_CARDS
+    .filter(c => (yScores.get(c.id) || 0) >= minScore)
+    .sort((a, b) => (yScores.get(b.id) || 0) - (yScores.get(a.id) || 0));
+}
+
+// Score de la carte la plus probable
+function topScore() {
+  let max = 0;
+  for (const v of yScores.values()) if (v > max) max = v;
+  return max;
+}
+
+// ══════════════════════════════════════════════════════════
 //  GÉNÉRATEUR DE QUESTIONS
 // ══════════════════════════════════════════════════════════
 
@@ -113,10 +174,11 @@ const DEF_THRESHOLDS = [500, 1000, 1500, 2000, 2500, 3000];
 const LVL_THRESHOLDS = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12];
 
 function poolContext(pool) {
+  const total    = pool.length;
+  if (!total) return 'mixed';
   const monsters = pool.filter(c => MONSTER_FRAMES.has(c.frameType)).length;
   const spells   = pool.filter(c => SPELL_FRAMES.has(c.frameType)).length;
   const traps    = pool.filter(c => TRAP_FRAMES.has(c.frameType)).length;
-  const total    = pool.length;
   if (monsters / total > 0.8) return 'monster';
   if (spells   / total > 0.8) return 'spell';
   if (traps    / total > 0.8) return 'trap';
@@ -125,112 +187,78 @@ function poolContext(pool) {
 
 function raceLabel(v, ctx) {
   if (ctx === 'monster') return `Est-ce un monstre de type "${v}" ?`;
-  if (ctx === 'spell')   return `Est-ce une carte Magie de type "${v}" ?`;
-  if (ctx === 'trap')    return `Est-ce une carte Piège de type "${v}" ?`;
-  if (SPELL_RACES.has(v)) return `Est-ce une carte Magie/Piège de sous-type "${v}" ?`;
+  if (ctx === 'spell')   return `Est-ce une Magie de sous-type "${v}" ?`;
+  if (ctx === 'trap')    return `Est-ce un Piège de sous-type "${v}" ?`;
+  if (SPELL_RACES.has(v)) return `Est-ce une Magie/Piège de sous-type "${v}" ?`;
   return `Est-ce un monstre de type "${v}" ?`;
 }
-
-// ── Nom affiché : FR si disponible, sinon EN ──────────────
-// (le vrai nom anglais), car c'est ce que le joueur connaît
-// quand la carte n'a pas de traduction officielle.
-// Pour l'affichage dans la question on montre le nom FR.
 
 function buildQuestions(pool) {
   const qs  = [];
   const ctx = poolContext(pool);
 
-  const frames     = [...new Set(pool.map(c => c.frameType))].filter(v => v && v !== '—');
-  const attrs      = [...new Set(pool.map(c => c.attribute))].filter(v => v && v !== '—');
-  const races      = [...new Set(pool.map(c => c.race))].filter(v => v && v !== '—');
-  const bans       = [...new Set(pool.map(c => c.ban))];
+  const frames    = [...new Set(pool.map(c => c.frameType))].filter(v => v && v !== '—');
+  const attrs     = [...new Set(pool.map(c => c.attribute))].filter(v => v && v !== '—');
+  const races     = [...new Set(pool.map(c => c.race))].filter(v => v && v !== '—');
+  const bans      = [...new Set(pool.map(c => c.ban))];
+  const archetypes = [...new Set(pool.map(c => c.archetype))].filter(v => v && v !== '—');
+  const hasArchN  = pool.filter(c => c.archetype !== '—').length;
+  const noArchN   = pool.length - hasArchN;
 
-  const hasArchPool  = pool.filter(c => c.archetype !== '—').length;
-  const noArchPool   = pool.length - hasArchPool;
-  const archetypes   = [...new Set(pool.map(c => c.archetype))].filter(v => v && v !== '—');
-
-  // ── Catégorie synthétique monstre / magie / piège
-  const nMonsters = pool.filter(c => MONSTER_FRAMES.has(c.frameType)).length;
-  const nSpells   = pool.filter(c => SPELL_FRAMES.has(c.frameType)).length;
-  const nTraps    = pool.filter(c => TRAP_FRAMES.has(c.frameType)).length;
-  if (nMonsters > 0 && (nSpells > 0 || nTraps > 0)) {
-    qs.push({ label: "Est-ce un monstre ?", key: 'cat_monster', test: c => MONSTER_FRAMES.has(c.frameType), group: 'cardcat' });
-  }
-  if (nSpells > 0 && (nMonsters > 0 || nTraps > 0)) {
-    qs.push({ label: "Est-ce une carte Magie ?", key: 'cat_spell', test: c => SPELL_FRAMES.has(c.frameType), group: 'cardcat' });
-  }
-  if (nTraps > 0 && (nMonsters > 0 || nSpells > 0)) {
-    qs.push({ label: "Est-ce une carte Piège ?", key: 'cat_trap', test: c => TRAP_FRAMES.has(c.frameType), group: 'cardcat' });
-  }
+  // ── Catégorie monstre / magie / piège
+  const nM = pool.filter(c => MONSTER_FRAMES.has(c.frameType)).length;
+  const nS = pool.filter(c => SPELL_FRAMES.has(c.frameType)).length;
+  const nT = pool.filter(c => TRAP_FRAMES.has(c.frameType)).length;
+  if (nM > 0 && (nS > 0 || nT > 0))
+    qs.push({ label: "Est-ce un monstre ?",      key: 'cat_monster', test: c => MONSTER_FRAMES.has(c.frameType), group: 'cardcat' });
+  if (nS > 0 && (nM > 0 || nT > 0))
+    qs.push({ label: "Est-ce une carte Magie ?", key: 'cat_spell',   test: c => SPELL_FRAMES.has(c.frameType),   group: 'cardcat' });
+  if (nT > 0 && (nM > 0 || nS > 0))
+    qs.push({ label: "Est-ce une carte Piège ?", key: 'cat_trap',    test: c => TRAP_FRAMES.has(c.frameType),    group: 'cardcat' });
 
   // ── FrameType détaillé
   frames.forEach(v => qs.push({
     label: `Est-ce une carte "${v}" ?`,
-    key: 'frameType_eq_' + v,
-    test: c => c.frameType === v,
-    group: 'frameType',
+    key: 'frameType_eq_' + v, test: c => c.frameType === v, group: 'frameType',
   }));
 
   // ── Attribut
-  attrs.forEach(v => {
-    if (v === '—') return;
-    qs.push({
-      label: `Est-ce que l'attribut est "${v}" ?`,
-      key: 'attr_eq_' + v,
-      test: c => c.attribute === v,
-      group: 'attribute',
-    });
-  });
+  attrs.forEach(v => qs.push({
+    label: `L'attribut est-il "${v}" ?`,
+    key: 'attr_eq_' + v, test: c => c.attribute === v, group: 'attribute',
+  }));
 
   // ── Race / sous-type
   races.forEach(v => qs.push({
     label: raceLabel(v, ctx),
-    key: 'race_eq_' + v,
-    test: c => c.race === v,
-    group: 'race',
+    key: 'race_eq_' + v, test: c => c.race === v, group: 'race',
   }));
 
-  // ── Archétype (has_archetype)
-  if (hasArchPool > 0 && noArchPool > 0) {
-    qs.push({
-      label: `Est-ce que la carte appartient à un archétype ?`,
-      key: 'has_archetype',
-      test: c => c.archetype !== '—',
-      group: 'has_archetype',
-    });
-  }
+  // ── Archétype
+  if (hasArchN > 0 && noArchN > 0)
+    qs.push({ label: "Appartient-elle à un archétype ?", key: 'has_archetype', test: c => c.archetype !== '—', group: 'has_archetype' });
 
-  // ── Archétypes : dichotomie par lettre puis nom exact si pool réduit
   if (archetypes.length > 0) {
-    const archInRange = (c, a, z) => {
-      const l = (c.archetype[0] || '').toUpperCase();
-      return c.archetype !== '—' && l >= a && l <= z;
-    };
-    [
-      { label: "L'archétype commence-t-il par A–M ?", key: 'arch_AM', test: c => archInRange(c,'A','M') },
-      { label: "L'archétype commence-t-il par N–Z ?", key: 'arch_NZ', test: c => archInRange(c,'N','Z') },
-    ].forEach(q => qs.push({ ...q, group: 'arch_alpha' }));
-    [
-      { label: "L'archétype commence-t-il par A–F ?", key: 'arch_AF', test: c => archInRange(c,'A','F') },
-      { label: "L'archétype commence-t-il par G–M ?", key: 'arch_GM', test: c => archInRange(c,'G','M') },
-      { label: "L'archétype commence-t-il par N–S ?", key: 'arch_NS', test: c => archInRange(c,'N','S') },
-      { label: "L'archétype commence-t-il par T–Z ?", key: 'arch_TZ', test: c => archInRange(c,'T','Z') },
-    ].forEach(q => qs.push({ ...q, group: 'arch_alpha2' }));
+    const archInRange = (c, a, z) => c.archetype !== '—' && (c.archetype[0]||'').toUpperCase() >= a && (c.archetype[0]||'').toUpperCase() <= z;
+    qs.push({ label: "L'archétype commence-t-il par A–M ?", key: 'arch_AM', test: c => archInRange(c,'A','M'), group: 'arch_alpha' });
+    qs.push({ label: "L'archétype commence-t-il par N–Z ?", key: 'arch_NZ', test: c => archInRange(c,'N','Z'), group: 'arch_alpha' });
+    qs.push({ label: "L'archétype commence-t-il par A–F ?", key: 'arch_AF', test: c => archInRange(c,'A','F'), group: 'arch_alpha2' });
+    qs.push({ label: "L'archétype commence-t-il par G–M ?", key: 'arch_GM', test: c => archInRange(c,'G','M'), group: 'arch_alpha2' });
+    qs.push({ label: "L'archétype commence-t-il par N–S ?", key: 'arch_NS', test: c => archInRange(c,'N','S'), group: 'arch_alpha2' });
+    qs.push({ label: "L'archétype commence-t-il par T–Z ?", key: 'arch_TZ', test: c => archInRange(c,'T','Z'), group: 'arch_alpha2' });
+
     if (pool.length <= 300) {
-      const letters2 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').sort(() => Math.random() - 0.5);
-      letters2.forEach(l => qs.push({
-        label: `L'archétype commence-t-il par la lettre "${l}" ?`,
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
+        label: `L'archétype commence-t-il par "${l}" ?`,
         key: 'arch_letter_' + l,
-        test: c => c.archetype !== '—' && (c.archetype[0] || '').toUpperCase() === l,
+        test: c => c.archetype !== '—' && (c.archetype[0]||'').toUpperCase() === l,
         group: 'arch_letter',
       }));
     }
     if (archetypes.length <= 20) {
       archetypes.forEach(v => qs.push({
         label: `Est-ce une carte de l'archétype "${v}" ?`,
-        key: 'arch_eq_' + v,
-        test: c => c.archetype === v,
-        group: 'archetype',
+        key: 'arch_eq_' + v, test: c => c.archetype === v, group: 'archetype',
       }));
     }
   }
@@ -238,109 +266,71 @@ function buildQuestions(pool) {
   // ── Banlist
   if (bans.length > 1) {
     bans.forEach(v => qs.push({
-      label: `Est-ce que la carte est "${v}" sur la Banlist TCG ?`,
-      key: 'ban_eq_' + v,
-      test: c => c.ban === v,
-      group: 'ban',
+      label: `Est-elle "${v}" sur la Banlist TCG ?`,
+      key: 'ban_eq_' + v, test: c => c.ban === v, group: 'ban',
     }));
   }
 
-  // ── Seuils ATK / DEF / Niveau
+  // ── Stats numériques
   const hasAtk = pool.some(c => c.atk >= 0);
   const hasDef = pool.some(c => c.def >= 0);
   const hasLvl = pool.some(c => c.level > 0);
 
   if (hasAtk) ATK_THRESHOLDS.forEach(t => qs.push({
-    label: `Est-ce que l'ATK est ≥ ${t} ?`,
-    key: 'atk_gte_' + t,
-    test: c => c.atk >= 0 && c.atk >= t,
-    group: 'atk',
+    label: `L'ATK est-elle ≥ ${t} ?`,
+    key: 'atk_gte_' + t, test: c => c.atk >= 0 && c.atk >= t, group: 'atk',
   }));
-
   if (hasDef) DEF_THRESHOLDS.forEach(t => qs.push({
-    label: `Est-ce que la DEF est ≥ ${t} ?`,
-    key: 'def_gte_' + t,
-    test: c => c.def >= 0 && c.def >= t,
-    group: 'def',
+    label: `La DEF est-elle ≥ ${t} ?`,
+    key: 'def_gte_' + t, test: c => c.def >= 0 && c.def >= t, group: 'def',
   }));
-
   if (hasLvl) LVL_THRESHOLDS.forEach(t => qs.push({
-    label: `Est-ce que le Niveau / Rang est ≥ ${t} ?`,
-    key: 'lvl_gte_' + t,
-    test: c => c.level >= t,
-    group: 'level',
+    label: `Le Niveau / Rang est-il ≥ ${t} ?`,
+    key: 'lvl_gte_' + t, test: c => c.level >= t, group: 'level',
   }));
 
-  // ── Niveau EXACT (pool réduit)
   if (hasLvl && pool.length <= 400) {
     [1,2,3,4,5,6,7,8,10,12].forEach(n => qs.push({
-      label: `Est-ce que le Niveau / Rang est exactement ${n} ?`,
-      key: 'lvl_eq_' + n,
-      test: c => c.level === n,
-      group: 'level_exact',
+      label: `Le Niveau / Rang est-il exactement ${n} ?`,
+      key: 'lvl_eq_' + n, test: c => c.level === n, group: 'level_exact',
     }));
   }
-
-  // ── ATK exact (pool très réduit)
   if (hasAtk && pool.length <= 120) {
-    const atkVals = [...new Set(pool.map(c => c.atk).filter(v => v >= 0))];
-    atkVals.forEach(v => qs.push({
-      label: `Est-ce que l'ATK est exactement ${v} ?`,
-      key: 'atk_eq_' + v,
-      test: c => c.atk === v,
-      group: 'atk_exact',
+    [...new Set(pool.map(c => c.atk).filter(v => v >= 0))].forEach(v => qs.push({
+      label: `L'ATK est-elle exactement ${v} ?`,
+      key: 'atk_eq_' + v, test: c => c.atk === v, group: 'atk_exact',
     }));
   }
-
-  // ── ATK > DEF ?
   if (pool.some(c => c.atk >= 0 && c.def >= 0)) {
-    qs.push({
-      label: "Est-ce que l'ATK est supérieure à la DEF ?",
-      key: 'atk_gt_def',
-      test: c => c.atk >= 0 && c.def >= 0 && c.atk > c.def,
-      group: 'atk_vs_def',
-    });
+    qs.push({ label: "L'ATK est-elle supérieure à la DEF ?", key: 'atk_gt_def', test: c => c.atk >= 0 && c.def >= 0 && c.atk > c.def, group: 'atk_vs_def' });
   }
 
-  // ── Questions sur le nom ──────────────────────────────
-  // car c'est le nom que le joueur a en tête (anglais pour les cartes non traduites)
-  // Mais on affiche aussi "(nom FR)" dans la question si différent.
-  const NAME_POOL_THRESHOLD = 1500;
-
-  if (pool.length <= NAME_POOL_THRESHOLD) {
-    const nameInRange = (c, a, z) => { const l = (c.name[0] || '').toUpperCase(); return l >= a && l <= z; };
-    [
-      { label: "Le nom commence-t-il par une lettre entre A et M ?", key: 'name_AM', test: c => nameInRange(c,'A','M') },
-      { label: "Le nom commence-t-il par une lettre entre N et Z ?", key: 'name_NZ', test: c => nameInRange(c,'N','Z') },
-    ].forEach(q => qs.push({ ...q, group: 'name_alpha' }));
-    [
-      { label: "Le nom commence-t-il par une lettre entre A et F ?", key: 'name_AF', test: c => nameInRange(c,'A','F') },
-      { label: "Le nom commence-t-il par une lettre entre G et M ?", key: 'name_GM', test: c => nameInRange(c,'G','M') },
-      { label: "Le nom commence-t-il par une lettre entre N et S ?", key: 'name_NS', test: c => nameInRange(c,'N','S') },
-      { label: "Le nom commence-t-il par une lettre entre T et Z ?", key: 'name_TZ', test: c => nameInRange(c,'T','Z') },
-    ].forEach(q => qs.push({ ...q, group: 'name_alpha2' }));
+  // ── Questions sur le nom
+  const NAME_THRESH = 1500;
+  if (pool.length <= NAME_THRESH) {
+    const inRange = (c, a, z) => { const l = (c.name[0]||'').toUpperCase(); return l >= a && l <= z; };
+    qs.push({ label: "Le nom commence-t-il par A–M ?", key: 'name_AM', test: c => inRange(c,'A','M'), group: 'name_alpha' });
+    qs.push({ label: "Le nom commence-t-il par N–Z ?", key: 'name_NZ', test: c => inRange(c,'N','Z'), group: 'name_alpha' });
+    qs.push({ label: "Le nom commence-t-il par A–F ?", key: 'name_AF', test: c => inRange(c,'A','F'), group: 'name_alpha2' });
+    qs.push({ label: "Le nom commence-t-il par G–M ?", key: 'name_GM', test: c => inRange(c,'G','M'), group: 'name_alpha2' });
+    qs.push({ label: "Le nom commence-t-il par N–S ?", key: 'name_NS', test: c => inRange(c,'N','S'), group: 'name_alpha2' });
+    qs.push({ label: "Le nom commence-t-il par T–Z ?", key: 'name_TZ', test: c => inRange(c,'T','Z'), group: 'name_alpha2' });
 
     if (pool.length <= 200) {
-      // Mélange aleatoire pour varier l'ordre de proposition des lettres
-      const letters1 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').sort(() => Math.random() - 0.5);
-      letters1.forEach(l => qs.push({
-        label: `Le nom commence-t-il par la lettre "${l}" ?`,
-        key: 'name_letter_' + l,
-        test: c => (c.name[0] || '').toUpperCase() === l,
-        group: 'name_letter',
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
+        label: `Le nom commence-t-il par "${l}" ?`,
+        key: 'name_letter_' + l, test: c => (c.name[0]||'').toUpperCase() === l, group: 'name_letter',
       }));
     }
 
-    const wordCount = c => c.name.trim().split(/\s+/).length;
-    [1, 2, 3, 4, 5].forEach(t => qs.push({
-      label: `Le nom contient-il plus de ${t} mot${t > 1 ? 's' : ''} ?`,
-      key: 'name_words_' + t,
-      test: c => wordCount(c) > t,
-      group: 'name_words',
+    [1,2,3,4,5].forEach(t => qs.push({
+      label: `Le nom contient-il plus de ${t} mot${t>1?'s':''} ?`,
+      key: 'name_words_' + t, test: c => c.name.trim().split(/\s+/).length > t, group: 'name_words',
     }));
   }
 
-  if (pool.length > 6 && pool.length <= NAME_POOL_THRESHOLD) {
+  // ── Mots fréquents dans les noms
+  if (pool.length > 6 && pool.length <= NAME_THRESH) {
     const STOP = new Set(['de','du','des','le','la','les','un','une','et','en','a','au','aux',
       'par','sur','dans','pour','avec','sans','que','qui','ou','the','of','to','an','and','in','on','for','with','from']);
     const freq = {};
@@ -357,58 +347,68 @@ function buildQuestions(pool) {
       .slice(0, 20)
       .forEach(([w]) => qs.push({
         label: `Le nom contient-il le mot "${w}" ?`,
-        key: 'name_word_' + w,
-        test: c => c.name.toLowerCase().includes(w),
-        group: 'name_word',
+        key: 'name_word_' + w, test: c => c.name.toLowerCase().includes(w), group: 'name_word',
       }));
   }
 
   return qs;
 }
 
-// ── SCORE D'ENTROPIE ──────────────────────────────────────
-// FIX : suppression complète de MAX_CONSEC_ARCH et du blocage des archétypes
-// Le moteur choisit toujours la meilleure question entropique sans restriction
+// ── SÉLECTION DE LA MEILLEURE QUESTION ────────────────────
+// Entropie de Shannon sur les scores, pas juste ratio 50/50
 
 function bestQuestion(pool, askedKeys, resolvedGroups) {
   const qs = buildQuestions(pool).filter(q =>
     !askedKeys.has(q.key) && !resolvedGroups.has(q.group)
   );
+  if (qs.length === 0) return null;
 
-  // Score entropique + petit bruit aleatoire pour varier les parties
+  // Score = réduction d'entropie attendue (pondéré par les scores des cartes)
   const scoreQ = q => {
-    const yes = pool.filter(q.test).length;
-    const no  = pool.length - yes;
-    if (yes === 0 || no === 0) return -1;
-    const ratio = yes / pool.length;
-    const base = 1 - Math.abs(ratio - 0.5) * 2;
-    return base + (Math.random() * 0.08 - 0.04); // +/- 4% bruit
+    let pYes = 0, pNo = 0;
+    for (const c of pool) {
+      const s = yScores.get(c.id) || 0;
+      if (q.test(c)) pYes += s; else pNo += s;
+    }
+    const total = pYes + pNo;
+    if (total === 0 || pYes === 0 || pNo === 0) return -1;
+    // Entropie binaire de Shannon
+    const pY = pYes / total, pN = pNo / total;
+    const entropy = -(pY * Math.log2(pY) + pN * Math.log2(pN)); // max = 1 quand pY=pN=0.5
+    // Bruit aléatoire pour varier les parties (±8%)
+    return entropy + (Math.random() * 0.16 - 0.08);
   };
 
-  const PRIORITY = [
-    'cardcat', 'frameType', 'attribute', 'race', 'has_archetype',
-    'arch_alpha', 'arch_alpha2', 'arch_letter', 'archetype',
-    'atk_vs_def', 'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
-    'atk', 'def', 'level', 'level_exact', 'atk_exact', 'ban',
+  // Groupes de priorité — groupes au même niveau sont mélangés aléatoirement entre eux
+  const PRIORITY_TIERS = [
+    ['cardcat'],
+    ['frameType', 'attribute', 'race'],
+    ['has_archetype'],
+    ['arch_alpha', 'arch_alpha2', 'arch_letter', 'archetype'],
+    ['atk_vs_def', 'name_alpha', 'name_alpha2'],
+    ['name_letter', 'name_words', 'name_word'],
+    ['atk', 'def', 'level'],
+    ['level_exact', 'atk_exact', 'ban'],
   ];
 
-  // Seuil minimal : question doit eliminer au moins 10% du pool
-  // sinon ignoree dans la passe prioritaire (tombera en fallback)
-  const MIN_SCORE = 0.10;
+  const MIN_ENTROPY = 0.08; // question doit apporter un minimum d'info
 
-  for (const grp of PRIORITY) {
-    if (resolvedGroups.has(grp)) continue;
-    const candidates = qs.filter(q => q.group === grp);
-    if (candidates.length === 0) continue;
+  for (const tier of PRIORITY_TIERS) {
+    // Mélange les groupes dans ce tier pour varier l'ordre
+    const shuffledTier = tier.slice().sort(() => Math.random() - 0.5);
     let best = null, bestScore = -1;
-    for (const q of candidates) {
-      const s = scoreQ(q);
-      if (s >= MIN_SCORE && s > bestScore) { bestScore = s; best = q; }
+    for (const grp of shuffledTier) {
+      if (resolvedGroups.has(grp)) continue;
+      const candidates = qs.filter(q => q.group === grp);
+      for (const q of candidates) {
+        const s = scoreQ(q);
+        if (s >= MIN_ENTROPY && s > bestScore) { bestScore = s; best = q; }
+      }
     }
     if (best) return best;
   }
 
-  // Fallback global sans seuil minimum (on pose ce qu'on peut)
+  // Fallback : n'importe quelle question disponible avec le meilleur score
   let best = null, bestScore = -1;
   for (const q of qs) {
     const s = scoreQ(q);
@@ -421,34 +421,37 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
 //  ÉTAT DU JEU
 // ══════════════════════════════════════════════════════════
 
-let yPool           = [];
+let yPool           = []; // cartes encore "actives" (score > seuil)
 let yAsked          = new Set();
 let yResolved       = new Set();
 let yHistory        = [];
 let yHistory_states = [];
-let yGuessIdx       = 0;
 let yGameOver       = false;
 let yCurQ           = null;
 let yThinking       = false;
 let yQCount         = 0;
-let ySortedPool     = [];
 
-const GUESS_THRESHOLD = 1;
+// Seuil de score pour qu'une carte soit "active"
+const SCORE_THRESHOLD     = 1e-6;
+// Seuil de confiance pour proposer une devinette directement
+const GUESS_CONFIDENCE    = 0.60;
+// Nombre max de cartes actives pour passer en mode devinette forcée
+const GUESS_POOL_MAX      = 4;
 
 // ── INIT ──────────────────────────────────────────────────
 
 function yugiInit() {
-  yPool           = ALL_CARDS.slice();
   yAsked          = new Set();
   yResolved       = new Set();
   yHistory        = [];
   yHistory_states = [];
-  yGuessIdx       = 0;
   yGameOver       = false;
   yCurQ           = null;
   yThinking       = false;
   yQCount         = 0;
-  ySortedPool     = [];
+
+  initScores();
+  yPool = getActivePool(SCORE_THRESHOLD);
 
   document.getElementById('yResult').className = 'y-result';
   document.getElementById('yRestart').classList.remove('on');
@@ -465,32 +468,23 @@ function yugiInit() {
 function nextStep() {
   if (yGameOver) return;
 
-  // Aucun candidat → vrai abandon
-  if (yPool.length === 0) {
-    showGiveUp();
+  yPool = getActivePool(SCORE_THRESHOLD);
+
+  if (yPool.length === 0) { showGiveUp(); return; }
+
+  // Si une carte domine largement → proposer directement
+  const top = topScore();
+  if (top >= GUESS_CONFIDENCE || yPool.length <= GUESS_POOL_MAX) {
+    showGuessStep();
     return;
   }
 
-  // 🔥 Si très peu de cartes → on devine directement
-  if (yPool.length <= 5) {
-    enterGuessPhase();
-    return;
-  }
-
-  // On cherche la meilleure question
   const q = bestQuestion(yPool, yAsked, yResolved);
+  if (!q) { showGuessStep(); return; }
 
-  // 🔥 Plus de questions pertinentes → devinette
-  if (!q) {
-    enterGuessPhase();
-    return;
-  }
-
-  // Sinon → question normale
   yCurQ = q;
   showQuestion(q);
 }
-
 
 // ── AFFICHAGE QUESTION ────────────────────────────────────
 
@@ -503,26 +497,25 @@ function showQuestion(q) {
 }
 
 function updateProgress() {
-  const pct = Math.round(Math.max(5, Math.min(95, (1 - yPool.length / ALL_CARDS.length) * 100)));
+  const top = topScore();
+  const pct = Math.round(Math.min(99, top * 100));
   document.getElementById('yConf').textContent = pct + '%';
-  document.getElementById('yProgFill').style.width = pct + '%';
+  document.getElementById('yProgFill').style.width = Math.max(2, pct) + '%';
 }
 
 // ── RETOUR ARRIÈRE ────────────────────────────────────────
 
 function yugiUndo() {
   if (yHistory_states.length === 0 || yGameOver) return;
-
-  const snap = yHistory_states.pop();
-  yPool     = snap.pool;
-  yAsked    = snap.asked;
-  yResolved = snap.resolved;
-  yHistory  = snap.history;
-  yQCount   = snap.qCount;
-  yCurQ     = snap.curQ;
-  yGuessIdx = 0;
-  yThinking = false;
-  ySortedPool = [];
+  const snap       = yHistory_states.pop();
+  yScores          = snap.scores;
+  yAsked           = snap.asked;
+  yResolved        = snap.resolved;
+  yHistory         = snap.history;
+  yQCount          = snap.qCount;
+  yCurQ            = snap.curQ;
+  yPool            = getActivePool(SCORE_THRESHOLD);
+  yThinking        = false;
 
   renderHistory();
   updatePoolInfo();
@@ -531,40 +524,13 @@ function yugiUndo() {
 
 // ── RÉPONSE UTILISATEUR ───────────────────────────────────
 
-function applyAnswer(pool, q, ans) {
-  if (ans === 'oui') {
-    const filtered = pool.filter(q.test);
-    return filtered.length > 0 ? filtered : pool;
-  }
-  if (ans === 'non') {
-    const filtered = pool.filter(c => !q.test(c));
-    return filtered.length > 0 ? filtered : pool;
-  }
-  if (ans === 'plutot_oui') {
-    const yes = pool.filter(q.test);
-    const no  = pool.filter(c => !q.test(c));
-    const kept = no.filter((_, i) => i % 7 === 0);
-    const merged = [...yes, ...kept];
-    return merged.length > 0 ? merged : pool;
-  }
-  if (ans === 'plutot_non') {
-    const yes = pool.filter(q.test);
-    const no  = pool.filter(c => !q.test(c));
-    const kept = yes.filter((_, i) => i % 7 === 0);
-    const merged = [...no, ...kept];
-    return merged.length > 0 ? merged : pool;
-  }
-  return pool;
-}
-
 function yugiAnswer(ans) {
   if (yThinking || yGameOver || !yCurQ) return;
-
   const q = yCurQ;
 
-  // Sauvegarde état avant modification
+  // Snapshot pour undo
   yHistory_states.push({
-    pool:     yPool.slice(),
+    scores:   new Map(yScores),
     asked:    new Set(yAsked),
     resolved: new Set(yResolved),
     history:  yHistory.slice(),
@@ -575,23 +541,21 @@ function yugiAnswer(ans) {
   yAsked.add(q.key);
   yQCount++;
 
-  const newPool = applyAnswer(yPool, q, ans);
-  yPool = newPool;
+  // Mise à jour des scores probabilistes
+  applyScores(q, ans);
 
-  if (ans === 'oui' && q.key.includes('_eq_')) {
-    yResolved.add(q.group);
+  // Marquer groupes résolus (réponse franche)
+  if (ans === 'oui') {
+    if (q.key.includes('_eq_')) yResolved.add(q.group);
+    if (q.group === 'cardcat')  yResolved.add('cardcat');
+    if (q.key === 'has_archetype') yResolved.add('has_archetype');
   }
-  if (q.group === 'cardcat' && (ans === 'oui' || ans === 'non')) {
-    yResolved.add('cardcat');
+  if (ans === 'non') {
+    if (q.group === 'cardcat') yResolved.add('cardcat');
+    if (q.key === 'has_archetype') { yResolved.add('has_archetype'); yResolved.add('archetype'); }
   }
-  if (q.key === 'has_archetype') {
-    if (ans === 'non' || ans === 'plutot_non') {
-      yResolved.add('archetype');
-      yResolved.add('has_archetype');
-    } else {
-      yResolved.add('has_archetype');
-    }
-  }
+
+  yPool = getActivePool(SCORE_THRESHOLD);
 
   const ansLabel = { oui:'OUI', non:'NON', plutot_oui:'~OUI', plutot_non:'~NON', ne_sais_pas:'?' };
   yHistory.push({ label: q.label, ans: ansLabel[ans] || ans, pool: yPool.length });
@@ -604,32 +568,21 @@ function yugiAnswer(ans) {
 }
 
 // ── PHASE DEVINETTE ───────────────────────────────────────
-
-function enterGuessPhase() {
-  // Tri : cartes avec stats en premier, puis alphabétique
-  ySortedPool = yPool.slice().sort((a, b) => {
-    const sa = (a.atk > 0 ? a.atk : 0) + (a.level > 0 ? a.level * 50 : 0);
-    const sb = (b.atk > 0 ? b.atk : 0) + (b.level > 0 ? b.level * 50 : 0);
-    if (sa !== sb) return sb - sa;
-    return a.name.localeCompare(b.name, 'fr');
-  });
-  yGuessIdx = 0;
-  showGuessStep();
-}
+// Propose toujours la carte avec le meilleur score
 
 function showGuessStep() {
-  if (yGuessIdx >= ySortedPool.length) { showGiveUp(); return; }
-  const card = ySortedPool[yGuessIdx];
-  yGuessIdx++;
+  yPool = getActivePool(SCORE_THRESHOLD);
+  if (yPool.length === 0) { showGiveUp(); return; }
+
+  // La carte en tête de pool (meilleur score)
+  const card = yPool[0];
+  const pct  = Math.round(Math.min(99, (yScores.get(card.id) || 0) * 100));
 
   setUI('guess');
-  document.getElementById('yQnum').textContent = '🎯 DEVINETTE ' + yGuessIdx;
-
+  document.getElementById('yQnum').textContent = '🎯 MA PROPOSITION';
   document.getElementById('yQtext').textContent = 'Est-ce que vous pensez à… ' + card.name + ' ?';
-
-  const pct = Math.min(99, 65 + yQCount * 3);
   document.getElementById('yConf').textContent = pct + '%';
-  document.getElementById('yProgFill').style.width = pct + '%';
+  document.getElementById('yProgFill').style.width = Math.max(2, pct) + '%';
 
   document.getElementById('yAnswers').dataset.guessCard = card.name;
   document.getElementById('yAnswers').dataset.guessImg  = card.img || '';
@@ -643,35 +596,30 @@ function yugiConfirmGuess(ok) {
     yGameOver = true;
     setUI('none');
     showResult(true, name, img);
-  } else {
-    yPool       = yPool.filter(c => c.name !== name);
-    ySortedPool = ySortedPool.filter(c => c.name !== name);
-
-    yHistory.push({ label: 'Est-ce ' + name + ' ?', ans: 'NON', pool: yPool.length });
-    renderHistory();
-    updatePoolInfo();
-
-    yThinking = true;
-    setUI('thinking');
-    setTimeout(() => {
-      // Jamais d'abandon : si plus de cartes dans ySortedPool mais yPool non vide,
-      // relancer nextStep pour poser de nouvelles questions
-      if (ySortedPool.length === 0) {
-        if (yPool.length === 0) { showGiveUp(); return; }
-        nextStep();
-        return;
-      }
-      showGuessStep();
-    }, 400);
+    return;
   }
+
+  // Mauvaise proposition → score de cette carte à zéro
+  const card = ALL_CARDS.find(c => c.name === name);
+  if (card) {
+    yScores.set(card.id, 0);
+    normalizeScores();
+  }
+
+  yPool = getActivePool(SCORE_THRESHOLD);
+  yHistory.push({ label: 'Est-ce ' + name + ' ?', ans: 'NON', pool: yPool.length });
+  renderHistory();
+  updatePoolInfo();
+
+  yThinking = true;
+  setUI('thinking');
+  setTimeout(() => nextStep(), 400);
 }
 
 function showGiveUp() {
-  // 🔥 NE JAMAIS abandonner s'il reste des cartes
-  if (yPool.length > 0) {
-    enterGuessPhase();
-    return;
-  }
+  // Sécurité : si des cartes restent, on continue à deviner
+  yPool = getActivePool(SCORE_THRESHOLD);
+  if (yPool.length > 0) { showGuessStep(); return; }
 
   yGameOver = true;
   setUI('none');
@@ -690,22 +638,23 @@ function showResult(won, name, img) {
 
   const rimg = document.getElementById('yRimg');
   if (rimg) {
-    if (won && img) {
-      rimg.src = img;
-      rimg.style.display = 'block';
-    } else {
-      rimg.style.display = 'none';
-    }
+    if (won && img) { rimg.src = img; rimg.style.display = 'block'; }
+    else              { rimg.style.display = 'none'; }
   }
 
+  const remaining = getActivePool(SCORE_THRESHOLD);
   document.getElementById('yRdesc').textContent = won
     ? 'Le Yuginator a percé le voile en ' + yQCount + ' réponse' + (yQCount > 1 ? 's' : '') + ' sur ' + ALL_CARDS.length.toLocaleString('fr') + ' cartes.'
-    : 'Votre carte a résisté à l\'analyse. ' + yPool.length + ' candidate' + (yPool.length > 1 ? 's' : '') + ' restai' + (yPool.length > 1 ? 'ent' : 't') + '. Quelle était-elle ?';
+    : 'Votre carte a résisté à l\'analyse. ' + remaining.length + ' candidate' + (remaining.length > 1 ? 's' : '') + ' restai' + (remaining.length > 1 ? 'ent' : 't') + '. Quelle était-elle ?';
 
-  if (!won && yPool.length > 0 && yPool.length <= 20) {
+  if (!won && remaining.length > 0 && remaining.length <= 20) {
+    // Retire les anciens éléments extra
+    const old = document.getElementById('yResult').querySelector('.y-extra');
+    if (old) old.remove();
     const extra = document.createElement('div');
+    extra.className = 'y-extra';
     extra.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:.78rem;color:var(--dim);margin-top:.5rem;font-style:italic;';
-    extra.textContent = 'Candidats restants : ' + yPool.slice(0, 8).map(c => c.name).join(', ') + (yPool.length > 8 ? '…' : '');
+    extra.textContent = 'Candidats restants : ' + remaining.slice(0,8).map(c => c.name).join(', ') + (remaining.length > 8 ? '…' : '');
     document.getElementById('yResult').appendChild(extra);
   }
 
@@ -747,7 +696,7 @@ function setUI(mode) {
       <button class="y-btn no"  onclick="yugiConfirmGuess(false)">❌ NON, CE N'EST PAS ÇA</button>`;
   }
 
-  if (yHistory_states.length > 0) {
+  if (yHistory_states.length > 0 && mode !== 'guess') {
     const undoBtn = document.createElement('button');
     undoBtn.className = 'y-btn undo';
     undoBtn.textContent = '↩ RETOUR';
@@ -759,10 +708,9 @@ function setUI(mode) {
 
 function updatePoolInfo() {
   const el = document.getElementById('yPoolInfo');
-  if (el) {
-    const n = yPool.length;
-    el.textContent = n.toLocaleString('fr') + ' carte' + (n > 1 ? 's' : '') + ' restante' + (n > 1 ? 's' : '');
-  }
+  if (!el) return;
+  const n = getActivePool(SCORE_THRESHOLD).length;
+  el.textContent = n.toLocaleString('fr') + ' carte' + (n > 1 ? 's' : '') + ' candidate' + (n > 1 ? 's' : '');
 }
 
 function renderHistory() {
@@ -772,7 +720,7 @@ function renderHistory() {
   yHistory.forEach(h => {
     const item = document.createElement('div');
     item.className = 'y-hi';
-    const clsMap = { 'OUI':'yes', 'NON':'no', '~OUI':'pyesbtn', '~NON':'pnobtn', '?':'idk' };
+    const clsMap = { 'OUI':'yes','NON':'no','~OUI':'pyesbtn','~NON':'pnobtn','?':'idk' };
     const cls = clsMap[h.ans] || 'idk';
     item.innerHTML = `<span class="hq">${h.label}</span><span class="ha ${cls}">${h.ans}</span>`;
     if (h.pool !== undefined) {
