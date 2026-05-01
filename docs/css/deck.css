@@ -1,0 +1,40 @@
+.deck-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.deck-controls {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.deck-controls select {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #111;
+  color: #fff;
+}
+
+.deck-display {
+  background: rgba(0,0,0,0.6);
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid gold;
+}
+
+.deck-display h2 {
+  color: gold;
+}
+
+.deck-display a {
+  color: #4fc3f7;
+}
+
+.placeholder {
+  opacity: 0.6;
+  text-align: center;
+}
