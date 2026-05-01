@@ -150,7 +150,7 @@ const ARCHETYPE_FR = {
   'Drytron':'Drytron','Earthbound':'Esprit de la Terre','Eldlich':'Eldlich',
   'Elemental HERO':'HÉROS Élémentaire','Endymion':'Endymion','Evilswarm':'Verminpeste',
   'Evil HERO':'HÉROS du Mal','Evil Eye':'Mauvais Œil','Evolsaur':'Évolosaure',
-  'Exodia':'Exodia','Exosister':'Exosœur','F.A.':'F.A.','Fabled':'Légendaire',
+  'Exodia':'Éxodia','Exosister':'Exosœur','F.A.':'F.A.','Fabled':'Légendaire',
   'Fallen of Albaz':'Chute d\'Albaz','Floowandereeze':'Floowandereeze','Fluffal':'Peluche',
   'Fortune Lady':'Dame Fortune','Frog':'Grenouille','Fur Hire':'En Service',
   'Gagaga':'Gagaga','Galaxy':'Galaxie','Galaxy-Eyes':'Yeux Galaxie',
@@ -399,7 +399,7 @@ function buildQuestions(pool) {
     qs.push({ label:'Est-ce que la carte appartient à un archétype ?', key:'has_archetype', test:c=>c.archetype!=='—', group:'has_archetype' });
 
   if (archetypes.length > 0) {
-    const archInRange = (c, a, z) => { const l=(c.archetype[0]||'').toUpperCase(); return c.archetype!=='—'&&l>=a&&l<=z; };
+    const archInRange = (c, a, z) => { const l=(c.archetype[0]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); return c.archetype!=='—'&&l>=a&&l<=z; };
     [
       { label:"L'archétype commence-t-il par A–M ?", key:'arch_AM', test:c=>archInRange(c,'A','M') },
       { label:"L'archétype commence-t-il par N–Z ?", key:'arch_NZ', test:c=>archInRange(c,'N','Z') },
@@ -635,7 +635,7 @@ function buildQuestions(pool) {
       return intervals;
     }
   
-    const nameInRange = (c, a, z) => { const l = (c.name[0]||'').toUpperCase(); return l >= a && l <= z; };
+    const nameInRange = (c, a, z) => { const l = (c.name[0]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); return l >= a && l <= z; };
   
     // Intervalles larges fixes (A-M / N-Z)
     [
@@ -662,7 +662,7 @@ function buildQuestions(pool) {
     // Deuxième lettre si pool encore grand
     if (pool.length <= 800) {
       // Intervalles aléatoires sur la 2ème lettre aussi
-      const nameInRange2 = (c, a, z) => { const l = (c.name[1]||'').toUpperCase(); return l >= a && l <= z; };
+      const nameInRange2 = (c, a, z) => { const l = (c.name[1]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); return l >= a && l <= z; };
       randomIntervals().forEach(({a, z}) => qs.push({
         label: `La deuxième lettre du nom est-elle entre ${a} et ${z} ?`,
         key: `name2_range_${a}${z}`,
