@@ -1,10 +1,20 @@
 let deckData = {};
 
 fetch("data/deck_data.json")
-  .then(res => res.json())
+  .then(res => {
+    console.log("STATUS:", res.status);
+    return res.text(); // ← on récupère en texte
+  })
+  .then(text => {
+    console.log("RAW DATA:", text); // ← on voit ce que le serveur renvoie
+    return JSON.parse(text); // ← conversion manuelle
+  })
   .then(data => {
     deckData = data;
     initSaisons();
+  })
+  .catch(err => {
+    console.error("ERREUR FETCH:", err);
   });
 
 const saisonSelect = document.getElementById("saisonSelect");
