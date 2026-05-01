@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="shinigami">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staple ou Pas — Atem</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+JP:wght@300;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="./staple.css">
+
+<script src="../js/nav.js" defer></script>
+<script src="./staple.js" defer></script>
+</head>
+
+<body>
+
+<div class="atmo"></div>
+<div class="top-bar"></div>
+
+<div class="phdr">
+  <h1 class="pttl"><span class="t1">Staple ou Pas ?</span></h1>
+  <p class="psub">Une carte s'affiche — tu décides si c'est une staple TCG ou non.</p>
+</div>
+
+<div class="sp-wrap">
+
+  <div class="hud">
+    <div class="hud-stat"><div class="hud-val" id="hGood">0</div><div class="hud-lbl">✅ Bonnes</div></div>
+    <div class="hud-stat"><div class="hud-val" id="hBad">0</div><div class="hud-lbl">❌ Ratées</div></div>
+    <div class="hud-stat"><div class="hud-val" id="hStreak">0</div><div class="hud-lbl">🔥 Série</div></div>
+  </div>
+
+  <div class="sp-load" id="sp-load">Chargement...</div>
+
+  <div class="card-box" id="card-box" style="display:none">
+    <div class="card-thumb-wrap">
+      <img id="card-thumb" class="card-thumb">
+      <div class="card-spinner" id="card-spinner">🃏</div>
+    </div>
+
+    <div class="card-info">
+      <div class="staple-badge" id="staple-badge"></div>
+      <p class="card-name" id="card-name"></p>
+      <p class="card-type" id="card-type"></p>
+      <p class="card-desc" id="card-desc"></p>
+    </div>
+  </div>
+
+  <div class="sp-flash" id="sp-flash"></div>
+
+  <div class="guess-btns" id="guess-btns" style="display:none">
+    <button class="guess-btn staple" onclick="guess(true)">💎 Staple</button>
+    <button class="guess-btn not-staple" onclick="guess(false)">🪨 Pas Staple</button>
+  </div>
+
+  <a class="sp-back" href="../minijeux.html">← Retour</a>
+
+</div>
+
+</body>
+</html>
