@@ -1,6 +1,8 @@
-/* ───────── WRAPPER ───────── */
+/* ───────── WRAPPER IDENTIQUE GUESSER ───────── */
 
-.dwrap {
+.gwrap {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 1150px;
   margin: 0 auto;
@@ -9,10 +11,10 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  animation: rise .6s .2s both;
+  animation: rise .6s .3s both;
 }
 
-/* ───────── CONTROLS ───────── */
+/* ───────── CONTROLS (STYLE UNIFIÉ) ───────── */
 
 .deck-controls {
   display: flex;
@@ -23,14 +25,15 @@
 
 .deck-controls select {
   flex: 1;
-  padding: .7rem;
+  padding: .75rem 1rem;
   background: var(--panel);
   border: 1px solid var(--border);
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
+  font-size: .9rem;
 }
 
-/* ───────── SEARCH ───────── */
+/* ───────── SEARCH (STYLE GUESSER-LIKE) ───────── */
 
 .search-box {
   position: relative;
@@ -40,13 +43,20 @@
 
 #searchInput {
   width: 100%;
-  padding: .8rem 1rem;
+  padding: .85rem 1rem;
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
 }
 
+#searchInput:focus {
+  outline: none;
+  border-color: var(--gold-line);
+}
+
+/* suggestions */
 #suggestions {
   position: absolute;
   width: 100%;
@@ -54,27 +64,33 @@
   border: 1px solid var(--border);
   max-height: 220px;
   overflow-y: auto;
-  z-index: 50;
+  z-index: 100;
 }
 
 .suggestion {
-  padding: 10px;
+  padding: 10px 12px;
   cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .suggestion:hover {
   background: var(--gold-pale);
 }
 
-/* ───────── FAVORIS ───────── */
+/* ───────── FAVORIS (STYLE BOUTON ATM) ───────── */
 
 #showFavs {
-  padding: .6rem 1.2rem;
+  padding: .6rem 1.4rem;
   border: 1px solid var(--gold);
   background: transparent;
   color: var(--gold-lt);
-  cursor: pointer;
   font-family: 'Shippori Mincho', serif;
+  cursor: pointer;
+  transition: .2s;
+}
+
+#showFavs:hover {
+  background: var(--gold-pale);
 }
 
 /* ───────── DISPLAY ───────── */
@@ -87,6 +103,7 @@
 .placeholder {
   text-align: center;
   opacity: .6;
+  font-family: 'DM Sans', sans-serif;
 }
 
 /* ───────── GRID ───────── */
@@ -95,6 +112,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 14px;
+  margin-top: 10px;
 }
 
 .deck-card {
@@ -109,7 +127,7 @@
   border-color: var(--gold);
 }
 
-/* ───────── ANIM ───────── */
+/* ───────── ANIMATION IDENTIQUE GUESSER ───────── */
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(10px); }
