@@ -7,7 +7,7 @@
     { href: 'install.html',    label: 'Installation' },
   ];
   const themes = [
-    { id: 'shinigami', label: 'Royaumes des Ombres', icon: '👤' },
+    { id: 'shinigami', label: 'Shadow Realm',        icon: '👤' },
     { id: 'quincy',    label: 'Dragon Blanc',        icon: '🐲' }
   ];
 
