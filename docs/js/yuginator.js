@@ -854,7 +854,7 @@ function yugiAnswer(ans) {
 
   // Résolution de groupes
   if (ans==='oui'&&q.key.includes('_eq_')) yResolved.add(q.group);
-  if (q.group==='cardcat'&&(ans==='oui'||ans==='non')) yResolved.add('cardcat');
+  if (q.group==='cardcat' && ans==='oui') yResolved.add('cardcat');
   if (q.key==='has_archetype') {
     yResolved.add('has_archetype');
     if (ans==='non'||ans==='plutot_non'||ans==='ne_sais_pas') {
