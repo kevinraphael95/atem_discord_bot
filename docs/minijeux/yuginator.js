@@ -414,7 +414,7 @@ function buildQuestions(pool) {
       'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').sort(()=>Math.random()-0.5).forEach(l => qs.push({
         label: `L'archétype commence-t-il par la lettre "${l}" ?`,
         key: 'arch_letter_'+l,
-        test: c => c.archetype!=='—'&&(c.archetype[0]||'').toUpperCase()===l,
+        test: c => c.archetype!=='—'&&(c.archetype[0]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()===l,
         group: 'arch_letter',
       }));
     }
