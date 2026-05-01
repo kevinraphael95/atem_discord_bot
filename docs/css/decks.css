@@ -1,69 +1,108 @@
-.deck-controls {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 25px;
+/* ─────────────────────────────
+   SEARCH
+───────────────────────────── */
+
+.search-box {
+  position: relative;
+  margin-bottom: 20px;
 }
 
-.deck-controls select {
-  flex: 1;
+#searchInput {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #333;
+  background: #111;
+  color: white;
+}
+
+#suggestions {
+  position: absolute;
+  width: 100%;
+  background: #111;
+  border: 1px solid #333;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.suggestion {
   padding: 10px;
-
-  font-family: 'DM Sans', sans-serif;
-
-  background: var(--surface);
-  color: var(--text);
-
-  border: 1px solid var(--border);
+  cursor: pointer;
 }
+
+.suggestion:hover {
+  background: #222;
+}
+
+/* ─────────────────────────────
+   FAVORIS BAR
+───────────────────────────── */
+
+.fav-bar {
+  margin-bottom: 15px;
+}
+
+#showFavs {
+  padding: 8px 12px;
+  background: gold;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+/* ─────────────────────────────
+   CARD GRID (DUELING BOOK STYLE)
+───────────────────────────── */
 
 .deck-display {
-  background: var(--panel);
-  border: 1px solid var(--gold-line);
-  padding: 20px;
+  margin-top: 10px;
 }
 
-.deck-display h2 {
-  color: var(--gold);
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
 }
 
-.deck-display h3 {
-  color: var(--gold-lt);
-  margin-top: 15px;
+.deck-card {
+  background: linear-gradient(145deg, #111, #1b1b1b);
+  border: 1px solid rgba(255,215,0,0.25);
+  border-radius: 16px;
+  padding: 14px;
+  transition: 0.2s;
 }
 
-.deck-display a {
-  color: var(--rei-lt);
+.deck-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0 25px rgba(0,255,200,0.25);
+  border-color: rgba(0,255,200,0.6);
+}
+
+.deck-title {
+  color: gold;
+}
+
+.deck-season {
+  opacity: 0.7;
+  font-size: 13px;
+}
+
+.card-line {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.card-line button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: gold;
 }
 
 .placeholder {
   text-align: center;
   opacity: 0.6;
 }
-
-.deck-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-  margin-top: 20px;
-}
-
-.deck-card {
-  background: var(--panel);
-  border: 1px solid var(--gold-line);
-  border-radius: 14px;
-  padding: 14px;
-  transition: 0.2s;
-}
-
-.deck-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0 20px rgba(0,255,200,0.25);
-}
-
-.mini-link {
-  margin-top: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
