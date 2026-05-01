@@ -556,7 +556,7 @@ function buildQuestions(pool) {
   if (pool.length <= 500) {
     ALPHA.forEach(l => qs.push({
       label: `Le nom commence-t-il par la lettre "${l}" ?`,
-      key: 'name_letter_'+l, test:c=>(c.name[0]||'').toUpperCase()===l, group:'name_letter',
+      key: 'name_letter_'+l, test:c=>(c.name[0]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()===l, group:'name_letter',
     }));
   }
 
@@ -570,7 +570,7 @@ function buildQuestions(pool) {
     if (pool.length <= 300) {
       ALPHA.forEach(l => qs.push({
         label: `La deuxième lettre du nom est-elle "${l}" ?`,
-        key: 'name_letter2_'+l, test:c=>(c.name[1]||'').toUpperCase()===l, group:'name_letter2',
+        key: 'name_letter2_'+l, test:c=>(c.name[1]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()===l, group:'name_letter2',
       }));
     }
   }
