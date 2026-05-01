@@ -2,13 +2,13 @@
   const pages = [
     { href: 'commandes.html',  label: 'Commandes' },
     { href: 'vaact.html',      label: 'VAACT' },
-    { href: 'vaactdeck.html',label: 'DECKS' },
+    { href: 'vaactdeck.html',  label: 'DECKS' },
     { href: 'minijeux.html',   label: 'Mini-jeux' },
     { href: 'install.html',    label: 'Installation' },
   ];
   const themes = [
-    { id: 'shinigami', label: 'Royaumes des Ombres', icon: '👤' },
-    { id: 'quincy',    label: 'Dragon Blanc',        icon: '🐲' }
+    { id: 'shadowrealm',    label: 'Shadow Realm',        icon: '👤' },
+    { id: 'whitedragon',    label: 'Dragon Blanc',        icon: '🐲' }
   ];
 
   // ── CALCUL DU PRÉFIXE ─────────────────────────────────
@@ -21,7 +21,9 @@
 
   const current = parts[parts.length - 1] || 'index.html';
 
-  const savedTheme = localStorage.getItem('atem-theme') || 'shinigami';
+  const validThemes = ['shadowrealm', 'whitedragon'];
+  const saved = localStorage.getItem('atem-theme');
+  const savedTheme = validThemes.includes(saved) ? saved : 'shadowrealm';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
   // Détection page active : on compare juste le nom de fichier
