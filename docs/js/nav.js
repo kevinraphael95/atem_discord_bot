@@ -21,7 +21,7 @@
 
   const current = parts[parts.length - 1] || 'index.html';
 
-  const savedTheme = localStorage.getItem('atem-theme') || 'shinigami';
+  const savedTheme = localStorage.getItem('atem-theme') || 'shadowrealm';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
   // Détection page active : on compare juste le nom de fichier
