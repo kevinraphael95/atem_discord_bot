@@ -759,6 +759,11 @@ function yugiAnswer(ans) {
   yQCount++;
   yPool=applyAnswer(yPool,q,ans);
 
+  // DEBUG temporaire
+  const exodiaCards = yPool.filter(c => c.name.toLowerCase().includes('exodia') || c.name.toLowerCase().includes('necross'));
+  if (exodiaCards.length > 0) console.log('[DEBUG] Exodia restants:', exodiaCards.map(c => c.name + ' | ban:' + c.ban + ' | frame:' + c.frameType + ' | arch:' + c.archetype));
+  else console.log('[DEBUG] Plus aucune carte Exodia dans le pool après:', q.label, '→', ans);
+
   // Résolution de groupes
   if (ans==='oui'&&q.key.includes('_eq_')) yResolved.add(q.group);
   if (q.group==='cardcat' && ans==='oui') yResolved.add('cardcat');
@@ -819,11 +824,13 @@ function yugiConfirmGuess(ok) {
   yHistory.push({label:'Est-ce '+name+' ?',ans:'NON',pool:yPool.length});
   renderHistory(); updatePoolInfo();
   yThinking=true; setUI('thinking');
-  setTimeout(()=>{ if (ySortedPool.length===0) { if (yPool.length===0){showGiveUp();return;} nextStep(); return; } showGuessStep(); },400);
+  setTimeout(()=>{
+    if (ySortedPool.length===0) { yGameOver=true; setUI('none'); showResult(false,null,null); return; }
+    showGuessStep();
+  },400);
 }
 
 function showGiveUp() {
-  if (yPool.length>0) { enterGuessPhase(); return; }
   yGameOver=true; setUI('none'); showResult(false,null,null);
 }
 
