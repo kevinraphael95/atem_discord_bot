@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   THÈME : dragon blanc (clair)
+   THÈME : white dragon
    Organisation :
    - Backgrounds / surfaces
    - Couleurs principales (Bleu / énergie / danger)
@@ -9,7 +9,7 @@
    - UI spécifique
    ═══════════════════════════════════════════════════════ */
 
-[data-theme="quincy"] {
+[data-theme="whitedragon"] {
   /* === FONDS === */
   --void:    #f0f6ff; /* blanc légèrement bleu glacé */
   --deep:    #e4eeff;
