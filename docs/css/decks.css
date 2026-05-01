@@ -1,4 +1,62 @@
-/* ───────────── SEARCH ───────────── */
+/* ───────────── WRAPPER GLOBAL ───────────── */
+
+.dwrap {
+  width: 100%;
+  max-width: 1150px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  opacity: 0;
+  animation: rise .6s .2s forwards;
+}
+
+/* ───────────── HEADER STYLE (comme guesser) ───────────── */
+
+.phdr {
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.pttl .t1 {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.pttl .t2 {
+  display: block;
+  font-size: .85rem;
+  opacity: .7;
+}
+
+.psub {
+  font-size: .8rem;
+  opacity: .6;
+}
+
+/* ───────────── CONTROLS CENTRÉS ───────────── */
+
+.deck-controls {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 700px;
+  justify-content: center;
+}
+
+.deck-controls select {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ───────────── SEARCH STYLE UNIFIÉ ───────────── */
 
 .search-box {
   position: relative;
@@ -13,11 +71,6 @@
   background: var(--panel);
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
-  outline: none;
-}
-
-#searchInput:focus {
-  border-color: var(--gold-line);
 }
 
 #suggestions {
@@ -25,59 +78,37 @@
   width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: 20;
 }
 
 .suggestion {
-  padding: .7rem 1rem;
+  padding: 10px;
   cursor: pointer;
   font-family: 'DM Sans', sans-serif;
-  font-size: .9rem;
-  border-bottom: 1px solid var(--border);
 }
 
 .suggestion:hover {
   background: var(--gold-pale);
-  color: var(--gold-lt);
-}
-
-/* ───────────── CONTROLS ───────────── */
-
-.deck-controls {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  max-width: 700px;
-}
-
-.deck-controls select {
-  flex: 1;
-  padding: .7rem;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
 }
 
 /* ───────────── FAVORIS ───────────── */
 
-.fav-btn {
+.fav-wrap {
   width: 100%;
   max-width: 700px;
-  padding: .7rem;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--gold-lt);
-  font-family: 'Shippori Mincho', serif;
-  cursor: pointer;
-  transition: .2s;
+  display: flex;
+  justify-content: center;
 }
 
-.fav-btn:hover {
-  background: var(--gold-pale);
-  border-color: var(--gold);
+#showFavs {
+  padding: .6rem 1.2rem;
+  border: 1px solid var(--gold);
+  background: transparent;
+  color: var(--gold-lt);
+  cursor: pointer;
+  font-family: 'Shippori Mincho', serif;
 }
 
 /* ───────────── DECK DISPLAY ───────────── */
@@ -85,7 +116,6 @@
 .deck-display {
   width: 100%;
   max-width: 900px;
-  margin-top: 1rem;
 }
 
 .placeholder {
@@ -94,58 +124,30 @@
   font-family: 'DM Sans', sans-serif;
 }
 
-/* ───────────── DECK CARDS ───────────── */
+/* ───────────── CARDS GRID ───────────── */
 
 .deck-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 14px;
-  margin-top: 1rem;
+  margin-top: 20px;
 }
 
 .deck-card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 14px;
   padding: 12px;
   transition: .2s;
 }
 
 .deck-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 0 18px rgba(212,168,67,.15);
+  border-color: var(--gold);
 }
 
-.deck-card h3 {
-  font-family: 'Shippori Mincho', serif;
-  color: var(--gold-lt);
-  margin-bottom: 8px;
-}
+/* ───────────── INPUT ANIM ───────────── */
 
-/* lines */
-.card-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: .85rem;
-  margin-top: 6px;
-  font-family: 'DM Sans', sans-serif;
-}
-
-.card-line a {
-  color: var(--rei-lt);
-  text-decoration: none;
-}
-
-.card-line button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-
-/* images YGO */
-.ygo-img {
-  width: 100%;
-  margin-top: 8px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
