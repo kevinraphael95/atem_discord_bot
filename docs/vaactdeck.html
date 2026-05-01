@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="shinigami">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Decks VAACT — Atem</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=DM+Sans&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/index.css">
+
+<script src="js/nav.js" defer></script>
+<script src="js/decks.js" defer></script>
+
+</head>
+
+<body>
+
+<div class="atmo"></div>
+<div class="top-bar"></div>
+
+<section class="hero small">
+  <div class="hero-inner">
+
+    <h1 class="hero-title">
+      <span class="l1">Decks VAACT</span>
+      <span class="l2">Visualiseur Duelbook</span>
+    </h1>
+
+    <p class="hero-desc">
+      Explore les decks custom utilisés en VAACT, par saison et duelliste.
+    </p>
+
+  </div>
+</section>
+
+<section class="deck-container">
+
+  <div class="deck-controls">
+
+    <select id="saisonSelect">
+      <option value="">📅 Choisir une saison</option>
+    </select>
+
+    <select id="duellisteSelect" disabled>
+      <option value="">👤 Choisir un duelliste</option>
+    </select>
+
+  </div>
+
+  <div id="deckDisplay" class="deck-display">
+    <p class="placeholder">Sélectionne une saison et un duelliste.</p>
+  </div>
+
+</section>
+
+</body>
+</html>
