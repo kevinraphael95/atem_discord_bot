@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="shinigami">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Decks VAACT — Atem</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/decks.css">
+
+<script src="js/nav.js" defer></script>
+<script src="js/decks.js" defer></script>
+
+</head>
+
+<body>
+
+<div class="phdr">
+  <h1 class="pttl">
+    <span class="t1">Decks VAACT</span>
+  </h1>
+  <p class="psub">Recherche de decks Yu-Gi-Oh! + cartes officielles</p>
+</div>
+
+<!-- ✅ IMPORTANT : même wrapper que guesser -->
+<div class="gwrap">
+
+  <!-- CONTROLS -->
+  <div class="deck-controls">
+
+    <select id="saisonSelect">
+      <option value="">📅 Saison</option>
+    </select>
+
+    <select id="duellisteSelect" disabled>
+      <option value="">👤 Duelliste</option>
+    </select>
+
+  </div>
+
+  <!-- SEARCH -->
+  <div class="search-box">
+    <input id="searchInput" placeholder="🔍 Rechercher un deck..." autocomplete="off">
+    <div id="suggestions"></div>
+  </div>
+
+  <!-- DISPLAY -->
+  <div id="deckDisplay" class="deck-display">
+  </div>
+
+</div>
+
+</body>
+</html>

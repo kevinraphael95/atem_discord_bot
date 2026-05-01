@@ -491,15 +491,16 @@ function setPanel(side, card, showPrice) {
   else           { pEl.className = 'price-val hidden'; pEl.textContent = '???'; }
 }
 
-/* ═══ PICK ═══ */
-function pick() {
-  if (ptr + 1 >= deck.length) { deck = shuffle(DECK_BASE); ptr = 0; }
-  let a = deck[ptr], b = deck[ptr+1], tries = 0;
-  while (Math.abs(a.price - b.price) < 0.05 && tries < 30) {
-    ptr++; if (ptr+1 >= deck.length) { deck = shuffle(DECK_BASE); ptr = 0; }
-    b = deck[ptr+1]; tries++;
-  }
-  cardA = a; cardB = b; ptr += 2;
+/* ═══ PICK NEXT CARD B ═══ */
+function pickNextB(currentA) {
+  // Tire une nouvelle carte différente de A avec un écart de prix non nul
+  let b, tries = 0;
+  do {
+    if (ptr >= deck.length) { deck = shuffle(DECK_BASE); ptr = 0; }
+    b = deck[ptr++];
+    tries++;
+  } while ((b === currentA || b.id === currentA.id || Math.abs(b.price - currentA.price) < 0.05) && tries < 50);
+  return b;
 }
 
 /* ═══ NEXT ROUND ═══ */
@@ -510,7 +511,16 @@ function nextRound() {
   const btnH = document.getElementById('btnH'), btnL = document.getElementById('btnL');
   btnH.disabled = false; btnL.disabled = false;
   btnH.className = 'guess-btn higher'; btnL.className = 'guess-btn lower';
-  pick();
+
+  // B devient A, on tire une nouvelle B
+  if (cardB) {
+    cardA = cardB;
+  } else {
+    if (ptr >= deck.length) { deck = shuffle(DECK_BASE); ptr = 0; }
+    cardA = deck[ptr++];
+  }
+  cardB = pickNextB(cardA);
+
   setPanel('A', cardA, true);
   setPanel('B', cardB, false);
   renderHUD();
@@ -591,6 +601,7 @@ function gameOver() {
 }
 function restart() {
   score = streak = 0; lives = MAX_LIVES; answered = false; ptr = 0;
+  cardA = null; cardB = null;
   deck = shuffle(DECK_BASE);
   document.getElementById('gameover').classList.remove('show');
   renderHUD(); nextRound();
@@ -620,6 +631,7 @@ function startGame() {
   const ga = document.getElementById('game-area');
   ga.style.display = 'flex';
   deck = shuffle(DECK_BASE);
+  cardA = null; cardB = null;
   renderHUD(); nextRound();
 }
 
