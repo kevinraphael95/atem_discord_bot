@@ -11,9 +11,7 @@ const saisonSelect = document.getElementById("saisonSelect");
 const duellisteSelect = document.getElementById("duellisteSelect");
 const display = document.getElementById("deckDisplay");
 
-/* ─────────────────────────────
-   📅 saisons
-───────────────────────────── */
+/* ───────────── INIT SAISONS ───────────── */
 
 function initSaisons() {
   for (const s in deckData) {
@@ -24,9 +22,7 @@ function initSaisons() {
   }
 }
 
-/* ─────────────────────────────
-   👤 duellistes dropdown
-───────────────────────────── */
+/* ───────────── DROPDOWNS ───────────── */
 
 saisonSelect.addEventListener("change", () => {
   const s = saisonSelect.value;
@@ -52,13 +48,10 @@ duellisteSelect.addEventListener("change", () => {
 
   if (!d) return;
 
-  const data = deckData[s][d];
-  renderDeck(d, s, data.deck);
+  renderDeck(d, s, deckData[s][d].deck);
 });
 
-/* ─────────────────────────────
-   🔍 SEARCH + AUTOCOMPLETE
-───────────────────────────── */
+/* ───────────── SEARCH ───────────── */
 
 const input = document.getElementById("searchInput");
 const suggestions = document.getElementById("suggestions");
@@ -74,7 +67,7 @@ input.addEventListener("input", () => {
   for (const s in deckData) {
     for (const d in deckData[s]) {
       if (d.toLowerCase().includes(q)) {
-        results.push({ saison: s, duelliste: d });
+        results.push({ s, d });
       }
     }
   }
@@ -82,33 +75,32 @@ input.addEventListener("input", () => {
   results.slice(0, 6).forEach(r => {
     const div = document.createElement("div");
     div.className = "suggestion";
-    div.textContent = `${r.duelliste} (${r.saison})`;
+    div.textContent = `${r.d} (${r.s})`;
 
     div.onclick = () => {
-      input.value = r.duelliste;
+      input.value = r.d;
       suggestions.innerHTML = "";
 
-      const data = deckData[r.saison][r.duelliste];
-      renderDeck(r.duelliste, r.saison, data.deck);
+      renderDeck(r.d, r.s, deckData[r.s][r.d].deck);
     };
 
     suggestions.appendChild(div);
   });
 });
 
-/* ─────────────────────────────
-   🎴 RENDER + YGO IMAGES
-───────────────────────────── */
+/* ───────────── YGO IMAGE API ───────────── */
 
-async function fetchCardImage(name) {
+async function getCardImage(name) {
   try {
     const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${encodeURIComponent(name)}`);
-    const data = await res.json();
-    return data.data?.[0]?.card_images?.[0]?.image_url || null;
+    const json = await res.json();
+    return json.data?.[0]?.card_images?.[0]?.image_url || null;
   } catch {
     return null;
   }
 }
+
+/* ───────────── RENDER CARDS ───────────── */
 
 async function renderDeck(name, saison, deck) {
   let html = `
@@ -117,55 +109,68 @@ async function renderDeck(name, saison, deck) {
     <div class="deck-grid">
   `;
 
-  if (typeof deck === "string") {
-    html += `<div class="deck-card"><p>${deck}</p></div>`;
-  } else {
-    for (const lvl in deck) {
-      html += `<div class="deck-card"><h3>${lvl}</h3>`;
+  for (const lvl in deck) {
+    html += `<div class="deck-card"><h3>${lvl}</h3>`;
 
-      const content = deck[lvl];
+    const content = deck[lvl];
 
-      if (typeof content === "string") {
-        html += `<p>${content}</p>`;
-      } else {
-        for (const sub in content) {
+    if (typeof content === "string") {
+      html += `<p>${content}</p>`;
+    } else {
+      for (const sub in content) {
+        const url = content[sub];
 
-          const url = content[sub];
+        html += `
+          <div class="card-line">
+            <span>${sub}</span>
+            <a href="${url}" target="_blank">Deck</a>
+            <button onclick="addFav('${url}')">⭐</button>
+          </div>
+        `;
 
-          html += `
-            <div class="card-line">
-              <span>${sub}</span>
-              <a href="${url}" target="_blank">Deck</a>
-              <button onclick="addFav('${url}')">⭐</button>
-            </div>
-          `;
-
-          // 🧠 tentative image YGO (nom = sub)
-          const img = await fetchCardImage(sub);
-
-          if (img) {
-            html += `<img class="ygo-card" src="${img}">`;
-          }
+        const img = await getCardImage(sub);
+        if (img) {
+          html += `<img class="ygo-img" src="${img}">`;
         }
       }
-
-      html += `</div>`;
     }
+
+    html += `</div>`;
   }
 
   html += `</div>`;
   display.innerHTML = html;
 }
 
-/* ─────────────────────────────
-   ⭐ FAVORIS
-───────────────────────────── */
+/* ───────────── FAVORIS ───────────── */
 
 function addFav(url) {
   let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
 
-  if (!favs.includes(url)) favs.push(url);
-  else favs = favs.filter(f => f !== url);
+  if (favs.includes(url)) {
+    favs = favs.filter(f => f !== url);
+  } else {
+    favs.push(url);
+  }
 
   localStorage.setItem("deckFavs", JSON.stringify(favs));
 }
+
+/* ───────────── FAVORIS VIEW ───────────── */
+
+document.getElementById("showFavs").onclick = () => {
+  let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
+
+  let html = `<h2>⭐ Favoris</h2><div class="deck-grid">`;
+
+  favs.forEach(f => {
+    html += `
+      <div class="deck-card">
+        <a href="${f}" target="_blank">${f}</a>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  display.innerHTML = html;
+};
