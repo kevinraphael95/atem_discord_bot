@@ -2,35 +2,45 @@
 
 .search-box {
   position: relative;
-  margin: 15px 0;
+  width: 100%;
+  max-width: 700px;
 }
 
 #searchInput {
   width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #333;
-  background: #111;
-  color: white;
+  padding: .8rem 1rem;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+}
+
+#searchInput:focus {
+  border-color: var(--gold-line);
 }
 
 #suggestions {
   position: absolute;
   width: 100%;
-  background: #111;
-  border: 1px solid #333;
-  max-height: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  max-height: 200px;
   overflow-y: auto;
-  z-index: 20;
+  z-index: 100;
 }
 
 .suggestion {
-  padding: 10px;
+  padding: .7rem 1rem;
   cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .9rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .suggestion:hover {
-  background: #222;
+  background: var(--gold-pale);
+  color: var(--gold-lt);
 }
 
 /* ───────────── CONTROLS ───────────── */
@@ -38,53 +48,104 @@
 .deck-controls {
   display: flex;
   gap: 10px;
-  margin-bottom: 15px;
+  width: 100%;
+  max-width: 700px;
 }
 
 .deck-controls select {
   flex: 1;
-  padding: 10px;
-  background: #111;
-  color: white;
-  border: 1px solid #333;
+  padding: .7rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
 }
 
-/* ───────────── CARDS ───────────── */
+/* ───────────── FAVORIS ───────────── */
 
-.deck-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
-  margin-top: 20px;
-}
-
-.deck-card {
-  background: linear-gradient(145deg, #111, #1b1b1b);
-  border: 1px solid rgba(255,215,0,0.25);
-  border-radius: 14px;
-  padding: 12px;
-  transition: 0.2s;
-}
-
-.deck-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0 20px rgba(0,255,200,0.25);
-}
-
-.card-line {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: 13px;
-}
-
-.ygo-img {
+.fav-btn {
   width: 100%;
-  margin-top: 8px;
-  border-radius: 8px;
+  max-width: 700px;
+  padding: .7rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--gold-lt);
+  font-family: 'Shippori Mincho', serif;
+  cursor: pointer;
+  transition: .2s;
+}
+
+.fav-btn:hover {
+  background: var(--gold-pale);
+  border-color: var(--gold);
+}
+
+/* ───────────── DECK DISPLAY ───────────── */
+
+.deck-display {
+  width: 100%;
+  max-width: 900px;
+  margin-top: 1rem;
 }
 
 .placeholder {
   text-align: center;
-  opacity: 0.6;
+  opacity: .6;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ───────────── DECK CARDS ───────────── */
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 1rem;
+}
+
+.deck-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  transition: .2s;
+}
+
+.deck-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 18px rgba(212,168,67,.15);
+}
+
+.deck-card h3 {
+  font-family: 'Shippori Mincho', serif;
+  color: var(--gold-lt);
+  margin-bottom: 8px;
+}
+
+/* lines */
+.card-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: .85rem;
+  margin-top: 6px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.card-line a {
+  color: var(--rei-lt);
+  text-decoration: none;
+}
+
+.card-line button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+/* images YGO */
+.ygo-img {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
 }
