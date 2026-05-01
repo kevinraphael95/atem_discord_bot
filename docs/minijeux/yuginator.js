@@ -150,7 +150,7 @@ const ARCHETYPE_FR = {
   'Drytron':'Drytron','Earthbound':'Esprit de la Terre','Eldlich':'Eldlich',
   'Elemental HERO':'HÉROS Élémentaire','Endymion':'Endymion','Evilswarm':'Verminpeste',
   'Evil HERO':'HÉROS du Mal','Evil Eye':'Mauvais Œil','Evolsaur':'Évolosaure',
-  'Exodia':'Éxodia','Exosister':'Exosœur','F.A.':'F.A.','Fabled':'Légendaire',
+  'Exodia':'Exodia','Exosister':'Exosœur','F.A.':'F.A.','Fabled':'Légendaire',
   'Fallen of Albaz':'Chute d\'Albaz','Floowandereeze':'Floowandereeze','Fluffal':'Peluche',
   'Fortune Lady':'Dame Fortune','Frog':'Grenouille','Fur Hire':'En Service',
   'Gagaga':'Gagaga','Galaxy':'Galaxie','Galaxy-Eyes':'Yeux Galaxie',
