@@ -18,8 +18,6 @@
 
 <body>
 
-<!-- NAV JS injecte automatiquement -->
-
 <div class="phdr">
   <h1 class="pttl">
     <span class="t1">Decks</span>
@@ -28,9 +26,9 @@
   <p class="psub">Recherche de decks Yu-Gi-Oh! + cartes officielles YGOProDeck</p>
 </div>
 
-<div class="gwrap gwrap-center">
+<!-- ✅ FIX IMPORTANT : wrapper cohérent -->
+<div class="dwrap">
 
-  <!-- CONTROLS -->
   <div class="deck-controls">
 
     <select id="saisonSelect">
@@ -43,16 +41,13 @@
 
   </div>
 
-  <!-- SEARCH -->
   <div class="search-box">
     <input id="searchInput" placeholder="🔍 Rechercher un duelliste..." autocomplete="off">
     <div id="suggestions"></div>
   </div>
 
-  <!-- FAVORIS -->
-  <button id="showFavs" class="fav-btn">⭐ Mes favoris</button>
+  <button id="showFavs">⭐ Mes favoris</button>
 
-  <!-- DISPLAY -->
   <div id="deckDisplay" class="deck-display">
     <p class="placeholder">Sélectionne un deck ou fais une recherche.</p>
   </div>
