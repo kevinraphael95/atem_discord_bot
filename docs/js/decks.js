@@ -101,3 +101,16 @@ function renderDeck(name, saison, deck) {
   html += `</div>`;
   display.innerHTML = html;
 }
+
+
+function addFav(url) {
+  let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
+
+  if (!favs.includes(url)) {
+    favs.push(url);
+  } else {
+    favs = favs.filter(f => f !== url);
+  }
+
+  localStorage.setItem("deckFavs", JSON.stringify(favs));
+}
