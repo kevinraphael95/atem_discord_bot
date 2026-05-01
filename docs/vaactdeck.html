@@ -7,64 +7,46 @@
 <title>Decks VAACT — Atem</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+JP:wght@300;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/decks.css">
 
-<script src="js/nav.js" defer></script>
 <script src="js/decks.js" defer></script>
 
 <style>
-.content { max-width: 840px; }
+.content { max-width: 900px; margin: auto; }
 </style>
 
 </head>
 
 <body>
 
-<div class="atmo"></div>
-<div class="top-bar"></div>
-
-<!-- HEADER IDENTIQUE -->
 <div class="phdr">
   <h1 class="pttl">
     <span class="t1">Decks</span>
     <span class="t2">VAACT</span>
   </h1>
 
-  <p class="psub">
-    Explore les decks custom utilisés en VAACT, par saison et duelliste.
-  </p>
-
-  <div class="orbs">
-    <div class="orb"></div>
-    <div class="orb"></div>
-    <div class="orb"></div>
-  </div>
+  <p class="psub">Explore les decks custom en version carte + recherche instant.</p>
 </div>
 
-<!-- CONTENT IDENTIQUE -->
 <div class="content">
 
-  <p class="sec-lbl">Sélection</p>
-
-  <!-- REMPLACE .steps PAR TES CONTROLES -->
-  <div class="deck-controls">
-
-    <select id="saisonSelect">
-      <option value="">📅 Choisir une saison</option>
-    </select>
-
-    <select id="duellisteSelect" disabled>
-      <option value="">👤 Choisir un duelliste</option>
-    </select>
-
+  <!-- 🔍 SEARCH -->
+  <div class="search-box">
+    <input id="searchInput" type="text" placeholder="🔍 Rechercher un duelliste..." autocomplete="off">
+    <div id="suggestions"></div>
   </div>
 
-  <!-- AFFICHAGE -->
+  <!-- ⭐ FAVORIS -->
+  <div class="fav-bar">
+    <button id="showFavs">⭐ Mes favoris</button>
+  </div>
+
+  <!-- 🎴 DISPLAY -->
   <div id="deckDisplay" class="deck-display">
-    <p class="placeholder">Sélectionne une saison et un duelliste.</p>
+    <p class="placeholder">Recherche un duelliste pour afficher ses decks.</p>
   </div>
 
 </div>
