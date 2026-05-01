@@ -21,7 +21,9 @@
 
   const current = parts[parts.length - 1] || 'index.html';
 
-  const savedTheme = localStorage.getItem('atem-theme') || 'shadowrealm';
+  const validThemes = ['shadowrealm', 'whitedragon'];
+  const saved = localStorage.getItem('atem-theme');
+  const savedTheme = validThemes.includes(saved) ? saved : 'shadowrealm';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
   // Détection page active : on compare juste le nom de fichier
