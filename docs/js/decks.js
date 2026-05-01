@@ -4,16 +4,64 @@ fetch("data/deck_data.json")
   .then(res => res.text())
   .then(text => {
     deckData = JSON.parse(text);
-  })
-  .catch(err => console.error(err));
+    initSaisons();
+  });
 
-const input = document.getElementById("searchInput");
-const suggestions = document.getElementById("suggestions");
+const saisonSelect = document.getElementById("saisonSelect");
+const duellisteSelect = document.getElementById("duellisteSelect");
 const display = document.getElementById("deckDisplay");
 
 /* ─────────────────────────────
-   🔍 AUTOCOMPLETE
+   📅 saisons
 ───────────────────────────── */
+
+function initSaisons() {
+  for (const s in deckData) {
+    const opt = document.createElement("option");
+    opt.value = s;
+    opt.textContent = s;
+    saisonSelect.appendChild(opt);
+  }
+}
+
+/* ─────────────────────────────
+   👤 duellistes dropdown
+───────────────────────────── */
+
+saisonSelect.addEventListener("change", () => {
+  const s = saisonSelect.value;
+
+  duellisteSelect.innerHTML = `<option value="">Duelliste</option>`;
+  duellisteSelect.disabled = true;
+
+  if (!s) return;
+
+  Object.keys(deckData[s]).forEach(d => {
+    const opt = document.createElement("option");
+    opt.value = d;
+    opt.textContent = d;
+    duellisteSelect.appendChild(opt);
+  });
+
+  duellisteSelect.disabled = false;
+});
+
+duellisteSelect.addEventListener("change", () => {
+  const s = saisonSelect.value;
+  const d = duellisteSelect.value;
+
+  if (!d) return;
+
+  const data = deckData[s][d];
+  renderDeck(d, s, data.deck);
+});
+
+/* ─────────────────────────────
+   🔍 SEARCH + AUTOCOMPLETE
+───────────────────────────── */
+
+const input = document.getElementById("searchInput");
+const suggestions = document.getElementById("suggestions");
 
 input.addEventListener("input", () => {
   const q = input.value.toLowerCase();
@@ -23,10 +71,10 @@ input.addEventListener("input", () => {
 
   let results = [];
 
-  for (const saison in deckData) {
-    for (const d in deckData[saison]) {
+  for (const s in deckData) {
+    for (const d in deckData[s]) {
       if (d.toLowerCase().includes(q)) {
-        results.push({ saison, duelliste: d });
+        results.push({ saison: s, duelliste: d });
       }
     }
   }
@@ -49,35 +97,55 @@ input.addEventListener("input", () => {
 });
 
 /* ─────────────────────────────
-   🎴 RENDER CARDS
+   🎴 RENDER + YGO IMAGES
 ───────────────────────────── */
 
-function renderDeck(name, saison, deck) {
+async function fetchCardImage(name) {
+  try {
+    const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${encodeURIComponent(name)}`);
+    const data = await res.json();
+    return data.data?.[0]?.card_images?.[0]?.image_url || null;
+  } catch {
+    return null;
+  }
+}
+
+async function renderDeck(name, saison, deck) {
   let html = `
-    <h2 class="deck-title">${name}</h2>
-    <p class="deck-season">Saison : ${saison}</p>
+    <h2>${name}</h2>
+    <p>Saison : ${saison}</p>
     <div class="deck-grid">
   `;
 
   if (typeof deck === "string") {
     html += `<div class="deck-card"><p>${deck}</p></div>`;
   } else {
-    for (const niveau in deck) {
-      html += `<div class="deck-card"><h3>${niveau}</h3>`;
+    for (const lvl in deck) {
+      html += `<div class="deck-card"><h3>${lvl}</h3>`;
 
-      const content = deck[niveau];
+      const content = deck[lvl];
 
       if (typeof content === "string") {
         html += `<p>${content}</p>`;
       } else {
         for (const sub in content) {
+
+          const url = content[sub];
+
           html += `
             <div class="card-line">
               <span>${sub}</span>
-              <a href="${content[sub]}" target="_blank">Ouvrir</a>
-              <button onclick="toggleFav('${content[sub]}')">⭐</button>
+              <a href="${url}" target="_blank">Deck</a>
+              <button onclick="addFav('${url}')">⭐</button>
             </div>
           `;
+
+          // 🧠 tentative image YGO (nom = sub)
+          const img = await fetchCardImage(sub);
+
+          if (img) {
+            html += `<img class="ygo-card" src="${img}">`;
+          }
         }
       }
 
@@ -90,38 +158,14 @@ function renderDeck(name, saison, deck) {
 }
 
 /* ─────────────────────────────
-   ⭐ FAVORIS (toggle)
+   ⭐ FAVORIS
 ───────────────────────────── */
 
-function toggleFav(url) {
+function addFav(url) {
   let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
 
-  if (favs.includes(url)) {
-    favs = favs.filter(f => f !== url);
-  } else {
-    favs.push(url);
-  }
+  if (!favs.includes(url)) favs.push(url);
+  else favs = favs.filter(f => f !== url);
 
   localStorage.setItem("deckFavs", JSON.stringify(favs));
 }
-
-/* ─────────────────────────────
-   ⭐ AFFICHER FAVORIS
-───────────────────────────── */
-
-document.getElementById("showFavs").onclick = () => {
-  let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
-
-  let html = `<h2>⭐ Mes favoris</h2><div class="deck-grid">`;
-
-  favs.forEach(url => {
-    html += `
-      <div class="deck-card">
-        <a href="${url}" target="_blank">${url}</a>
-      </div>
-    `;
-  });
-
-  html += `</div>`;
-  display.innerHTML = html;
-};
