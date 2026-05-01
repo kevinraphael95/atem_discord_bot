@@ -2,13 +2,13 @@
   const pages = [
     { href: 'commandes.html',  label: 'Commandes' },
     { href: 'vaact.html',      label: 'VAACT' },
-    { href: 'vaactdeck.html',label: 'DECKS' },
+    { href: 'vaactdeck.html',  label: 'DECKS' },
     { href: 'minijeux.html',   label: 'Mini-jeux' },
     { href: 'install.html',    label: 'Installation' },
   ];
   const themes = [
-    { id: 'shinigami', label: 'Shadow Realm',        icon: '👤' },
-    { id: 'quincy',    label: 'Dragon Blanc',        icon: '🐲' }
+    { id: 'shadowrealm',    label: 'Shadow Realm',        icon: '👤' },
+    { id: 'whitedragon',    label: 'Dragon Blanc',        icon: '🐲' }
   ];
 
   // ── CALCUL DU PRÉFIXE ─────────────────────────────────
