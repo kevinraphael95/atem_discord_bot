@@ -1,94 +1,81 @@
 let deckData = {};
 
 fetch("data/deck_data.json")
-  .then(res => {
-    console.log("STATUS:", res.status);
-    return res.text(); // ← on récupère en texte
-  })
+  .then(res => res.text())
   .then(text => {
-    console.log("RAW DATA:", text); // ← on voit ce que le serveur renvoie
-    return JSON.parse(text); // ← conversion manuelle
+    deckData = JSON.parse(text);
   })
-  .then(data => {
-    deckData = data;
-    initSaisons();
-  })
-  .catch(err => {
-    console.error("ERREUR FETCH:", err);
-  });
+  .catch(err => console.error(err));
 
-const saisonSelect = document.getElementById("saisonSelect");
-const duellisteSelect = document.getElementById("duellisteSelect");
+const input = document.getElementById("searchInput");
+const suggestions = document.getElementById("suggestions");
 const display = document.getElementById("deckDisplay");
 
-function initSaisons() {
+/* ─────────────────────────────
+   🔍 AUTOCOMPLETE
+───────────────────────────── */
+
+input.addEventListener("input", () => {
+  const q = input.value.toLowerCase();
+  suggestions.innerHTML = "";
+
+  if (!q) return;
+
+  let results = [];
+
   for (const saison in deckData) {
-    const opt = document.createElement("option");
-    opt.value = saison;
-    opt.textContent = saison;
-    saisonSelect.appendChild(opt);
+    for (const d in deckData[saison]) {
+      if (d.toLowerCase().includes(q)) {
+        results.push({ saison, duelliste: d });
+      }
+    }
   }
-}
 
-saisonSelect.addEventListener("change", () => {
-  const saison = saisonSelect.value;
+  results.slice(0, 6).forEach(r => {
+    const div = document.createElement("div");
+    div.className = "suggestion";
+    div.textContent = `${r.duelliste} (${r.saison})`;
 
-  duellisteSelect.innerHTML = `<option value="">👤 Choisir un duelliste</option>`;
-  duellisteSelect.disabled = true;
+    div.onclick = () => {
+      input.value = r.duelliste;
+      suggestions.innerHTML = "";
 
-  if (!saison) return;
+      const data = deckData[r.saison][r.duelliste];
+      renderDeck(r.duelliste, r.saison, data.deck);
+    };
 
-  const duellistes = Object.keys(deckData[saison]);
-
-  duellistes.forEach(d => {
-    const opt = document.createElement("option");
-    opt.value = d;
-    opt.textContent = d;
-    duellisteSelect.appendChild(opt);
+    suggestions.appendChild(div);
   });
-
-  duellisteSelect.disabled = false;
 });
 
-duellisteSelect.addEventListener("change", () => {
-  const saison = saisonSelect.value;
-  const duelliste = duellisteSelect.value;
-
-  if (!duelliste) return;
-
-  const data = deckData[saison][duelliste];
-  renderDeck(duelliste, saison, data.deck);
-});
+/* ─────────────────────────────
+   🎴 RENDER CARDS
+───────────────────────────── */
 
 function renderDeck(name, saison, deck) {
   let html = `
-    <h2>${name}</h2>
-    <p class="saison">Saison : ${saison}</p>
+    <h2 class="deck-title">${name}</h2>
+    <p class="deck-season">Saison : ${saison}</p>
     <div class="deck-grid">
   `;
 
   if (typeof deck === "string") {
-    html += `
-      <div class="deck-card">
-        <p>${deck}</p>
-      </div>
-    `;
+    html += `<div class="deck-card"><p>${deck}</p></div>`;
   } else {
     for (const niveau in deck) {
-      html += `
-        <div class="deck-card">
-          <h3>${niveau}</h3>
-      `;
+      html += `<div class="deck-card"><h3>${niveau}</h3>`;
 
-      if (typeof deck[niveau] === "string") {
-        html += `<p>${deck[niveau]}</p>`;
+      const content = deck[niveau];
+
+      if (typeof content === "string") {
+        html += `<p>${content}</p>`;
       } else {
-        for (const sub in deck[niveau]) {
+        for (const sub in content) {
           html += `
-            <div class="mini-link">
-              <b>${sub}</b>
-              <a href="${deck[niveau][sub]}" target="_blank">Ouvrir</a>
-              <button onclick="addFav('${deck[niveau][sub]}')">⭐</button>
+            <div class="card-line">
+              <span>${sub}</span>
+              <a href="${content[sub]}" target="_blank">Ouvrir</a>
+              <button onclick="toggleFav('${content[sub]}')">⭐</button>
             </div>
           `;
         }
@@ -102,15 +89,39 @@ function renderDeck(name, saison, deck) {
   display.innerHTML = html;
 }
 
+/* ─────────────────────────────
+   ⭐ FAVORIS (toggle)
+───────────────────────────── */
 
-function addFav(url) {
+function toggleFav(url) {
   let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
 
-  if (!favs.includes(url)) {
-    favs.push(url);
-  } else {
+  if (favs.includes(url)) {
     favs = favs.filter(f => f !== url);
+  } else {
+    favs.push(url);
   }
 
   localStorage.setItem("deckFavs", JSON.stringify(favs));
 }
+
+/* ─────────────────────────────
+   ⭐ AFFICHER FAVORIS
+───────────────────────────── */
+
+document.getElementById("showFavs").onclick = () => {
+  let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
+
+  let html = `<h2>⭐ Mes favoris</h2><div class="deck-grid">`;
+
+  favs.forEach(url => {
+    html += `
+      <div class="deck-card">
+        <a href="${url}" target="_blank">${url}</a>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  display.innerHTML = html;
+};
