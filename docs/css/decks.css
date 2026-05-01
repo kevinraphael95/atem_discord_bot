@@ -1,4 +1,5 @@
-/* SEARCH */
+/* ───────────── SEARCH ───────────── */
+
 .search-box {
   position: relative;
   margin: 15px 0;
@@ -6,7 +7,7 @@
 
 #searchInput {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   border-radius: 10px;
   border: 1px solid #333;
   background: #111;
@@ -20,11 +21,11 @@
   border: 1px solid #333;
   max-height: 180px;
   overflow-y: auto;
-  z-index: 10;
+  z-index: 20;
 }
 
 .suggestion {
-  padding: 8px;
+  padding: 10px;
   cursor: pointer;
 }
 
@@ -32,16 +33,34 @@
   background: #222;
 }
 
-/* CARDS */
+/* ───────────── CONTROLS ───────────── */
+
+.deck-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.deck-controls select {
+  flex: 1;
+  padding: 10px;
+  background: #111;
+  color: white;
+  border: 1px solid #333;
+}
+
+/* ───────────── CARDS ───────────── */
+
 .deck-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 14px;
+  margin-top: 20px;
 }
 
 .deck-card {
-  background: #111;
-  border: 1px solid rgba(255,215,0,0.2);
+  background: linear-gradient(145deg, #111, #1b1b1b);
+  border: 1px solid rgba(255,215,0,0.25);
   border-radius: 14px;
   padding: 12px;
   transition: 0.2s;
@@ -49,17 +68,23 @@
 
 .deck-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 0 18px rgba(0,255,200,0.2);
-}
-
-.ygo-card {
-  width: 100%;
-  border-radius: 8px;
-  margin-top: 8px;
+  box-shadow: 0 0 20px rgba(0,255,200,0.25);
 }
 
 .card-line {
   display: flex;
   justify-content: space-between;
   margin-top: 6px;
+  font-size: 13px;
+}
+
+.ygo-img {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 8px;
+}
+
+.placeholder {
+  text-align: center;
+  opacity: 0.6;
 }
