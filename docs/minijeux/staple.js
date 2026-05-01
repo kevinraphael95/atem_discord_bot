@@ -1,6 +1,4 @@
-let good = 0;
-let bad = 0;
-let streak = 0;
+let good = 0, bad = 0, streak = 0;
 let isStaple = false;
 
 let staplePool = [];
@@ -8,11 +6,21 @@ let randomPool = [];
 let nextCardData = null;
 
 const RANDOM_BUFFER = 6;
+const TOTAL_RANDOM = 10000;
+
 const frCache = new Map();
 
-async function fetchWithTimeout(url) {
-  const res = await fetch(url);
-  return res.json();
+async function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(id);
+    return res.json();
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
+  }
 }
 
 async function loadStaplePool() {
@@ -23,99 +31,92 @@ async function loadStaplePool() {
   staplePool = data.data || [];
 }
 
-async function fetchCardFR(name) {
-  if (frCache.has(name)) return frCache.get(name);
-
+async function fetchCardFR(nameEN) {
+  if (frCache.has(nameEN)) return frCache.get(nameEN);
   try {
     const data = await fetchWithTimeout(
-      `https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${encodeURIComponent(name)}&language=fr`
+      `https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${encodeURIComponent(nameEN)}&language=fr`
     );
     const card = data.data?.[0] || null;
-    frCache.set(name, card);
+    frCache.set(nameEN, card);
     return card;
   } catch {
-    frCache.set(name, null);
+    frCache.set(nameEN, null);
     return null;
   }
 }
 
-async function fillRandomBuffer() {
-  const data = await fetchWithTimeout(
-    'https://db.ygoprodeck.com/api/v7/cardinfo.php?num=10&offset=' +
-    Math.floor(Math.random() * 5000) +
-    '&language=fr'
-  );
-  randomPool.push(...(data.data || []));
-}
-
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-async function prefetchNext() {
-  const staple = Math.random() < 0.5;
-
-  if (staple) {
-    await loadStaplePool();
-    const base = pick(staplePool);
-    const fr = await fetchCardFR(base.name);
-
-    nextCardData = {
-      card: fr ? { ...base, name: fr.name, desc: fr.desc } : base,
-      staple: true
-    };
-  } else {
-    await fillRandomBuffer();
-    nextCardData = { card: randomPool.shift(), staple: false };
-  }
-}
-
 function renderHUD() {
-  hGood.textContent = good;
-  hBad.textContent = bad;
-  hStreak.textContent = streak;
+  document.getElementById('hGood').textContent = good;
+  document.getElementById('hBad').textContent = bad;
+  document.getElementById('hStreak').textContent = streak;
 }
 
-function show(msg, type) {
+function showFlash(type, msg) {
   const f = document.getElementById('sp-flash');
   f.className = 'sp-flash on ' + type;
   f.textContent = msg;
 }
 
-function display(card) {
-  card_name.textContent = card.name;
-  card_type.textContent = card.type;
-  card_desc.textContent = card.desc;
+function guess(val) {
+  document.getElementById('btn-staple').disabled = true;
+  document.getElementById('btn-not').disabled = true;
+
+  const correct = val === isStaple;
+
+  if (correct) {
+    good++; streak++;
+    showFlash('ok', 'Bonne réponse');
+  } else {
+    bad++; streak = 0;
+    showFlash('ko', 'Raté');
+  }
+
+  renderHUD();
+  setTimeout(nextCard, 1000);
 }
 
 async function nextCard() {
+  document.getElementById('card-box').style.display = 'none';
+  document.getElementById('sp-load').style.display = 'block';
+
   if (!nextCardData) await prefetchNext();
 
   const { card, staple } = nextCardData;
   nextCardData = null;
   isStaple = staple;
 
-  display(card);
+  document.getElementById('card-name').textContent = card.name;
+  document.getElementById('card-type').textContent = card.type;
+  document.getElementById('card-desc').textContent = card.desc;
 
-  card_box.style.display = 'flex';
-  guess_btns.style.display = 'flex';
+  const img = document.getElementById('card-thumb');
+  img.src = card.card_images?.[0]?.image_url;
+
+  document.getElementById('sp-load').style.display = 'none';
+  document.getElementById('card-box').style.display = 'flex';
 
   prefetchNext();
 }
 
-window.guess = function (val) {
-  const correct = val === isStaple;
+async function prefetchNext() {
+  const willBeStaple = Math.random() < 0.5;
 
-  if (correct) {
-    good++; streak++;
-    show("Bonne réponse", "ok");
+  if (willBeStaple) {
+    await loadStaplePool();
+    const card = staplePool[Math.floor(Math.random() * staplePool.length)];
+    nextCardData = { card, staple: true };
   } else {
-    bad++; streak = 0;
-    show("Raté", "ko");
+    nextCardData = {
+      card: {
+        name: "Random",
+        type: "",
+        desc: "",
+        card_images: [{ image_url: "" }]
+      },
+      staple: false
+    };
   }
+}
 
-  renderHUD();
-  setTimeout(nextCard, 1000);
-};
-
-Promise.all([loadStaplePool(), fillRandomBuffer()]).then(nextCard);
+Promise.all([loadStaplePool()]).then(nextCard);
