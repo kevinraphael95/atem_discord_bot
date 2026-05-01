@@ -6,8 +6,7 @@
 
 <title>Decks VAACT — Atem</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/decks.css">
@@ -23,30 +22,37 @@
 <body>
 
 <div class="phdr">
-  <h1 class="pttl">
-    <span class="t1">Decks</span>
-    <span class="t2">VAACT</span>
-  </h1>
-
-  <p class="psub">Explore les decks custom en version carte + recherche instant.</p>
+  <h1>Decks VAACT</h1>
+  <p>Navigation des decks + recherche + cartes Yu-Gi-Oh</p>
 </div>
 
 <div class="content">
 
+  <!-- 🔽 DROPDOWNS (gardés comme demandé) -->
+  <div class="deck-controls">
+
+    <select id="saisonSelect">
+      <option value="">📅 Saison</option>
+    </select>
+
+    <select id="duellisteSelect" disabled>
+      <option value="">👤 Duelliste</option>
+    </select>
+
+  </div>
+
   <!-- 🔍 SEARCH -->
   <div class="search-box">
-    <input id="searchInput" type="text" placeholder="🔍 Rechercher un duelliste..." autocomplete="off">
+    <input id="searchInput" placeholder="🔍 Rechercher un duelliste...">
     <div id="suggestions"></div>
   </div>
 
   <!-- ⭐ FAVORIS -->
-  <div class="fav-bar">
-    <button id="showFavs">⭐ Mes favoris</button>
-  </div>
+  <button id="showFavs">⭐ Mes favoris</button>
 
   <!-- 🎴 DISPLAY -->
   <div id="deckDisplay" class="deck-display">
-    <p class="placeholder">Recherche un duelliste pour afficher ses decks.</p>
+    <p class="placeholder">Sélectionne un deck ou fais une recherche.</p>
   </div>
 
 </div>
