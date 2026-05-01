@@ -556,6 +556,10 @@ function buildQuestions(pool) {
     });
   }
 
+
+// questions de merde    
+/*
+
   // ── 16. Rarité Master Duel ────────────────────────────
   const mdRarities = [...new Set(pool.map(c=>c.mdRarity))].filter(v=>v&&v!=='—');
   if (mdRarities.length > 1) {
@@ -609,6 +613,10 @@ function buildQuestions(pool) {
       test: c => c.nbArtworks > 1,
       group: 'artworks',
     });
+
+*/
+// fin des questions de merde 
+
 
   // ── 19. Questions sur le nom (alphabétique + mots) ───
   const NAME_POOL_THRESHOLD = 1500;
