@@ -1,15 +1,12 @@
-/* ─────────────────────────────
-   SEARCH
-───────────────────────────── */
-
+/* SEARCH */
 .search-box {
   position: relative;
-  margin-bottom: 20px;
+  margin: 15px 0;
 }
 
 #searchInput {
   width: 100%;
-  padding: 12px;
+  padding: 10px;
   border-radius: 10px;
   border: 1px solid #333;
   background: #111;
@@ -21,13 +18,13 @@
   width: 100%;
   background: #111;
   border: 1px solid #333;
-  max-height: 200px;
+  max-height: 180px;
   overflow-y: auto;
-  z-index: 50;
+  z-index: 10;
 }
 
 .suggestion {
-  padding: 10px;
+  padding: 8px;
   cursor: pointer;
 }
 
@@ -35,74 +32,34 @@
   background: #222;
 }
 
-/* ─────────────────────────────
-   FAVORIS BAR
-───────────────────────────── */
-
-.fav-bar {
-  margin-bottom: 15px;
-}
-
-#showFavs {
-  padding: 8px 12px;
-  background: gold;
-  border: none;
-  cursor: pointer;
-  border-radius: 8px;
-}
-
-/* ─────────────────────────────
-   CARD GRID (DUELING BOOK STYLE)
-───────────────────────────── */
-
-.deck-display {
-  margin-top: 10px;
-}
-
+/* CARDS */
 .deck-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
 }
 
 .deck-card {
-  background: linear-gradient(145deg, #111, #1b1b1b);
-  border: 1px solid rgba(255,215,0,0.25);
-  border-radius: 16px;
-  padding: 14px;
+  background: #111;
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 14px;
+  padding: 12px;
   transition: 0.2s;
 }
 
 .deck-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 0 25px rgba(0,255,200,0.25);
-  border-color: rgba(0,255,200,0.6);
+  transform: translateY(-3px);
+  box-shadow: 0 0 18px rgba(0,255,200,0.2);
 }
 
-.deck-title {
-  color: gold;
-}
-
-.deck-season {
-  opacity: 0.7;
-  font-size: 13px;
+.ygo-card {
+  width: 100%;
+  border-radius: 8px;
+  margin-top: 8px;
 }
 
 .card-line {
   display: flex;
   justify-content: space-between;
   margin-top: 6px;
-  font-size: 13px;
-}
-
-.card-line button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: gold;
-}
-
-.placeholder {
-  text-align: center;
-  opacity: 0.6;
 }
