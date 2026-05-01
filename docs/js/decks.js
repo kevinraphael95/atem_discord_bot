@@ -61,26 +61,43 @@ duellisteSelect.addEventListener("change", () => {
 });
 
 function renderDeck(name, saison, deck) {
-  let html = `<h2>${name}</h2>`;
-  html += `<p class="saison">Saison : ${saison}</p>`;
+  let html = `
+    <h2>${name}</h2>
+    <p class="saison">Saison : ${saison}</p>
+    <div class="deck-grid">
+  `;
 
   if (typeof deck === "string") {
-    html += `<p>${deck}</p>`;
+    html += `
+      <div class="deck-card">
+        <p>${deck}</p>
+      </div>
+    `;
   } else {
     for (const niveau in deck) {
-      html += `<h3>${niveau}</h3>`;
+      html += `
+        <div class="deck-card">
+          <h3>${niveau}</h3>
+      `;
 
       if (typeof deck[niveau] === "string") {
         html += `<p>${deck[niveau]}</p>`;
       } else {
-        html += `<ul>`;
         for (const sub in deck[niveau]) {
-          html += `<li><b>${sub}</b> : <a href="${deck[niveau][sub]}" target="_blank">Voir deck</a></li>`;
+          html += `
+            <div class="mini-link">
+              <b>${sub}</b>
+              <a href="${deck[niveau][sub]}" target="_blank">Ouvrir</a>
+              <button onclick="addFav('${deck[niveau][sub]}')">⭐</button>
+            </div>
+          `;
         }
-        html += `</ul>`;
       }
+
+      html += `</div>`;
     }
   }
 
+  html += `</div>`;
   display.innerHTML = html;
 }
