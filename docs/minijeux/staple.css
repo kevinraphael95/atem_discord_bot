@@ -1,0 +1,92 @@
+.sp-wrap {
+  max-width: 700px;
+  margin: auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hud {
+  display: flex;
+  gap: 1rem;
+}
+
+.hud-stat {
+  text-align: center;
+}
+
+.hud-val {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: var(--gold-lt);
+}
+
+.card-box {
+  width: 100%;
+  padding: 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  display: flex;
+  gap: 1rem;
+}
+
+.card-thumb-wrap {
+  width: 80px;
+  height: 120px;
+  position: relative;
+}
+
+.card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-spinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-name {
+  font-weight: bold;
+  color: var(--gold-lt);
+}
+
+.card-type {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+.card-desc {
+  font-size: .85rem;
+}
+
+.guess-btns {
+  display: flex;
+  gap: .5rem;
+  width: 100%;
+}
+
+.guess-btn {
+  flex: 1;
+  padding: .8rem;
+  cursor: pointer;
+}
+
+.sp-flash {
+  display: none;
+  padding: .7rem;
+  text-align: center;
+}
+
+.sp-flash.on { display: block; }
+
+.sp-back {
+  margin-top: 1rem;
+  color: var(--muted);
+}
