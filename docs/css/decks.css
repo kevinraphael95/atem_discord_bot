@@ -39,3 +39,31 @@
   text-align: center;
   opacity: 0.6;
 }
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.deck-card {
+  background: var(--panel);
+  border: 1px solid var(--gold-line);
+  border-radius: 14px;
+  padding: 14px;
+  transition: 0.2s;
+}
+
+.deck-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 20px rgba(0,255,200,0.25);
+}
+
+.mini-link {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
