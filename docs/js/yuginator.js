@@ -619,52 +619,88 @@ function buildQuestions(pool) {
 
 
   // ── 19. Questions sur le nom (alphabétique + mots) ───
-  const NAME_POOL_THRESHOLD = 1500;
-  if (pool.length <= NAME_POOL_THRESHOLD) {
-    const nameInRange = (c,a,z) => { const l=(c.name[0]||'').toUpperCase(); return l>=a&&l<=z; };
+    const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  
+    // Génère des intervalles aléatoires de 7-10 lettres couvrant tout l'alphabet
+    function randomIntervals() {
+      const letters = [...ALPHA];
+      const intervals = [];
+      let i = 0;
+      while (i < letters.length) {
+        const size = 7 + Math.floor(Math.random() * 4); // 7 à 10
+        const end = Math.min(i + size - 1, 25);
+        intervals.push({ a: letters[i], z: letters[end] });
+        i = end + 1;
+      }
+      return intervals;
+    }
+  
+    const nameInRange = (c, a, z) => { const l = (c.name[0]||'').toUpperCase(); return l >= a && l <= z; };
+  
+    // Intervalles larges fixes (A-M / N-Z)
     [
       { label:'Le nom commence-t-il par une lettre entre A et M ?', key:'name_AM', test:c=>nameInRange(c,'A','M') },
       { label:'Le nom commence-t-il par une lettre entre N et Z ?', key:'name_NZ', test:c=>nameInRange(c,'N','Z') },
-    ].forEach(q=>qs.push({...q,group:'name_alpha'}));
-    [
-      { label:'Le nom commence-t-il par une lettre entre A et F ?', key:'name_AF', test:c=>nameInRange(c,'A','F') },
-      { label:'Le nom commence-t-il par une lettre entre G et M ?', key:'name_GM', test:c=>nameInRange(c,'G','M') },
-      { label:'Le nom commence-t-il par une lettre entre N et S ?', key:'name_NS', test:c=>nameInRange(c,'N','S') },
-      { label:'Le nom commence-t-il par une lettre entre T et Z ?', key:'name_TZ', test:c=>nameInRange(c,'T','Z') },
-    ].forEach(q=>qs.push({...q,group:'name_alpha2'}));
-
-    if (pool.length <= 200) {
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').sort(()=>Math.random()-0.5).forEach(l=>qs.push({
+    ].forEach(q=>qs.push({...q, group:'name_alpha'}));
+  
+    // Intervalles aléatoires de 7-10 lettres
+    randomIntervals().forEach(({a, z}) => qs.push({
+      label: `Le nom commence-t-il par une lettre entre ${a} et ${z} ?`,
+      key: `name_range_${a}${z}`,
+      test: c => nameInRange(c, a, z),
+      group: `name_range_${a}${z}`,
+    }));
+  
+    // Lettre exacte (1ère) si pool raisonnable
+    if (pool.length <= 500) {
+      ALPHA.sort(()=>Math.random()-0.5).forEach(l=>qs.push({
         label: `Le nom commence-t-il par la lettre "${l}" ?`,
         key: 'name_letter_'+l, test:c=>(c.name[0]||'').toUpperCase()===l, group:'name_letter',
       }));
     }
-
+  
+    // Deuxième lettre si pool encore grand
+    if (pool.length <= 800) {
+      // Intervalles aléatoires sur la 2ème lettre aussi
+      const nameInRange2 = (c, a, z) => { const l = (c.name[1]||'').toUpperCase(); return l >= a && l <= z; };
+      randomIntervals().forEach(({a, z}) => qs.push({
+        label: `La deuxième lettre du nom est-elle entre ${a} et ${z} ?`,
+        key: `name2_range_${a}${z}`,
+        test: c => nameInRange2(c, a, z),
+        group: `name2_range_${a}${z}`,
+      }));
+      if (pool.length <= 300) {
+        ALPHA.sort(()=>Math.random()-0.5).forEach(l=>qs.push({
+          label: `La deuxième lettre du nom est-elle "${l}" ?`,
+          key: 'name_letter2_'+l, test:c=>(c.name[1]||'').toUpperCase()===l, group:'name_letter2',
+        }));
+      }
+    }
+  
     [1,2,3,4,5].forEach(t=>qs.push({
       label: `Le nom contient-il plus de ${t} mot${t>1?'s':''} ?`,
       key: 'name_words_'+t, test:c=>c.name.trim().split(/\s+/).length>t, group:'name_words',
     }));
-  }
-
-  if (pool.length > 6 && pool.length <= NAME_POOL_THRESHOLD) {
-    const STOP = new Set(['de','du','des','le','la','les','un','une','et','en','a','au','aux','par','sur','dans','pour','avec','sans','que','qui','ou','the','of','to','an','and','in','on','for','with','from']);
-    const freq = {};
-    pool.forEach(c => {
-      c.name.split(/[\s\-\/''!?,.:]+/).forEach(w => {
-        const wl = w.toLowerCase().replace(/[^a-z\u00c0-\u024f]/gi,'');
-        if (wl.length >= 3 && !STOP.has(wl)) freq[wl]=(freq[wl]||0)+1;
+  
+    if (pool.length > 6) {
+      const STOP = new Set(['de','du','des','le','la','les','un','une','et','en','a','au','aux','par','sur','dans','pour','avec','sans','que','qui','ou','the','of','to','an','and','in','on','for','with','from']);
+      const freq = {};
+      pool.forEach(c => {
+        c.name.split(/[\s\-\/''!?,.:]+/).forEach(w => {
+          const wl = w.toLowerCase().replace(/[^a-z\u00c0-\u024f]/gi,'');
+          if (wl.length >= 3 && !STOP.has(wl)) freq[wl]=(freq[wl]||0)+1;
+        });
       });
-    });
-    const total = pool.length;
-    Object.entries(freq)
-      .filter(([,cnt])=>cnt>=total*0.1&&cnt<=total*0.9)
-      .sort((a,b)=>Math.abs(a[1]/total-0.5)-Math.abs(b[1]/total-0.5))
-      .slice(0,20)
-      .forEach(([w])=>qs.push({ label:`Le nom contient-il le mot "${w}" ?`, key:'name_word_'+w, test:c=>c.name.toLowerCase().includes(w), group:'name_word' }));
+      const total = pool.length;
+      Object.entries(freq)
+        .filter(([,cnt])=>cnt>=total*0.1&&cnt<=total*0.9)
+        .sort((a,b)=>Math.abs(a[1]/total-0.5)-Math.abs(b[1]/total-0.5))
+        .slice(0,60)
+        .forEach(([w])=>qs.push({ label:`Le nom contient-il le mot "${w}" ?`, key:'name_word_'+w, test:c=>c.name.toLowerCase().includes(w), group:'name_word' }));
+    }
+  
+    return qs;
   }
-
-  return qs;
-}
 
 // ── SCORE D'ENTROPIE ──────────────────────────────────────
 
@@ -684,16 +720,13 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
 
   // Ordre de priorité des groupes
   const PRIORITY = [
-    'cardcat', 'deckzone', 'has_effect', 'attribute', 'race',
-    'has_archetype', 'arch_alpha', 'arch_alpha2', 'arch_letter', 'archetype',
-    'frameType', 'format',
-    'atk_vs_def', 'ban', 'mdRarity_tier', 'mdRarity',
-    'epoch', 'epoch_decade',
-    'artworks', 'priceNum', 'priceTier',
-    'name_alpha', 'name_alpha2', 'name_letter', 'name_words', 'name_word',
-    'atk', 'def', 'level', 'level_exact', 'atk_exact',
-    'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
-  ];
+      'cardcat', 'deckzone', 'has_effect', 'attribute', 'race',
+      'has_archetype', 'arch_alpha', 'arch_alpha2', 'arch_letter', 'archetype',
+      'frameType', 'format', 'epoch', 'epoch_decade', 'ban',
+      'name_alpha', 'name_letter', 'name_letter2', 'name_words', 'name_word',
+      'atk_vs_def', 'atk', 'def', 'level', 'level_exact', 'atk_exact',
+      'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
+    ];
 
   const MIN_SCORE = 0.10;
 
@@ -709,14 +742,25 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (best) return best;
   }
 
-  // Fallback global
-  let best=null, bestScore=-1;
-  for (const q of qs) {
-    const s=scoreQ(q);
-    if (s>bestScore) { bestScore=s; best=q; }
+  // Intervalles dynamiques (1ère et 2ème lettre)
+    for (const prefix of ['name_range_', 'name2_range_']) {
+      const candidates = qs.filter(q => q.group.startsWith(prefix));
+      let best=null, bestScore=-1;
+      for (const q of candidates) {
+        const s=scoreQ(q);
+        if (s>=MIN_SCORE&&s>bestScore) { bestScore=s; best=q; }
+      }
+      if (best) return best;
+    }
+  
+    // Fallback global
+    let best=null, bestScore=-1;
+    for (const q of qs) {
+      const s=scoreQ(q);
+      if (s>bestScore) { bestScore=s; best=q; }
+    }
+    return best;
   }
-  return best;
-}
 
 // ══════════════════════════════════════════════════════════
 //  ÉTAT DU JEU
@@ -753,12 +797,13 @@ function yugiInit() {
 function nextStep() {
   if (yGameOver) return;
   if (yPool.length===0) { showGiveUp(); return; }
-  if (yPool.length<=5)  { enterGuessPhase(); return; }
+  if (yPool.length<=3)  { enterGuessPhase(); return; }
   const q = bestQuestion(yPool, yAsked, yResolved);
   if (!q) { enterGuessPhase(); return; }
   yCurQ = q;
   showQuestion(q);
 }
+
 
 function showQuestion(q) {
   yThinking=false;
