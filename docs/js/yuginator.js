@@ -191,7 +191,7 @@ const ARCHETYPE_FR = {
   'Superheavy Samurai':'Samouraï Superpesant','Supreme King':'Roi Suprême',
   'Swordsoul':'Âme-Épée','Synchron':'Synchron','T.G.':'T.G.',
   'Tellarknight':'Tellarchevalier','Tenyi':'Tenyi','The Agent':'Agent',
-  'The Weather':'Le Temps','Thunder Dragon':'Dragon du Tonnerre','Tindangle':'Tindangle','Trap':'Trappe',
+  'The Weather':'Le Temps','Thunder Dragon':'Dragon du Tonnerre','Tindangle':'Tindangle','Trap Hole':'Trappe',
   'Toon':'Toon','Tri-Brigade':'Tri-Brigade','Troymare':'Cauchemar Troyen',
   'True Draco':'Vrai Draco','True King':'Vrai Roi','Twilightsworn':'Porteur du Crépuscule',
   'U.A.':'U.A.','Unchained':'Déchaîné','Utopia':'Utopie','V-HERO':'V-HÉROS',
