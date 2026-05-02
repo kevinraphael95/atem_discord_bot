@@ -63,7 +63,8 @@
   cursor: pointer;
   font-family: 'DM Sans', sans-serif;
 }
-.suggestion:hover {
+.suggestion:hover,
+.suggestion.active {
   background: var(--gold-pale);
 }
 
