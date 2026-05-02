@@ -54,7 +54,10 @@ duellisteSelect.addEventListener("change", () => {
 const input = document.getElementById("searchInput");
 const suggestions = document.getElementById("suggestions");
 
+let activeIdx = -1;
+
 input.addEventListener("input", () => {
+  activeIdx = -1;
   const q = input.value.toLowerCase();
   suggestions.innerHTML = "";
   if (!q) return;
@@ -73,11 +76,42 @@ input.addEventListener("input", () => {
     div.onclick = () => {
       input.value = r.d;
       suggestions.innerHTML = "";
+      activeIdx = -1;
       renderDeck(r.d, r.s, deckData[r.s][r.d].deck);
     };
     suggestions.appendChild(div);
   });
 });
+
+input.addEventListener("keydown", e => {
+  const items = suggestions.querySelectorAll(".suggestion");
+  if (!items.length) return;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    activeIdx = (activeIdx + 1) % items.length;
+    updateActive(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    activeIdx = (activeIdx - 1 + items.length) % items.length;
+    updateActive(items);
+  } else if (e.key === "Enter" && activeIdx >= 0) {
+    e.preventDefault();
+    items[activeIdx].click();
+  } else if (e.key === "Escape") {
+    suggestions.innerHTML = "";
+    activeIdx = -1;
+  }
+});
+
+function updateActive(items) {
+  items.forEach((el, i) => {
+    el.classList.toggle("active", i === activeIdx);
+  });
+  if (activeIdx >= 0) {
+    items[activeIdx].scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
 
 /* ───── IMAGE API ───── */
 
