@@ -45,7 +45,6 @@ saisonSelect.addEventListener("change", () => {
 duellisteSelect.addEventListener("change", () => {
   const s = saisonSelect.value;
   const d = duellisteSelect.value;
-
   if (!d) return;
   renderDeck(d, s, deckData[s][d].deck);
 });
@@ -55,19 +54,18 @@ duellisteSelect.addEventListener("change", () => {
 const input = document.getElementById("searchInput");
 const suggestions = document.getElementById("suggestions");
 
+let activeIdx = -1;
+
 input.addEventListener("input", () => {
+  activeIdx = -1;
   const q = input.value.toLowerCase();
   suggestions.innerHTML = "";
-
   if (!q) return;
 
   let results = [];
-
   for (const s in deckData) {
     for (const d in deckData[s]) {
-      if (d.toLowerCase().includes(q)) {
-        results.push({ s, d });
-      }
+      if (d.toLowerCase().includes(q)) results.push({ s, d });
     }
   }
 
@@ -75,16 +73,45 @@ input.addEventListener("input", () => {
     const div = document.createElement("div");
     div.className = "suggestion";
     div.textContent = `${r.d} (${r.s})`;
-
     div.onclick = () => {
       input.value = r.d;
       suggestions.innerHTML = "";
+      activeIdx = -1;
       renderDeck(r.d, r.s, deckData[r.s][r.d].deck);
     };
-
     suggestions.appendChild(div);
   });
 });
+
+input.addEventListener("keydown", e => {
+  const items = suggestions.querySelectorAll(".suggestion");
+  if (!items.length) return;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    activeIdx = (activeIdx + 1) % items.length;
+    updateActive(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    activeIdx = (activeIdx - 1 + items.length) % items.length;
+    updateActive(items);
+  } else if (e.key === "Enter" && activeIdx >= 0) {
+    e.preventDefault();
+    items[activeIdx].click();
+  } else if (e.key === "Escape") {
+    suggestions.innerHTML = "";
+    activeIdx = -1;
+  }
+});
+
+function updateActive(items) {
+  items.forEach((el, i) => {
+    el.classList.toggle("active", i === activeIdx);
+  });
+  if (activeIdx >= 0) {
+    items[activeIdx].scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
 
 /* ───── IMAGE API ───── */
 
@@ -98,75 +125,33 @@ async function getCardImage(name) {
   }
 }
 
-/* ───── RENDER CLEAN ───── */
+/* ───── RENDER ───── */
 
-async function renderDeck(name, saison, deck) {
+function renderDeck(name, saison, deck) {
   let html = `
-    <h2 style="font-family:Shippori Mincho;color:var(--gold-lt)">${name}</h2>
-    <p style="opacity:.7">${saison}</p>
-    <div class="deck-grid">
+    <h2 class="deck-title">${name}</h2>
+    <p class="deck-saison">${saison}</p>
   `;
 
   for (const lvl in deck) {
-    html += `<div class="deck-card"><h3>${lvl}</h3>`;
-
     const content = deck[lvl];
+
+    html += `<div class="deck-section">`;
+    html += `<div class="deck-section-label">${lvl}</div>`;
 
     if (typeof content === "string") {
       html += `<p>${content}</p>`;
     } else {
-      for (const card in content) {
-        const url = content[card];
-
-        html += `
-          <div class="card-line">
-            <span>${card}</span>
-            <a href="${url}" target="_blank">Deck</a>
-            <button onclick="addFav('${url}')">⭐</button>
-          </div>
-        `;
-
-        const img = await getCardImage(card);
-        if (img) html += `<img class="ygo-img" src="${img}">`;
+      html += `<div class="deck-btn-row">`;
+      for (const label in content) {
+        const url = content[label];
+        html += `<a class="deck-btn" href="${url}" target="_blank">${label}</a>`;
       }
+      html += `</div>`;
     }
 
     html += `</div>`;
   }
 
-  html += `</div>`;
   display.innerHTML = html;
 }
-
-/* ───── FAVORIS ───── */
-
-function addFav(url) {
-  let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
-
-  if (favs.includes(url)) {
-    favs = favs.filter(f => f !== url);
-  } else {
-    favs.push(url);
-  }
-
-  localStorage.setItem("deckFavs", JSON.stringify(favs));
-}
-
-/* ───── VIEW FAVORIS ───── */
-
-document.getElementById("showFavs").onclick = () => {
-  let favs = JSON.parse(localStorage.getItem("deckFavs") || "[]");
-
-  let html = `<h2 style="color:var(--gold-lt)">⭐ Favoris</h2><div class="deck-grid">`;
-
-  favs.forEach(f => {
-    html += `
-      <div class="deck-card">
-        <a href="${f}" target="_blank">${f}</a>
-      </div>
-    `;
-  });
-
-  html += `</div>`;
-  display.innerHTML = html;
-};
