@@ -581,11 +581,6 @@ function buildQuestions(pool) {
   const nameInRange  = (c, a, z) => { const l=(c.name[0]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); return l>=a&&l<=z; };
   const nameInRange2 = (c, a, z) => { const l=(c.name[1]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); return l>=a&&l<=z; };
 
-  [
-    { label:'Le nom commence-t-il par une lettre entre A et M ?', key:'name_AM', test:c=>nameInRange(c,'A','M') },
-    { label:'Le nom commence-t-il par une lettre entre N et Z ?', key:'name_NZ', test:c=>nameInRange(c,'N','Z') },
-  ].forEach(q=>qs.push({...q, group:'name_alpha'}));
-
   NAME_INTERVALS.forEach(({a, z}) => qs.push({
     label: `Le nom commence-t-il par une lettre entre ${a} et ${z} ?`,
     key: `name_range_${a}${z}`,
@@ -661,11 +656,11 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   const PRIORITY_FIXED_HEAD = ['cardcat', 'deckzone', 'has_effect', 'attribute'];
   const PRIORITY_SHUFFLE    = ['race', 'has_archetype', 'arch_letter', 'archetype', 'frameType'];
   const PRIORITY_FIXED_TAIL = [
-    'format', 'epoch', 'epoch_decade', 'ban',
-    'name_alpha', 'name_letter', 'name_letter2', 'name_words', 'name_word',
-    'atk_vs_def', 'atk', 'def', 'level', 'level_exact', 'atk_exact',
-    'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
-  ];
+      'format', 'epoch', 'epoch_decade', 'ban',
+      'name_letter', 'name_letter2', 'name_words', 'name_word',
+      'atk_vs_def', 'atk', 'def', 'level', 'level_exact', 'atk_exact',
+      'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
+    ];
 
   const mid = [...PRIORITY_SHUFFLE];
   for (let i = mid.length - 1; i > 0; i--) {
@@ -688,7 +683,7 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (best) return best;
   }
 
-  for (const prefix of ['arch_range_', 'name_range_', 'name2_range_']) {
+  for (const prefix of ['arch_range_', 'name_alpha_', 'name_range_', 'name2_range_']) {
     const candidates = qs.filter(q => q.group.startsWith(prefix));
     let best=null, bestScore=-1;
     for (const q of candidates) {
