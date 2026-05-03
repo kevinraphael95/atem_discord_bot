@@ -658,13 +658,20 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   );
 
   const scoreQ = (q, aggressive) => {
+    // Ne jamais poser une question d'archétype avant has_archetype
+    if (!resolvedGroups.has('has_archetype') && !askedKeys.has('has_archetype') &&
+        (q.group.startsWith('arch_range_') ||
+         q.group === 'arch_letter' ||
+         q.group === 'archetype')) return -1;
+  
+    // Ne jamais reposer une question déjà posée (sécurité supplémentaire)
+    if (askedKeys.has(q.key)) return -1;
+  
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
     if (yes === 0 || no === 0) return -1;
     const ratio = yes / pool.length;
     const base  = 1 - Math.abs(ratio - 0.5) * 2;
-    // En mode agressif (gros pool) : peu de bruit, on veut vraiment 50/50
-    // En mode souple (petit pool) : plus de bruit, on laisse les groupes jouer
     const noise = aggressive ? 0.03 : 0.12;
     return base + (Math.random() * noise * 2 - noise);
   };
