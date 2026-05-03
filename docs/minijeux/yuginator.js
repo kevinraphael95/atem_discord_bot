@@ -748,7 +748,7 @@ function yugiInit() {
 function nextStep() {
   if (yGameOver) return;
   if (yPool.length===0) { showGiveUp(); return; }
-  if (yPool.length<=3)  { enterGuessPhase(); return; }
+  if (yPool.length<=1)  { enterGuessPhase(); return; }
   const q = bestQuestion(yPool, yAsked, yResolved);
   if (!q) { enterGuessPhase(); return; }
   yCurQ = q;
@@ -894,7 +894,8 @@ function yugiConfirmGuess(ok) {
   renderHistory(); updatePoolInfo();
   yThinking=true; setUI('thinking');
   setTimeout(()=>{
-    if (ySortedPool.length===0) { yGameOver=true; setUI('none'); showResult(false,null,null); return; }
+    if (yPool.length===0) { yGameOver=true; setUI('none'); showResult(false,null,null); return; }
+    if (ySortedPool.length===0) { enterGuessPhase(); return; }
     showGuessStep();
   },400);
 }
