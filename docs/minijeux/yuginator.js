@@ -979,24 +979,23 @@ function yugiConfirmGuess(ok) {
   renderHistory(); updatePoolInfo();
   yThinking=true; setUI('thinking');
   setTimeout(() => {
-    if (yPool.length === 0) {
-      yGameOver = true; setUI('none'); showResult(false, null, null); return;
+      if (yPool.length === 0) {
+        yGameOver = true; setUI('none'); showResult(false, null, null); return;
+      }
+      if (ySortedPool.length === 0) { enterGuessPhase(); return; }
+      showGuessStep();
+    }, 400);
+  }  // ← cette accolade ferme yugiConfirmGuess
+  
+  function showGiveUp() {
+    if (yPool.length > 0) {
+      enterGuessPhase();
+      return;
     }
-    // sSortedPool peut être épuisé mais yPool non → reconstruire
-    if (ySortedPool.length === 0) { enterGuessPhase(); return; }
-    showGuessStep();
-  }, 400);
-
-function showGiveUp() {
-  // S'il reste des cartes, on devine plutôt qu'on abandonne
-  if (yPool.length > 0) {
-    enterGuessPhase();
-    return;
+    yGameOver = true;
+    setUI('none');
+    showResult(false, null, null);
   }
-  yGameOver = true;
-  setUI('none');
-  showResult(false, null, null);
-}
 
 function showResult(won,name,img) {
   const r=document.getElementById('yResult');
