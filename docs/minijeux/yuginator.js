@@ -16,16 +16,28 @@ const SPELL_RACES    = new Set(['Normal','Continu','Contre','Jeu rapide','Équip
 const Q_VARIANTS = {
   cat_monster: [
     "Est-ce un monstre ?",
-    "La carte que vous pensez est-elle un monstre ?",
-    "Avez-vous en tête un monstre ?",
+    "S'agit-il d'une carte Monstre ?",
+    "La carte à laquelle vous pensez est-elle un Monstre ?",
+    "Avez-vous en tête une carte Monstre ?",
+    "Pensez-vous à une carte Monstre ?",
+    "La carte est-elle un Monstre ?",
+    "Avez-vous choisi un Monstre ?",
   ],
   cat_spell: [
     "Est-ce une carte Magie ?",
     "S'agit-il d'une carte Magie ?",
+    "La carte à laquelle vous pensez est-elle un Magie ?",
+    "Avez-vous en tête une carte Magie ?",
     "Pensez-vous à une carte Magie ?",
+    "La carte est-elle une Magie ?",
+    "Avez-vous choisi une Magie ?",
   ],
   cat_trap: [
     "Est-ce une carte Piège ?",
+    "S'agit-il d'une carte Piège ?",
+    "La carte à laquelle vous pensez est-elle un Piège ?",
+    "Avez-vous en tête une carte Piège ?",
+    "Pensez-vous à une carte Piège ?",
     "La carte est-elle un Piège ?",
     "Avez-vous choisi un Piège ?",
   ],
@@ -582,7 +594,7 @@ function buildQuestions(pool) {
   const nameInRange2 = (c, a, z) => { const l=(c.name[1]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); return l>=a&&l<=z; };
 
   NAME_INTERVALS.forEach(({a, z}) => qs.push({
-    label: `Le nom commence-t-il par une lettre entre ${a} et ${z} ?`,
+    label: `Le nom de ta carte commence-t-il par une lettre entre ${a} et ${z} ?`,
     key: `name_range_${a}${z}`,
     test: c => nameInRange(c, a, z),
     group: `name_range_${a}${z}`,
@@ -590,21 +602,21 @@ function buildQuestions(pool) {
 
   if (pool.length <= 500) {
     ALPHA.forEach(l => qs.push({
-      label: `Le nom commence-t-il par la lettre "${l}" ?`,
+      label: `Le nom de ta carte commence-t-il par la lettre "${l}" ?`,
       key: 'name_letter_'+l, test:c=>(c.name[0]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()===l, group:'name_letter',
     }));
   }
 
   if (pool.length <= 800) {
     NAME2_INTERVALS.forEach(({a, z}) => qs.push({
-      label: `La deuxième lettre du nom est-elle entre ${a} et ${z} ?`,
+      label: `La deuxième lettre du nom de ta carte est-elle entre ${a} et ${z} ?`,
       key: `name2_range_${a}${z}`,
       test: c => nameInRange2(c, a, z),
       group: `name2_range_${a}${z}`,
     }));
     if (pool.length <= 300) {
       ALPHA.forEach(l => qs.push({
-        label: `La deuxième lettre du nom est-elle "${l}" ?`,
+        label: `La deuxième lettre du nom de ta carte est-elle "${l}" ?`,
         key: 'name_letter2_'+l, test:c=>(c.name[1]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()===l, group:'name_letter2',
       }));
     }
