@@ -657,45 +657,95 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     !askedKeys.has(q.key) && !resolvedGroups.has(q.group)
   );
 
-  const scoreQ = q => {
+  const scoreQ = (q, aggressive) => {
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
     if (yes === 0 || no === 0) return -1;
     const ratio = yes / pool.length;
     const base  = 1 - Math.abs(ratio - 0.5) * 2;
-    return base + (Math.random() * 0.06 - 0.03); // ±3% seulement
+    // En mode agressif (gros pool) : peu de bruit, on veut vraiment 50/50
+    // En mode souple (petit pool) : plus de bruit, on laisse les groupes jouer
+    const noise = aggressive ? 0.03 : 0.12;
+    return base + (Math.random() * noise * 2 - noise);
   };
 
-  // ── Étape 1 : cardcat toujours en premier ────────────
+  // ── Q1 : toujours monstre/magie/piège ────────────────
   if (!resolvedGroups.has('cardcat')) {
-    const catCandidates = qs.filter(q => q.group === 'cardcat');
-    if (catCandidates.length > 0) {
+    const cats = qs.filter(q => q.group === 'cardcat');
+    if (cats.length > 0) {
       let best = null, bestScore = -1;
-      for (const q of catCandidates) {
-        const s = scoreQ(q);
+      for (const q of cats) { const s = scoreQ(q, false); if (s > bestScore) { bestScore = s; best = q; } }
+      if (best) return best;
+    }
+  }
+
+  const n = pool.length;
+
+  // ── GROS POOL (>800) : priorité entropie pure ────────
+  if (n > 800) {
+    let best = null, bestScore = -1;
+    for (const q of qs) {
+      const s = scoreQ(q, true);
+      if (s > bestScore) { bestScore = s; best = q; }
+    }
+    return best;
+  }
+
+  // ── POOL MOYEN (300-800) : entropie + quelques groupes clés ──
+  if (n > 300) {
+    // Forcer 1 question d'intervalle de lettre si pas encore posée
+    const nameRangeCandidates = qs.filter(q =>
+      q.group.startsWith('name_range_') || q.group.startsWith('arch_range_')
+    );
+    if (nameRangeCandidates.length > 0 && Math.random() < 0.35) {
+      let best = null, bestScore = -1;
+      for (const q of nameRangeCandidates) {
+        const s = scoreQ(q, true);
+        if (s > bestScore) { bestScore = s; best = q; }
+      }
+      if (best) return best;
+    }
+
+    // Sinon : meilleure entropie globale
+    let best = null, bestScore = -1;
+    for (const q of qs) {
+      const s = scoreQ(q, true);
+      if (s > bestScore) { bestScore = s; best = q; }
+    }
+    return best;
+  }
+
+  // ── PETIT POOL (<300) : groupes sémantiques prioritaires ──
+  // Ici on veut des questions intéressantes, pas juste ATK ≥ X
+  const PRIORITY_SEMANTIC = [
+    'cardcat', 'deckzone', 'frameType', 'has_effect',
+    'attribute', 'race', 'has_archetype', 'archetype',
+    'arch_letter', 'name_letter', 'name_letter2', 'name_word',
+    'ban', 'format',
+  ];
+  const PRIORITY_NUMERIC = [
+    'level', 'level_exact', 'atk', 'atk_exact', 'atk_vs_def',
+    'def', 'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
+    'epoch', 'epoch_decade', 'name_words',
+  ];
+
+  // 1 question d'intervalle de lettre garantie si pool ≤ 500 et pas encore posée
+  const nameRangeDone = [...askedKeys].some(k => k.startsWith('name_range_') || k.startsWith('name2_range_'));
+  if (!nameRangeDone && n <= 500) {
+    const rangeCandidates = qs.filter(q =>
+      q.group.startsWith('name_range_') || q.group.startsWith('name2_range_')
+    );
+    if (rangeCandidates.length > 0) {
+      let best = null, bestScore = -1;
+      for (const q of rangeCandidates) {
+        const s = scoreQ(q, true);
         if (s > bestScore) { bestScore = s; best = q; }
       }
       if (best) return best;
     }
   }
 
-  // ── Étape 2 : groupes prioritaires, meilleur score réel ──
-  const HEAD_SHUFFLEABLE = ['deckzone', 'has_effect', 'attribute'];
-  const PRIORITY_SHUFFLE = ['race', 'has_archetype', 'arch_letter', 'archetype', 'frameType'];
-  const PRIORITY_TAIL    = [
-    'format', 'epoch', 'epoch_decade', 'ban',
-    'name_letter', 'name_letter2', 'name_words', 'name_word',
-    'atk_vs_def', 'atk', 'def', 'level', 'level_exact', 'atk_exact',
-    'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
-  ];
-
-  const PRIORITY = [
-    ...[...HEAD_SHUFFLEABLE].sort(() => Math.random() - 0.5),
-    ...[...PRIORITY_SHUFFLE].sort(() => Math.random() - 0.5),
-    ...PRIORITY_TAIL,
-  ];
-
-  // Collecter le meilleur de chaque groupe (top 5)
+  const PRIORITY = [...PRIORITY_SEMANTIC, ...PRIORITY_NUMERIC];
   const topCandidates = [];
   for (const grp of PRIORITY) {
     if (resolvedGroups.has(grp)) continue;
@@ -703,7 +753,7 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (candidates.length === 0) continue;
     let best = null, bestScore = -1;
     for (const q of candidates) {
-      const s = scoreQ(q);
+      const s = scoreQ(q, false);
       if (s >= 0.10 && s > bestScore) { bestScore = s; best = q; }
     }
     if (best) {
@@ -713,32 +763,19 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   }
 
   if (topCandidates.length > 0) {
-    const first       = topCandidates[0];
-    const globalBest  = topCandidates.reduce((a, b) => b.score > a.score ? b : a);
-    // Le groupe prioritaire gagne sauf si une question divise bien mieux
+    const first      = topCandidates[0];
+    const globalBest = topCandidates.reduce((a, b) => b.score > a.score ? b : a);
     return (first.score >= globalBest.score * 0.70) ? first.q : globalBest.q;
   }
 
-  // ── Fallback préfixes ────────────────────────────────
-  for (const prefix of ['arch_range_', 'name_range_', 'name2_range_']) {
-    const candidates = qs.filter(q => q.group.startsWith(prefix));
-    let best = null, bestScore = -1;
-    for (const q of candidates) {
-      const s = scoreQ(q);
-      if (s > bestScore) { bestScore = s; best = q; }
-    }
-    if (best) return best;
-  }
-
-  // ── Fallback absolu ──────────────────────────────────
+  // Fallback absolu
   let best = null, bestScore = -1;
   for (const q of qs) {
-    const s = scoreQ(q);
+    const s = scoreQ(q, false);
     if (s > bestScore) { bestScore = s; best = q; }
   }
   return best;
 }
-
 
 
 // ══════════════════════════════════════════════════════════
