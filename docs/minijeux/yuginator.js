@@ -17,51 +17,70 @@ const Q_VARIANTS = {
   cat_monster: [
     "Est-ce un monstre ?",
     "S'agit-il d'une carte Monstre ?",
-    "La carte à laquelle vous pensez est-elle un Monstre ?",
-    "Avez-vous en tête une carte Monstre ?",
-    "Pensez-vous à une carte Monstre ?",
-    "La carte est-elle un Monstre ?",
-    "Avez-vous choisi un Monstre ?",
+    "Je sens une présence… une créature peut-être ?",
+    "Hmm, avez-vous en tête un Monstre ?",
+    "Votre carte — serait-ce un Monstre ?",
+    "Mon instinct me dit… un Monstre ?",
+    "C'est une carte Monstre, non ?",
+    "Parle-t-on d'un Monstre ici ?",
+    "Je vois des crocs, des griffes peut-être… Monstre ?",
   ],
   cat_spell: [
     "Est-ce une carte Magie ?",
-    "S'agit-il d'une carte Magie ?",
-    "La carte à laquelle vous pensez est-elle un Magie ?",
-    "Avez-vous en tête une carte Magie ?",
-    "Pensez-vous à une carte Magie ?",
-    "La carte est-elle une Magie ?",
-    "Avez-vous choisi une Magie ?",
+    "Une Magie, peut-être ?",
+    "Je perçois un sort… S'agit-il d'une Magie ?",
+    "Votre carte — serait-ce une Magie ?",
+    "Hmm, une carte Magie, je présume ?",
+    "Un sortilège ? Une Magie ?",
+    "Les arcanes me parlent… une Magie ?",
+    "Ça ressemble à une Magie. Est-ce le cas ?",
   ],
   cat_trap: [
     "Est-ce une carte Piège ?",
-    "S'agit-il d'une carte Piège ?",
-    "La carte à laquelle vous pensez est-elle un Piège ?",
-    "Avez-vous en tête une carte Piège ?",
-    "Pensez-vous à une carte Piège ?",
-    "La carte est-elle un Piège ?",
-    "Avez-vous choisi un Piège ?",
+    "Un Piège se cache-t-il ici ?",
+    "Je pressens une embuscade… un Piège ?",
+    "Votre carte — serait-ce un Piège ?",
+    "Hmm, un Piège ?",
+    "Les ombres me chuchotent… un Piège ?",
+    "On parle d'un Piège, j'imagine ?",
+    "Ça sent le traquenard. Un Piège ?",
   ],
   cat_extra: [
     "Est-ce un monstre de l'Extra Deck (Fusion, Synchro, Xyz ou Link) ?",
-    "Votre monstre provient-il de l'Extra Deck ?",
-    "S'agit-il d'un Fusion, Synchro, Xyz ou Link ?",
+    "Votre monstre vient-il de l'Extra Deck ?",
+    "Je vois quelque chose qui ne sort pas du Main Deck… Extra Deck ?",
+    "Fusion, Synchro, Xyz, Link — ça vous parle ?",
+    "Hmm, serait-ce une créature invoquée depuis l'Extra Deck ?",
+    "Une bête de l'Extra Deck, peut-être ?",
   ],
   has_archetype: [
     "Est-ce que la carte appartient à un archétype ?",
-    "La carte fait-elle partie d'un archétype précis ?",
-    "Y a-t-il un archétype associé à cette carte ?",
+    "Cette carte fait-elle partie d'une famille de cartes ?",
+    "Y a-t-il un archétype derrière tout ça ?",
+    "Je sens un lien… un archétype peut-être ?",
+    "Votre carte est-elle rattachée à un archétype précis ?",
+    "Elle appartient à un clan, un groupe… un archétype ?",
+    "Hmm, un archétype se profile ?",
   ],
   has_effect_1: [
     "Est-ce que la carte possède un vrai effet de jeu ?",
-    "Cette carte a-t-elle un effet actif (pas juste un texte de lore) ?",
-    "La carte a-t-elle un effet mécanique en jeu ?",
+    "Cette carte a-t-elle un effet actif en jeu ?",
+    "Elle fait quelque chose de concret, mécaniquement ?",
+    "Un effet réel — pas juste du lore — existe-t-il sur cette carte ?",
+    "La carte agit-elle sur le jeu d'une façon ou d'une autre ?",
+    "Elle a un effet, pas juste un texte de saveur ?",
+    "Hmm, elle peut interagir avec le jeu ?",
   ],
   frame_normal: [
     "Est-ce un monstre Normal (cadre jaune, sans effet) ?",
-    "S'agit-il d'un monstre Normal sans effet ?",
-    "La carte est-elle un Normal Monster (fond jaune) ?",
+    "Un bon vieux monstre Normal, fond jaune, sans effet ?",
+    "Je vois du jaune… un monstre sans effet ?",
+    "S'agit-il d'un Normal Monster ?",
+    "Cadre doré, texte en italique… un Normal ?",
+    "Un monstre sans effet — c'est un Normal, non ?",
   ],
 };
+
 
 function pickVariant(key, defaultLabel) {
   const variants = Q_VARIANTS[key];
@@ -655,63 +674,85 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   const qs = buildQuestions(pool).filter(q =>
     !askedKeys.has(q.key) && !resolvedGroups.has(q.group)
   );
-
+ 
   const scoreQ = q => {
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
-    if (yes===0||no===0) return -1;
-    const ratio = yes/pool.length;
-    const base = 1 - Math.abs(ratio-0.5)*2;
-    return base + (Math.random()*0.08-0.04);
+    if (yes === 0 || no === 0) return -1;
+    const ratio = yes / pool.length;
+    const base  = 1 - Math.abs(ratio - 0.5) * 2;
+    // bruit aléatoire plus large (±10%) pour varier l'ordre
+    return base + (Math.random() * 0.20 - 0.10);
   };
-
-  const PRIORITY_FIXED_HEAD = ['cardcat', 'deckzone', 'has_effect', 'attribute'];
-  const PRIORITY_SHUFFLE    = ['race', 'has_archetype', 'arch_letter', 'archetype', 'frameType'];
+ 
+  // Tête semi-aléatoire : on shuffle les 4 groupes prioritaires
+  // mais on garde 'cardcat' toujours en premier si non résolu
+  const HEAD_ALWAYS_FIRST = ['cardcat'];
+  const HEAD_SHUFFLEABLE  = ['deckzone', 'has_effect', 'attribute'];
+  const shuffledHead = [...HEAD_SHUFFLEABLE].sort(() => Math.random() - 0.5);
+ 
+  const PRIORITY_SHUFFLE = ['race', 'has_archetype', 'arch_letter', 'archetype', 'frameType'];
+  const mid = [...PRIORITY_SHUFFLE].sort(() => Math.random() - 0.5);
+ 
+  // Surprise : 20% de chance d'insérer une question de nom/mot tôt
+  const SURPRISE_GROUPS = ['name_word', 'name_words', 'name_letter'];
+  const surpriseInserted = Math.random() < 0.20;
+ 
   const PRIORITY_FIXED_TAIL = [
-      'format', 'epoch', 'epoch_decade', 'ban',
-      'name_letter', 'name_letter2', 'name_words', 'name_word',
-      'atk_vs_def', 'atk', 'def', 'level', 'level_exact', 'atk_exact',
-      'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
-    ];
-
-  const mid = [...PRIORITY_SHUFFLE];
-  for (let i = mid.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [mid[i], mid[j]] = [mid[j], mid[i]];
+    'format', 'epoch', 'epoch_decade', 'ban',
+    'name_letter', 'name_letter2', 'name_words', 'name_word',
+    'atk_vs_def', 'atk', 'def', 'level', 'level_exact', 'atk_exact',
+    'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
+  ];
+ 
+  let PRIORITY = [
+    ...HEAD_ALWAYS_FIRST,
+    ...shuffledHead,
+    ...mid,
+    ...PRIORITY_FIXED_TAIL,
+  ];
+ 
+  // Injection de surprise dans la tête (après cardcat)
+  if (surpriseInserted && pool.length <= 2000) {
+    const surpriseGroup = SURPRISE_GROUPS[Math.floor(Math.random() * SURPRISE_GROUPS.length)];
+    const insertPos = 2 + Math.floor(Math.random() * 3); // position 2-4
+    PRIORITY.splice(insertPos, 0, surpriseGroup);
   }
-  const PRIORITY = [...PRIORITY_FIXED_HEAD, ...mid, ...PRIORITY_FIXED_TAIL];
-
+ 
   const MIN_SCORE = 0.10;
-
+ 
   for (const grp of PRIORITY) {
     if (resolvedGroups.has(grp)) continue;
-    const candidates = qs.filter(q=>q.group===grp);
-    if (candidates.length===0) continue;
-    let best=null, bestScore=-1;
+    const candidates = qs.filter(q => q.group === grp);
+    if (candidates.length === 0) continue;
+    let best = null, bestScore = -1;
     for (const q of candidates) {
-      const s=scoreQ(q);
-      if (s>=MIN_SCORE&&s>bestScore) { bestScore=s; best=q; }
+      const s = scoreQ(q);
+      if (s >= MIN_SCORE && s > bestScore) { bestScore = s; best = q; }
     }
     if (best) return best;
   }
-
+ 
+  // Fallback sur les groupes à préfixe
   for (const prefix of ['arch_range_', 'name_alpha_', 'name_range_', 'name2_range_']) {
     const candidates = qs.filter(q => q.group.startsWith(prefix));
-    let best=null, bestScore=-1;
+    let best = null, bestScore = -1;
     for (const q of candidates) {
-      const s=scoreQ(q);
-      if (s>=MIN_SCORE&&s>bestScore) { bestScore=s; best=q; }
+      const s = scoreQ(q);
+      if (s >= MIN_SCORE && s > bestScore) { bestScore = s; best = q; }
     }
     if (best) return best;
   }
-
-  let best=null, bestScore=-1;
+ 
+  // Fallback absolu
+  let best = null, bestScore = -1;
   for (const q of qs) {
-    const s=scoreQ(q);
-    if (s>bestScore) { bestScore=s; best=q; }
+    const s = scoreQ(q);
+    if (s > bestScore) { bestScore = s; best = q; }
   }
   return best;
 }
+
 
 
 // ══════════════════════════════════════════════════════════
@@ -765,22 +806,53 @@ function nextStep() {
 const QNUM_PHRASES = [
   q => `QUESTION ${q}`,
   q => `INDICE ${q}`,
-  q => q > 5 ? `JE SENS QUELQUE CHOSE… (${q})` : `QUESTION ${q}`,
-  q => q > 8 ? `PRESQUE… (${q})` : `SONDE ${q}`,
-  q => `DÉDUCTION N°${q}`,
+  q => `SONDE N°${q}`,
+  q => `DÉDUCTION ${q}`,
   q => `ANALYSE ${q}`,
   q => `INTUITION ${q}`,
-  q => q > 6 ? `LE VOILE SE LÈVE… (${q})` : `QUESTION ${q}`,
+  q => `RÉFLEXION ${q}`,
+  q => q === 1 ? `PREMIÈRE QUESTION` : `QUESTION ${q}`,
+  q => q > 8  ? `PRESQUE… (${q})` : `QUESTION ${q}`,
+  q => q > 5  ? `JE SENS QUELQUE CHOSE… (${q})` : `SONDE ${q}`,
+  q => q > 6  ? `LE VOILE SE LÈVE… (${q})` : `QUESTION ${q}`,
+  q => q > 10 ? `PATIENCE… (${q})` : `ANALYSE ${q}`,
+  q => `🧠 CERVEAU EN MARCHE — Q.${q}`,
+  q => `💭 PENSÉE ${q}`,
+  q => q === 1 ? `PAR OÙ COMMENCER…` : `QUESTION ${q}`,
+  q => `〔${q}〕`,
 ];
 
+
+// Commentaires contextuels affichés parfois sous la question
+const Q_CONTEXT_COMMENTS = [
+  "Chaque réponse m'éclaire un peu plus…",
+  "Je réduis le champ…",
+  "Le brouillard se dissipe.",
+  "Intéressant.",
+  "Hmm… noté.",
+  "Ça m'aide déjà beaucoup.",
+  "Je commence à voir quelque chose.",
+  "Mon instinct s'affûte.",
+  "Les pièces s'assemblent.",
+  "Je n'ai plus beaucoup de questions à poser.",
+];
+ 
 function showQuestion(q) {
   yThinking = false;
   setUI('question');
   const phraseFn = QNUM_PHRASES[Math.floor(Math.random() * QNUM_PHRASES.length)];
   document.getElementById('yQnum').textContent = phraseFn(yQCount + 1);
-  document.getElementById('yQtext').textContent = q.label;
+ 
+  // 25% de chance d'ajouter un commentaire contextuel après la question
+  let label = q.label;
+  if (yQCount >= 3 && Math.random() < 0.25) {
+    const comment = Q_CONTEXT_COMMENTS[Math.floor(Math.random() * Q_CONTEXT_COMMENTS.length)];
+    label = label + '  —  ' + comment;
+  }
+  document.getElementById('yQtext').textContent = label;
   updateProgress();
 }
+
 
 function updateProgress() {
   const pct = Math.round(Math.max(5,Math.min(95,(1-yPool.length/ALL_CARDS.length)*100)));
@@ -869,20 +941,43 @@ function enterGuessPhase() {
 const GUESS_INTROS = [
   "Est-ce que vous pensez à… ",
   "Le voile se lève… S'agit-il de ",
-  "Je vois… Je vois… C'est ",
-  "Ma vision se précise — serait-ce ",
+  "Je vois… je vois… serait-ce ",
+  "Ma vision se précise — ",
   "Les esprits murmurent : ",
   "Le génie affirme : votre carte est ",
   "L'œil du destin révèle… ",
   "Les runes désignent… ",
+  "Ah ! Ça y est, je le sens — ",
+  "Hmm hmm hmm… ",
+  "Mon cristal s'emballe — serait-ce ",
+  "Vous pensez à ",
+  "Confidence pour confidence : c'est ",
+  "Je parie tout sur ",
+  "Quelque chose me dit que c'est ",
+  "Mon intuition crie : ",
+  "Un flash ! C'est ",
+  "Dix mille cartes, et je suis presque sûr — ",
 ];
+
 
 function showGuessStep() {
   if (yGuessIdx >= ySortedPool.length) { showGiveUp(); return; }
   const card = ySortedPool[yGuessIdx]; yGuessIdx++;
   setUI('guess');
+ 
+  // Numéro de révélation avec variations de texte
+  const REVELATION_LABELS = [
+    '🎯 RÉVÉLATION',
+    '🔮 MA PROPOSITION',
+    '⚡ HYPOTHÈSE',
+    '👁 JE VOIS…',
+    '🃏 MON CHOIX',
+    '💡 ILLUMINATION',
+  ];
+  const rLabel = REVELATION_LABELS[Math.floor(Math.random() * REVELATION_LABELS.length)];
+ 
   const intro = GUESS_INTROS[Math.floor(Math.random() * GUESS_INTROS.length)];
-  document.getElementById('yQnum').textContent = '🎯 RÉVÉLATION ' + yGuessIdx;
+  document.getElementById('yQnum').textContent = rLabel + ' ' + yGuessIdx;
   document.getElementById('yQtext').textContent = intro + card.name + ' ?';
   const pct = Math.min(99, 65 + yQCount * 3);
   document.getElementById('yConf').textContent = pct + '%';
@@ -890,6 +985,7 @@ function showGuessStep() {
   document.getElementById('yAnswers').dataset.guessCard = card.name;
   document.getElementById('yAnswers').dataset.guessImg = card.img || '';
 }
+
 
 function yugiConfirmGuess(ok) {
   const name=document.getElementById('yAnswers').dataset.guessCard;
