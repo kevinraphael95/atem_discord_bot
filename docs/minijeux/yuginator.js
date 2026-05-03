@@ -17,67 +17,49 @@ const Q_VARIANTS = {
   cat_monster: [
     "Est-ce un monstre ?",
     "S'agit-il d'une carte Monstre ?",
-    "Je sens une présence… une créature peut-être ?",
-    "Hmm, avez-vous en tête un Monstre ?",
-    "Votre carte — serait-ce un Monstre ?",
-    "Mon instinct me dit… un Monstre ?",
-    "C'est une carte Monstre, non ?",
-    "Parle-t-on d'un Monstre ici ?",
-    "Je vois des crocs, des griffes peut-être… Monstre ?",
+    "La carte à laquelle vous pensez est-elle un Monstre ?",
+    "Avez-vous en tête une carte Monstre ?",
+    "Pensez-vous à une carte Monstre ?",
+    "La carte est-elle un Monstre ?",
+    "Avez-vous choisi un Monstre ?",
   ],
   cat_spell: [
     "Est-ce une carte Magie ?",
-    "Une Magie, peut-être ?",
-    "Je perçois un sort… S'agit-il d'une Magie ?",
-    "Votre carte — serait-ce une Magie ?",
-    "Hmm, une carte Magie, je présume ?",
-    "Un sortilège ? Une Magie ?",
-    "Les arcanes me parlent… une Magie ?",
-    "Ça ressemble à une Magie. Est-ce le cas ?",
+    "S'agit-il d'une carte Magie ?",
+    "La carte à laquelle vous pensez est-elle un Magie ?",
+    "Avez-vous en tête une carte Magie ?",
+    "Pensez-vous à une carte Magie ?",
+    "La carte est-elle une Magie ?",
+    "Avez-vous choisi une Magie ?",
   ],
   cat_trap: [
     "Est-ce une carte Piège ?",
-    "Un Piège se cache-t-il ici ?",
-    "Je pressens une embuscade… un Piège ?",
-    "Votre carte — serait-ce un Piège ?",
-    "Hmm, un Piège ?",
-    "Les ombres me chuchotent… un Piège ?",
-    "On parle d'un Piège, j'imagine ?",
-    "Ça sent le traquenard. Un Piège ?",
+    "S'agit-il d'une carte Piège ?",
+    "La carte à laquelle vous pensez est-elle un Piège ?",
+    "Avez-vous en tête une carte Piège ?",
+    "Pensez-vous à une carte Piège ?",
+    "La carte est-elle un Piège ?",
+    "Avez-vous choisi un Piège ?",
   ],
   cat_extra: [
     "Est-ce un monstre de l'Extra Deck (Fusion, Synchro, Xyz ou Link) ?",
-    "Votre monstre vient-il de l'Extra Deck ?",
-    "Je vois quelque chose qui ne sort pas du Main Deck… Extra Deck ?",
-    "Fusion, Synchro, Xyz, Link — ça vous parle ?",
-    "Hmm, serait-ce une créature invoquée depuis l'Extra Deck ?",
-    "Une bête de l'Extra Deck, peut-être ?",
+    "Votre monstre provient-il de l'Extra Deck ?",
+    "S'agit-il d'un Fusion, Synchro, Xyz ou Link ?",
   ],
   has_archetype: [
     "Est-ce que la carte appartient à un archétype ?",
-    "Cette carte fait-elle partie d'une famille de cartes ?",
-    "Y a-t-il un archétype derrière tout ça ?",
-    "Je sens un lien… un archétype peut-être ?",
-    "Votre carte est-elle rattachée à un archétype précis ?",
-    "Elle appartient à un clan, un groupe… un archétype ?",
-    "Hmm, un archétype se profile ?",
+    "La carte fait-elle partie d'un archétype précis ?",
+    "Y a-t-il un archétype associé à cette carte ?",
   ],
   has_effect_1: [
     "Est-ce que la carte possède un vrai effet de jeu ?",
-    "Cette carte a-t-elle un effet actif en jeu ?",
-    "Elle fait quelque chose de concret, mécaniquement ?",
-    "Un effet réel — pas juste du lore — existe-t-il sur cette carte ?",
-    "La carte agit-elle sur le jeu d'une façon ou d'une autre ?",
-    "Elle a un effet, pas juste un texte de saveur ?",
-    "Hmm, elle peut interagir avec le jeu ?",
+    "Cette carte a-t-elle un effet actif (pas juste un texte de lore) ?",
+    "La carte a-t-elle un effet mécanique en jeu ?",
   ],
   frame_normal: [
     "Est-ce un monstre Normal (cadre jaune, sans effet) ?",
-    "Un bon vieux monstre Normal, fond jaune, sans effet ?",
-    "Je vois du jaune… un monstre sans effet ?",
-    "S'agit-il d'un Normal Monster ?",
-    "Cadre doré, texte en italique… un Normal ?",
-    "Un monstre sans effet — c'est un Normal, non ?",
+    "S'agit-il d'un monstre Normal sans effet ?",
+    "La carte est-elle un Normal Monster (fond jaune) ?",
   ],
 };
 
@@ -996,15 +978,24 @@ function yugiConfirmGuess(ok) {
   yHistory.push({label:'Est-ce '+name+' ?',ans:'NON',pool:yPool.length});
   renderHistory(); updatePoolInfo();
   yThinking=true; setUI('thinking');
-  setTimeout(()=>{
-    if (yPool.length===0) { yGameOver=true; setUI('none'); showResult(false,null,null); return; }
-    if (ySortedPool.length===0) { enterGuessPhase(); return; }
+  setTimeout(() => {
+    if (yPool.length === 0) {
+      yGameOver = true; setUI('none'); showResult(false, null, null); return;
+    }
+    // sSortedPool peut être épuisé mais yPool non → reconstruire
+    if (ySortedPool.length === 0) { enterGuessPhase(); return; }
     showGuessStep();
-  },400);
-}
+  }, 400);
 
 function showGiveUp() {
-  yGameOver=true; setUI('none'); showResult(false,null,null);
+  // S'il reste des cartes, on devine plutôt qu'on abandonne
+  if (yPool.length > 0) {
+    enterGuessPhase();
+    return;
+  }
+  yGameOver = true;
+  setUI('none');
+  showResult(false, null, null);
 }
 
 function showResult(won,name,img) {
