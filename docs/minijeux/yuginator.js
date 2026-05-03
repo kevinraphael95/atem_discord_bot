@@ -12,6 +12,51 @@ const EXTRA_DECK     = new Set(['Fusion','Synchro','XYZ','Link']);
 const MAIN_DECK      = new Set(['Normal','Effet','Rituel','Pendule']);
 const SPELL_RACES    = new Set(['Normal','Continu','Contre','Jeu rapide','Équipement','Terrain','Rituel']);
 
+// ── VARIATION DES QUESTIONS ────────────────────────────────
+const Q_VARIANTS = {
+  cat_monster: [
+    "Est-ce un monstre ?",
+    "La carte que vous pensez est-elle un monstre ?",
+    "Avez-vous en tête un monstre ?",
+  ],
+  cat_spell: [
+    "Est-ce une carte Magie ?",
+    "S'agit-il d'une carte Magie ?",
+    "Pensez-vous à une carte Magie ?",
+  ],
+  cat_trap: [
+    "Est-ce une carte Piège ?",
+    "La carte est-elle un Piège ?",
+    "Avez-vous choisi un Piège ?",
+  ],
+  cat_extra: [
+    "Est-ce un monstre de l'Extra Deck (Fusion, Synchro, Xyz ou Link) ?",
+    "Votre monstre provient-il de l'Extra Deck ?",
+    "S'agit-il d'un Fusion, Synchro, Xyz ou Link ?",
+  ],
+  has_archetype: [
+    "Est-ce que la carte appartient à un archétype ?",
+    "La carte fait-elle partie d'un archétype précis ?",
+    "Y a-t-il un archétype associé à cette carte ?",
+  ],
+  has_effect_1: [
+    "Est-ce que la carte possède un vrai effet de jeu ?",
+    "Cette carte a-t-elle un effet actif (pas juste un texte de lore) ?",
+    "La carte a-t-elle un effet mécanique en jeu ?",
+  ],
+  frame_normal: [
+    "Est-ce un monstre Normal (cadre jaune, sans effet) ?",
+    "S'agit-il d'un monstre Normal sans effet ?",
+    "La carte est-elle un Normal Monster (fond jaune) ?",
+  ],
+};
+
+function pickVariant(key, defaultLabel) {
+  const variants = Q_VARIANTS[key];
+  if (!variants) return defaultLabel;
+  return variants[Math.floor(Math.random() * variants.length)];
+}
+
 // ── NORMALISATION ─────────────────────────────────────────
 
 function normFrame(f) {
@@ -321,30 +366,30 @@ function buildQuestions(pool) {
   const nSpells   = pool.filter(c => SPELL_FRAMES.has(c.frameType)).length;
   const nTraps    = pool.filter(c => TRAP_FRAMES.has(c.frameType)).length;
   if (nMonsters > 0 && (nSpells > 0 || nTraps > 0))
-    qs.push({ label:'Est-ce un monstre ?', key:'cat_monster', test:c=>MONSTER_FRAMES.has(c.frameType), group:'cardcat' });
+    qs.push({ label: pickVariant('cat_monster', 'Est-ce un monstre ?'), key:'cat_monster', test:c=>MONSTER_FRAMES.has(c.frameType), group:'cardcat' });
   if (nSpells > 0 && (nMonsters > 0 || nTraps > 0))
-    qs.push({ label:'Est-ce une carte Magie ?', key:'cat_spell', test:c=>SPELL_FRAMES.has(c.frameType), group:'cardcat' });
+    qs.push({ label: pickVariant('cat_spell', 'Est-ce une carte Magie ?'), key:'cat_spell', test:c=>SPELL_FRAMES.has(c.frameType), group:'cardcat' });
   if (nTraps > 0 && (nMonsters > 0 || nSpells > 0))
-    qs.push({ label:'Est-ce une carte Piège ?', key:'cat_trap', test:c=>TRAP_FRAMES.has(c.frameType), group:'cardcat' });
+    qs.push({ label: pickVariant('cat_trap', 'Est-ce une carte Piège ?'), key:'cat_trap', test:c=>TRAP_FRAMES.has(c.frameType), group:'cardcat' });
 
   // ── 2. Extra Deck vs Main Deck ───────────────────────
   const nExtra = pool.filter(c => EXTRA_DECK.has(c.frameType)).length;
   const nMain  = pool.filter(c => MAIN_DECK.has(c.frameType)).length;
   if (nExtra > 0 && nMain > 0)
-    qs.push({ label:"Est-ce un monstre de l'Extra Deck (Fusion, Synchro, Xyz ou Link) ?", key:'cat_extra', test:c=>EXTRA_DECK.has(c.frameType), group:'deckzone' });
+    qs.push({ label: pickVariant('cat_extra', "Est-ce un monstre de l'Extra Deck (Fusion, Synchro, Xyz ou Link) ?"), key:'cat_extra', test:c=>EXTRA_DECK.has(c.frameType), group:'deckzone' });
 
   // ── 3. Monstre Normal vs Effet ────────────────────────
   const nNormal = pool.filter(c => c.frameType === 'Normal').length;
   const nEffet  = pool.filter(c => c.frameType === 'Effet').length;
   if (nNormal > 0 && nEffet > 0)
-    qs.push({ label:'Est-ce un monstre Normal (sans effet, cadre jaune) ?', key:'frame_normal', test:c=>c.frameType==='Normal', group:'frameType' });
+    qs.push({ label: pickVariant('frame_normal', 'Est-ce un monstre Normal (sans effet, cadre jaune) ?'), key:'frame_normal', test:c=>c.frameType==='Normal', group:'frameType' });
 
   // ── 4. has_effect ────────────────────────────────────
   const hasEffectCards = pool.filter(c => c.hasEffect === 1);
   const noEffectCards  = pool.filter(c => c.hasEffect === 0);
   if (hasEffectCards.length > 0 && noEffectCards.length > 0)
     qs.push({
-      label: 'Est-ce que la carte possède un vrai effet de jeu (pas juste un texte de lore) ?',
+      label: pickVariant('has_effect_1', 'Est-ce que la carte possède un vrai effet de jeu (pas juste un texte de lore) ?'),
       key: 'has_effect_1',
       test: c => c.hasEffect === 1,
       group: 'has_effect',
@@ -374,24 +419,21 @@ function buildQuestions(pool) {
     group: 'race',
   }));
 
-  // ── 8. Archétype (BLOC 1) ────────────────────────────
+  // ── 8. Archétype ────────────────────────────────────
   if (hasArchPool > 0 && noArchPool > 0)
-    qs.push({ label:'Est-ce que la carte appartient à un archétype ?', key:'has_archetype', test:c=>c.archetype!=='—', group:'has_archetype' });
+    qs.push({ label: pickVariant('has_archetype', 'Est-ce que la carte appartient à un archétype ?'), key:'has_archetype', test:c=>c.archetype!=='—', group:'has_archetype' });
 
   if (archetypes.length > 0) {
     const archInRange = (c, a, z) => {
       const l = (c.archetype[0]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
       return c.archetype !== '—' && l >= a && l <= z;
     };
-
-    // Intervalles aléatoires stables (générés une fois par partie dans yugiInit)
     ARCH_INTERVALS.forEach(({a, z}) => qs.push({
       label: `L'archétype commence-t-il par une lettre entre ${a} et ${z} ?`,
       key: `arch_range_${a}${z}`,
       test: c => archInRange(c, a, z),
       group: `arch_range_${a}${z}`,
     }));
-
     if (pool.length <= 300) {
       'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => qs.push({
         label: `L'archétype commence-t-il par la lettre "${l}" ?`,
@@ -458,9 +500,8 @@ function buildQuestions(pool) {
   const linkCards = pool.filter(c => c.frameType === 'Link' && c.linkval > 0);
   if (linkCards.length > 0) {
     [1,2,3,4,5,6].forEach(n => {
-      if (linkCards.some(c => c.linkval === n)) {
+      if (linkCards.some(c => c.linkval === n))
         qs.push({ label:`Est-ce un monstre Lien-${n} ?`, key:'linkval_eq_'+n, test:c=>c.linkval===n, group:'linkval' });
-      }
     });
     [2,3,4].forEach(t => qs.push({
       label: `Est-ce que la valeur de Lien est ≥ ${t} ?`,
@@ -535,7 +576,7 @@ function buildQuestions(pool) {
     });
   }
 
-  // ── 19. Questions sur le nom (BLOC 2) ────────────────
+  // ── 19. Questions sur le nom ──────────────────────────
   const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   const nameInRange  = (c, a, z) => { const l=(c.name[0]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); return l>=a&&l<=z; };
   const nameInRange2 = (c, a, z) => { const l=(c.name[1]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); return l>=a&&l<=z; };
@@ -545,7 +586,6 @@ function buildQuestions(pool) {
     { label:'Le nom commence-t-il par une lettre entre N et Z ?', key:'name_NZ', test:c=>nameInRange(c,'N','Z') },
   ].forEach(q=>qs.push({...q, group:'name_alpha'}));
 
-  // Intervalles stables générés une fois par partie
   NAME_INTERVALS.forEach(({a, z}) => qs.push({
     label: `Le nom commence-t-il par une lettre entre ${a} et ${z} ?`,
     key: `name_range_${a}${z}`,
@@ -618,15 +658,21 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     return base + (Math.random()*0.08-0.04);
   };
 
-  // ── BLOC 6 : PRIORITY mis à jour ─────────────────────
-  const PRIORITY = [
-    'cardcat', 'deckzone', 'has_effect', 'attribute', 'race',
-    'has_archetype', 'arch_letter', 'archetype',
-    'frameType', 'format', 'epoch', 'epoch_decade', 'ban',
+  const PRIORITY_FIXED_HEAD = ['cardcat', 'deckzone', 'has_effect', 'attribute'];
+  const PRIORITY_SHUFFLE    = ['race', 'has_archetype', 'arch_letter', 'archetype', 'frameType'];
+  const PRIORITY_FIXED_TAIL = [
+    'format', 'epoch', 'epoch_decade', 'ban',
     'name_alpha', 'name_letter', 'name_letter2', 'name_words', 'name_word',
     'atk_vs_def', 'atk', 'def', 'level', 'level_exact', 'atk_exact',
     'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
   ];
+
+  const mid = [...PRIORITY_SHUFFLE];
+  for (let i = mid.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [mid[i], mid[j]] = [mid[j], mid[i]];
+  }
+  const PRIORITY = [...PRIORITY_FIXED_HEAD, ...mid, ...PRIORITY_FIXED_TAIL];
 
   const MIN_SCORE = 0.10;
 
@@ -642,7 +688,6 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (best) return best;
   }
 
-  // ── BLOC 6 : intervalles dynamiques arch + nom ───────
   for (const prefix of ['arch_range_', 'name_range_', 'name2_range_']) {
     const candidates = qs.filter(q => q.group.startsWith(prefix));
     let best=null, bestScore=-1;
@@ -653,7 +698,6 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     if (best) return best;
   }
 
-  // Fallback global
   let best=null, bestScore=-1;
   for (const q of qs) {
     const s=scoreQ(q);
@@ -661,6 +705,7 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   }
   return best;
 }
+
 
 // ══════════════════════════════════════════════════════════
 //  ÉTAT DU JEU
@@ -710,10 +755,22 @@ function nextStep() {
   showQuestion(q);
 }
 
+const QNUM_PHRASES = [
+  q => `QUESTION ${q}`,
+  q => `INDICE ${q}`,
+  q => q > 5 ? `JE SENS QUELQUE CHOSE… (${q})` : `QUESTION ${q}`,
+  q => q > 8 ? `PRESQUE… (${q})` : `SONDE ${q}`,
+  q => `DÉDUCTION N°${q}`,
+  q => `ANALYSE ${q}`,
+  q => `INTUITION ${q}`,
+  q => q > 6 ? `LE VOILE SE LÈVE… (${q})` : `QUESTION ${q}`,
+];
+
 function showQuestion(q) {
-  yThinking=false;
+  yThinking = false;
   setUI('question');
-  document.getElementById('yQnum').textContent = 'QUESTION '+(yQCount+1);
+  const phraseFn = QNUM_PHRASES[Math.floor(Math.random() * QNUM_PHRASES.length)];
+  document.getElementById('yQnum').textContent = phraseFn(yQCount + 1);
   document.getElementById('yQtext').textContent = q.label;
   updateProgress();
 }
@@ -802,17 +859,29 @@ function enterGuessPhase() {
   showGuessStep();
 }
 
+const GUESS_INTROS = [
+  "Est-ce que vous pensez à… ",
+  "Le voile se lève… S'agit-il de ",
+  "Je vois… Je vois… C'est ",
+  "Ma vision se précise — serait-ce ",
+  "Les esprits murmurent : ",
+  "Le génie affirme : votre carte est ",
+  "L'œil du destin révèle… ",
+  "Les runes désignent… ",
+];
+
 function showGuessStep() {
-  if (yGuessIdx>=ySortedPool.length) { showGiveUp(); return; }
-  const card=ySortedPool[yGuessIdx]; yGuessIdx++;
+  if (yGuessIdx >= ySortedPool.length) { showGiveUp(); return; }
+  const card = ySortedPool[yGuessIdx]; yGuessIdx++;
   setUI('guess');
-  document.getElementById('yQnum').textContent='🎯 DEVINETTE '+yGuessIdx;
-  document.getElementById('yQtext').textContent='Est-ce que vous pensez à… '+card.name+' ?';
-  const pct=Math.min(99,65+yQCount*3);
-  document.getElementById('yConf').textContent=pct+'%';
-  document.getElementById('yProgFill').style.width=pct+'%';
-  document.getElementById('yAnswers').dataset.guessCard=card.name;
-  document.getElementById('yAnswers').dataset.guessImg=card.img||'';
+  const intro = GUESS_INTROS[Math.floor(Math.random() * GUESS_INTROS.length)];
+  document.getElementById('yQnum').textContent = '🎯 RÉVÉLATION ' + yGuessIdx;
+  document.getElementById('yQtext').textContent = intro + card.name + ' ?';
+  const pct = Math.min(99, 65 + yQCount * 3);
+  document.getElementById('yConf').textContent = pct + '%';
+  document.getElementById('yProgFill').style.width = pct + '%';
+  document.getElementById('yAnswers').dataset.guessCard = card.name;
+  document.getElementById('yAnswers').dataset.guessImg = card.img || '';
 }
 
 function yugiConfirmGuess(ok) {
