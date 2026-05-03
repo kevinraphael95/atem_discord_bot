@@ -656,53 +656,47 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
   const qs = buildQuestions(pool).filter(q =>
     !askedKeys.has(q.key) && !resolvedGroups.has(q.group)
   );
- 
+
   const scoreQ = q => {
     const yes = pool.filter(q.test).length;
     const no  = pool.length - yes;
     if (yes === 0 || no === 0) return -1;
     const ratio = yes / pool.length;
     const base  = 1 - Math.abs(ratio - 0.5) * 2;
-    // bruit aléatoire plus large (±10%) pour varier l'ordre
-    return base + (Math.random() * 0.20 - 0.10);
+    return base + (Math.random() * 0.06 - 0.03); // ±3% seulement
   };
- 
-  // Tête semi-aléatoire : on shuffle les 4 groupes prioritaires
-  // mais on garde 'cardcat' toujours en premier si non résolu
-  const HEAD_ALWAYS_FIRST = ['cardcat'];
-  const HEAD_SHUFFLEABLE  = ['deckzone', 'has_effect', 'attribute'];
-  const shuffledHead = [...HEAD_SHUFFLEABLE].sort(() => Math.random() - 0.5);
- 
+
+  // ── Étape 1 : cardcat toujours en premier ────────────
+  if (!resolvedGroups.has('cardcat')) {
+    const catCandidates = qs.filter(q => q.group === 'cardcat');
+    if (catCandidates.length > 0) {
+      let best = null, bestScore = -1;
+      for (const q of catCandidates) {
+        const s = scoreQ(q);
+        if (s > bestScore) { bestScore = s; best = q; }
+      }
+      if (best) return best;
+    }
+  }
+
+  // ── Étape 2 : groupes prioritaires, meilleur score réel ──
+  const HEAD_SHUFFLEABLE = ['deckzone', 'has_effect', 'attribute'];
   const PRIORITY_SHUFFLE = ['race', 'has_archetype', 'arch_letter', 'archetype', 'frameType'];
-  const mid = [...PRIORITY_SHUFFLE].sort(() => Math.random() - 0.5);
- 
-  // Surprise : 20% de chance d'insérer une question de nom/mot tôt
-  const SURPRISE_GROUPS = ['name_word', 'name_words', 'name_letter'];
-  const surpriseInserted = Math.random() < 0.20;
- 
-  const PRIORITY_FIXED_TAIL = [
+  const PRIORITY_TAIL    = [
     'format', 'epoch', 'epoch_decade', 'ban',
     'name_letter', 'name_letter2', 'name_words', 'name_word',
     'atk_vs_def', 'atk', 'def', 'level', 'level_exact', 'atk_exact',
     'linkval', 'linkval_gte', 'linkmarkers', 'scale', 'scale_exact',
   ];
- 
-  let PRIORITY = [
-    ...HEAD_ALWAYS_FIRST,
-    ...shuffledHead,
-    ...mid,
-    ...PRIORITY_FIXED_TAIL,
+
+  const PRIORITY = [
+    ...[...HEAD_SHUFFLEABLE].sort(() => Math.random() - 0.5),
+    ...[...PRIORITY_SHUFFLE].sort(() => Math.random() - 0.5),
+    ...PRIORITY_TAIL,
   ];
- 
-  // Injection de surprise dans la tête (après cardcat)
-  if (surpriseInserted && pool.length <= 2000) {
-    const surpriseGroup = SURPRISE_GROUPS[Math.floor(Math.random() * SURPRISE_GROUPS.length)];
-    const insertPos = 2 + Math.floor(Math.random() * 3); // position 2-4
-    PRIORITY.splice(insertPos, 0, surpriseGroup);
-  }
- 
-  const MIN_SCORE = 0.10;
- 
+
+  // Collecter le meilleur de chaque groupe (top 5)
+  const topCandidates = [];
   for (const grp of PRIORITY) {
     if (resolvedGroups.has(grp)) continue;
     const candidates = qs.filter(q => q.group === grp);
@@ -710,23 +704,33 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
     let best = null, bestScore = -1;
     for (const q of candidates) {
       const s = scoreQ(q);
-      if (s >= MIN_SCORE && s > bestScore) { bestScore = s; best = q; }
+      if (s >= 0.10 && s > bestScore) { bestScore = s; best = q; }
     }
-    if (best) return best;
+    if (best) {
+      topCandidates.push({ q: best, score: bestScore });
+      if (topCandidates.length >= 5) break;
+    }
   }
- 
-  // Fallback sur les groupes à préfixe
-  for (const prefix of ['arch_range_', 'name_alpha_', 'name_range_', 'name2_range_']) {
+
+  if (topCandidates.length > 0) {
+    const first       = topCandidates[0];
+    const globalBest  = topCandidates.reduce((a, b) => b.score > a.score ? b : a);
+    // Le groupe prioritaire gagne sauf si une question divise bien mieux
+    return (first.score >= globalBest.score * 0.70) ? first.q : globalBest.q;
+  }
+
+  // ── Fallback préfixes ────────────────────────────────
+  for (const prefix of ['arch_range_', 'name_range_', 'name2_range_']) {
     const candidates = qs.filter(q => q.group.startsWith(prefix));
     let best = null, bestScore = -1;
     for (const q of candidates) {
       const s = scoreQ(q);
-      if (s >= MIN_SCORE && s > bestScore) { bestScore = s; best = q; }
+      if (s > bestScore) { bestScore = s; best = q; }
     }
     if (best) return best;
   }
- 
-  // Fallback absolu
+
+  // ── Fallback absolu ──────────────────────────────────
   let best = null, bestScore = -1;
   for (const q of qs) {
     const s = scoreQ(q);
