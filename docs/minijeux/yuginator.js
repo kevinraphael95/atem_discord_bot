@@ -199,7 +199,7 @@ const ARCHETYPE_FR = {
   'Ghostrick':'Fantôruse','Gimmick Puppet':'Marionnette Gadget','Gishki':'Gishki',
   'Goblin':'Gobelin','Gouki':'Gouki','Gravekeeper\'s':'Protecteurs du Tombeau',
   'Guardian':'Gardien','Gusto':'Gusto','HERO':'HÉROS','Harpie':'Harpie',
-  'Hieratic':'Hiératique','Hi-Speedroid':'Hi-Speedroïd','Horus':'Horus',
+  'Hieratic':'Hiératique','Hi-Speedroid':'Hi-Speedroïd','Hole':'Trou','Horus':'Horus',
   'Ice Barrier':'Barrière de Glace','Icejade':'Jade de Glace','Ignister':'Ignister',
   'Impcantation':'Diablocantatoire','Infernity':'Infernité','Infernoid':'Inferno',
   'Invoked':'Invoqué','Inzektor':'Inzecteur','Jinzo':'Jinzo','Junk':'Ferraille',
