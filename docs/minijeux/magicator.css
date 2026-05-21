@@ -1,0 +1,65 @@
+@import url("yuginator.css");
+
+.y-orb {
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,.1), transparent),
+    linear-gradient(145deg,#1f1530,#120d1e);
+
+  border: 1px solid rgba(140,100,255,.4);
+
+  box-shadow:
+    0 0 30px rgba(140,100,255,.3),
+    inset 0 0 25px rgba(255,255,255,.04);
+}
+
+.y-orb.thinking {
+  animation: yOrbSpin 1s linear infinite;
+}
+
+.y-startbtn {
+  background: linear-gradient(135deg,#8b5cf6,#6d28d9);
+  color: white;
+}
+
+.y-startbtn:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 20px rgba(139,92,246,.5);
+}
+
+.y-result.win {
+  border-color: rgba(139,92,246,.6);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(139,92,246,.15),
+      rgba(0,0,0,.2)
+    );
+}
+
+.y-rcard {
+  font-size: 1.4rem;
+  color: #d6bcff;
+}
+
+#yRimg {
+  box-shadow: 0 0 35px rgba(139,92,246,.35);
+}
+
+.y-btn:hover {
+  transform: translateY(-2px);
+}
+
+body::before {
+  content: "";
+
+  position: fixed;
+  inset: 0;
+
+  background:
+    radial-gradient(circle at center,
+    rgba(139,92,246,.08),
+    transparent 60%);
+
+  pointer-events: none;
+}
