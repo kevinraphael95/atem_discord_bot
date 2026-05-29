@@ -806,6 +806,7 @@ function yugiInit() {
   yHistory=[]; yHistory_states=[]; yGuessIdx=0;
   yGameOver=false; yCurQ=null; yThinking=false; yQCount=0; ySortedPool=[];
   yPool = ALL_CARDS.slice();
+  initWeights(yPool);
 
   document.getElementById('yResult').className = 'y-result';
   document.getElementById('yRestart').classList.remove('on');
@@ -900,22 +901,59 @@ function yugiUndo() {
 }
 
 // ── BLOC 4 : applyAnswer corrigé ─────────────────────────
-function applyAnswer(pool, q, ans) {
-  if (ans==='oui') { const f=pool.filter(q.test); return f.length>0?f:pool; }
-  if (ans==='non') { const f=pool.filter(c=>!q.test(c)); return f.length>0?f:pool; }
-  const MINORITY_RATIO = 0.12;
-  if (ans==='plutot_oui') {
-    const yes=pool.filter(q.test), no=pool.filter(c=>!q.test(c));
-    const kept=no.slice(0, Math.max(1, Math.round(no.length*MINORITY_RATIO)));
-    const m=[...yes,...kept]; return m.length>0?m:pool;
-  }
-  if (ans==='plutot_non') {
-    const yes=pool.filter(q.test), no=pool.filter(c=>!q.test(c));
-    const kept=yes.slice(0, Math.max(1, Math.round(yes.length*MINORITY_RATIO)));
-    const m=[...no,...kept]; return m.length>0?m:pool;
-  }
-  return pool;
+let yWeights = new Map();
+
+function initWeights(pool) {
+  yWeights = new Map();
+  pool.forEach(c => yWeights.set(c.id, 1.0));
 }
+
+function applyAnswer(pool, q, ans) {
+  const CORRECT_BOOST = 1.25;
+  const WRONG_PENALTY = 0.28;
+  const FUZZY_BOOST   = 1.10;
+  const FUZZY_PENALTY = 0.55;
+  const FLOOR         = 0.05;
+  const THRESHOLD     = 0.15;
+
+  pool.forEach(c => {
+    const matches = q.test(c);
+    let w = yWeights.get(c.id) ?? 1.0;
+    if      (ans === 'oui')        w *= matches ? CORRECT_BOOST : WRONG_PENALTY;
+    else if (ans === 'non')        w *= matches ? WRONG_PENALTY : CORRECT_BOOST;
+    else if (ans === 'plutot_oui') w *= matches ? FUZZY_BOOST   : FUZZY_PENALTY;
+    else if (ans === 'plutot_non') w *= matches ? FUZZY_PENALTY : FUZZY_BOOST;
+    yWeights.set(c.id, Math.max(FLOOR, Math.min(w, 5.0)));
+  });
+
+  const filtered = pool.filter(c => (yWeights.get(c.id) ?? 1.0) >= THRESHOLD);
+  return filtered.length >= 1 ? filtered : pool;
+}
+
+
+function getContextualReaction(pool, q, ans) {
+  const n = pool.length;
+  const yesCount = pool.filter(q.test).length;
+  const ratio = yesCount / pool.length;
+
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  if (ans === 'ne_sais_pas')
+    return pick(['Pas de souci, je tourne autrement.', 'Je vais contourner ça.', 'Hmm, je cherche une autre piste…']);
+  if (ans === 'oui' && ratio < 0.12)
+    return pick(['Vraiment ? Ça m\'étonne, mais je vous crois.', 'Oh ! Intéressant. Je n\'aurais pas parié.', 'Surprenant — mais ça réduit beaucoup le champ.']);
+  if (ans === 'non' && ratio > 0.85)
+    return pick(['Ah ! Ça change tout.', 'Je n\'aurais pas cru… Noté.', 'Voilà qui est inattendu — je recalcule.']);
+  if (ans === 'oui' && ratio > 0.80)
+    return pick(['Bien sûr, ça confirme ce que je pressentais.', 'Je m\'en doutais.', 'Cohérent avec mes données.']);
+  if (n <= 5)
+    return pick(['Je brûle… c\'est l\'une de ces cartes.', 'Presque ! Encore un effort.', 'Le cercle se resserre vraiment.']);
+  if (n <= 20)
+    return pick(['On avance bien.', 'Le champ est réduit.', 'Je commence à voir quelque chose.']);
+
+  return null; // pas de réaction → délai court normal
+}
+
 
 function yugiAnswer(ans) {
   if (yThinking||yGameOver||!yCurQ) return;
@@ -949,21 +987,42 @@ function yugiAnswer(ans) {
   yHistory.push({label:q.label,ans:ansLabel[ans]||ans,pool:yPool.length});
   renderHistory(); updatePoolInfo();
 
-  yThinking=true; setUI('thinking');
-  setTimeout(()=>nextStep(),500);
+  // Détection incohérence
+    const maxW = Math.max(...yPool.map(c => yWeights.get(c.id) ?? 1.0));
+    if (maxW < 0.4 && yQCount > 5) {
+      yHistory.push({ label: '⚠ Certaines réponses semblent contradictoires…', ans: '?', pool: yPool.length });
+      renderHistory();
+    }
+  
+    // Réaction humaine contextuelle
+    const reaction = getContextualReaction(yPool, q, ans);
+    yThinking = true;
+    if (reaction) {
+      document.getElementById('yQnum').textContent = 'ANALYSE EN COURS…';
+      document.getElementById('yQtext').textContent = reaction;
+      document.getElementById('yAnswers').style.display = 'none';
+      document.getElementById('yOrb').textContent = '⚡';
+      setTimeout(() => nextStep(), 1100);
+    } else {
+      setUI('thinking');
+      setTimeout(() => nextStep(), 500);
+    }
 }
 
 // ── BLOC 5 : enterGuessPhase corrigé ─────────────────────
 function enterGuessPhase() {
   ySortedPool = yPool.slice().sort((a, b) => {
-    const aM = MONSTER_FRAMES.has(a.frameType) ? 1 : 0;
-    const bM = MONSTER_FRAMES.has(b.frameType) ? 1 : 0;
-    if (aM !== bM) return bM - aM;
-    const sa = (a.atk>0?a.atk:0) + (a.level>0?a.level*50:0);
-    const sb = (b.atk>0?b.atk:0) + (b.level>0?b.level*50:0);
-    if (sa !== sb) return sb - sa;
-    return a.name.localeCompare(b.name, 'fr');
-  });
+      const wa = yWeights.get(a.id) ?? 1.0;
+      const wb = yWeights.get(b.id) ?? 1.0;
+      if (Math.abs(wa - wb) > 0.08) return wb - wa; // poids d'abord
+      const aM = MONSTER_FRAMES.has(a.frameType) ? 1 : 0;
+      const bM = MONSTER_FRAMES.has(b.frameType) ? 1 : 0;
+      if (aM !== bM) return bM - aM;
+      const sa = (a.atk>0?a.atk:0) + (a.level>0?a.level*50:0);
+      const sb = (b.atk>0?b.atk:0) + (b.level>0?b.level*50:0);
+      if (sa !== sb) return sb - sa;
+      return a.name.localeCompare(b.name, 'fr');
+    });
   yGuessIdx = 0;
   showGuessStep();
 }
@@ -1008,7 +1067,9 @@ function showGuessStep() {
  
   const intro = GUESS_INTROS[Math.floor(Math.random() * GUESS_INTROS.length)];
   document.getElementById('yQnum').textContent = rLabel + ' ' + yGuessIdx;
-  document.getElementById('yQtext').textContent = intro + card.name + ' ?';
+  const w = yWeights.get(card.id) ?? 1.0;
+  const confidence = w >= 2.0 ? '— j\'en suis quasi certain' : w >= 0.7 ? '— probable' : '— à vérifier';
+  document.getElementById('yQtext').textContent = intro + card.name + ' ? ' + confidence;
   const pct = Math.min(99, 65 + yQCount * 3);
   document.getElementById('yConf').textContent = pct + '%';
   document.getElementById('yProgFill').style.width = pct + '%';
