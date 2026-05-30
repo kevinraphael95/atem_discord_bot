@@ -18,7 +18,7 @@
 }
 .hero-top {
   display: flex; align-items: center; justify-content: center; gap: 2.5rem;
-  flex-wrap: wrap; margin-bottom: 2rem;
+  flex-wrap: nowrap; margin-bottom: 2rem;
   opacity: 0; animation: rise .7s .3s forwards;
 }
 .avatar {
@@ -83,7 +83,7 @@
 .fcard-desc { font-size: .88rem; color: var(--text); line-height: 1.6; }
 @media (max-width: 700px) {
   .hero       { padding: 6.5rem 1.2rem 4rem; }
-  .hero-top   { gap: 1.4rem; }
+  .hero-top   { gap: 1.4rem; flex-wrap: wrap; }
   .hero-title { text-align: center; font-size: clamp(2.6rem, 14vw, 4.5rem); }
   .avatar     { width: 85px; height: 85px; }
   .features-sec { padding: 2.5rem 1.2rem 5rem; }
