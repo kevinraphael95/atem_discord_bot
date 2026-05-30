@@ -32,7 +32,7 @@
 }
 .hero-title {
   font-family: 'Shippori Mincho', serif;
-  font-weight: 800; font-size: clamp(2.8rem, 8.5vw, 7.5rem);
+  font-weight: 800; font-size: clamp(2.8rem, 5.5vw, 5rem);
   line-height: .88; letter-spacing: -.01em; text-align: left;
 }
 .hero-title .l1 { display: block; color: var(--white); }
