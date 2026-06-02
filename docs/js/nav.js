@@ -1,10 +1,10 @@
 (function () {
   const pages = [
+    { href: 'install.html',    label: 'Installation' },
     { href: 'commandes.html',  label: 'Commandes' },
     { href: 'vaact.html',      label: 'VAACT' },
     { href: 'vaactdeck.html',  label: 'DECKS' },
     { href: 'minijeux.html',   label: 'Mini-jeux' },
-    { href: 'install.html',    label: 'Installation' },
   ];
   const themes = [
     { id: 'shadowrealm',    label: 'Shadow Realm',        icon: '👤' },
