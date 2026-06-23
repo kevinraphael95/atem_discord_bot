@@ -790,6 +790,7 @@ function bestQuestion(pool, askedKeys, resolvedGroups) {
 // ══════════════════════════════════════════════════════════
 
 let yPool           = [];
+let yBench          = [];   // cartes écartées par une réponse "plutôt" — récupérables, pas perdues
 let yAsked          = new Set();
 let yResolved       = new Set();
 let yHistory        = [];
@@ -800,11 +801,13 @@ let yCurQ           = null;
 let yThinking       = false;
 let yQCount         = 0;
 let ySortedPool     = [];
+let yRecoveryMode   = false;   // true quand on propose de revenir corriger une réponse
 
 function yugiInit() {
-  yPool=[]; yAsked=new Set(); yResolved=new Set();
+  yPool=[]; yBench=[]; yAsked=new Set(); yResolved=new Set();
   yHistory=[]; yHistory_states=[]; yGuessIdx=0;
   yGameOver=false; yCurQ=null; yThinking=false; yQCount=0; ySortedPool=[];
+  yRecoveryMode=false;
   yPool = ALL_CARDS.slice();
 
   document.getElementById('yResult').className = 'y-result';
@@ -825,7 +828,7 @@ function yugiInit() {
 
 function nextStep() {
   if (yGameOver) return;
-  if (yPool.length===0) { showGiveUp(); return; }
+  if (yPool.length===0) { offerRecoveryOrGiveUp(); return; }
   if (yPool.length<=1)  { enterGuessPhase(); return; }
   const q = bestQuestion(yPool, yAsked, yResolved);
   if (!q) { enterGuessPhase(); return; }
@@ -866,6 +869,23 @@ const Q_CONTEXT_COMMENTS = [
   "Les pièces s'assemblent.",
   "Je n'ai plus beaucoup de questions à poser.",
 ];
+
+// Petites réactions affichées juste après une réponse "plutôt oui/non",
+// pour signaler qu'on garde une marge de manœuvre plutôt que de trancher sec.
+const SOFT_ANSWER_REACTIONS = {
+  plutot_oui: [
+    "D'accord, je penche du même côté, mais je garde les autres possibilités sous le coude.",
+    "Noté — je n'écarte rien complètement, on ne sait jamais.",
+    "Compris, je vais dans cette direction sans fermer la porte au reste.",
+    "Ça me suffit pour avancer, mais je garde un œil sur le reste au cas où.",
+  ],
+  plutot_non: [
+    "D'accord, je m'éloigne de cette piste, mais je la garde en réserve.",
+    "Noté — j'écarte surtout cette option, sans la rayer définitivement.",
+    "Compris, je continue ailleurs, mais rien n'est perdu pour cette piste.",
+    "Ça m'oriente plutôt ailleurs, mais je garde une marge d'erreur.",
+  ],
+};
  
 function showQuestion(q) {
   yThinking = false;
@@ -893,48 +913,53 @@ function updateProgress() {
 function yugiUndo() {
   if (yHistory_states.length===0||yGameOver) return;
   const snap = yHistory_states.pop();
-  yPool=snap.pool; yAsked=snap.asked; yResolved=snap.resolved;
+  yPool=snap.pool; yBench=snap.bench; yAsked=snap.asked; yResolved=snap.resolved;
   yHistory=snap.history; yQCount=snap.qCount; yCurQ=snap.curQ;
-  yGuessIdx=0; yThinking=false; ySortedPool=[];
+  yGuessIdx=0; yThinking=false; ySortedPool=[]; yRecoveryMode=false;
   renderHistory(); updatePoolInfo(); showQuestion(yCurQ);
 }
 
-// ── BLOC 4 : applyAnswer corrigé ─────────────────────────
+// ── Application d'une réponse, avec mise de côté (bench) plutôt que suppression sèche ──
+// oui / non  → filtrage définitif (réponse sans ambiguïté affichée par le joueur)
+// plutot_oui / plutot_non → le côté "perdant" est mis de côté (yBench), pas supprimé.
+//   Il pourra être rappelé plus tard si le pool s'effondre (signe probable d'une réponse
+//   "plutôt" qui était en fait fausse).
+// ne_sais_pas → aucun filtrage, la question est juste écartée de la liste des questions posables.
 function applyAnswer(pool, q, ans) {
-  if (ans==='oui') { const f=pool.filter(q.test); return f.length>0?f:pool; }
-  if (ans==='non') { const f=pool.filter(c=>!q.test(c)); return f.length>0?f:pool; }
-  const MINORITY_RATIO = 0.12;
+  if (ans==='oui') { const f=pool.filter(q.test); return { pool: f.length>0?f:pool, benched: [] }; }
+  if (ans==='non') { const f=pool.filter(c=>!q.test(c)); return { pool: f.length>0?f:pool, benched: [] }; }
+
   if (ans==='plutot_oui') {
     const yes=pool.filter(q.test), no=pool.filter(c=>!q.test(c));
-    const kept=no.slice(0, Math.max(1, Math.round(no.length*MINORITY_RATIO)));
-    const m=[...yes,...kept]; return m.length>0?m:pool;
+    const benched = no.map(card => ({ card, qKey:q.key, qLabel:q.label, ans }));
+    const newPool = yes.length>0 ? yes : pool;
+    return { pool:newPool, benched: yes.length>0 ? benched : [] };
   }
   if (ans==='plutot_non') {
     const yes=pool.filter(q.test), no=pool.filter(c=>!q.test(c));
-    const kept=yes.slice(0, Math.max(1, Math.round(yes.length*MINORITY_RATIO)));
-    const m=[...no,...kept]; return m.length>0?m:pool;
+    const benched = yes.map(card => ({ card, qKey:q.key, qLabel:q.label, ans }));
+    const newPool = no.length>0 ? no : pool;
+    return { pool:newPool, benched: no.length>0 ? benched : [] };
   }
-  return pool;
+  return { pool, benched: [] };
 }
 
 function yugiAnswer(ans) {
   if (yThinking||yGameOver||!yCurQ) return;
   const q=yCurQ;
-  yHistory_states.push({ pool:yPool.slice(), asked:new Set(yAsked), resolved:new Set(yResolved), history:yHistory.slice(), qCount:yQCount, curQ:yCurQ });
+  yHistory_states.push({ pool:yPool.slice(), bench:yBench.slice(), asked:new Set(yAsked), resolved:new Set(yResolved), history:yHistory.slice(), qCount:yQCount, curQ:yCurQ });
   yAsked.add(q.key);
   yQCount++;
-  yPool=applyAnswer(yPool,q,ans);
 
-  // DEBUG temporaire
-  const exodiaCards = yPool.filter(c => c.name.toLowerCase().includes('exodia') || c.name.toLowerCase().includes('necross'));
-  if (exodiaCards.length > 0) console.log('[DEBUG] Exodia restants:', exodiaCards.map(c => c.name + ' | ban:' + c.ban + ' | frame:' + c.frameType + ' | arch:' + c.archetype));
-  else console.log('[DEBUG] Plus aucune carte Exodia dans le pool après:', q.label, '→', ans);
+  const result = applyAnswer(yPool, q, ans);
+  yPool = result.pool;
+  if (result.benched.length > 0) yBench = [...yBench, ...result.benched];
 
   // Résolution de groupes
   if (ans==='oui'&&q.key.includes('_eq_')) yResolved.add(q.group);
   if (q.group==='cardcat' && ans==='oui') yResolved.add('cardcat');
 
-  // ── BLOC 7 : résolution archétype corrigée ────────────
+  // ── résolution archétype ────────
   if (q.key==='has_archetype') {
     yResolved.add('has_archetype');
     if (ans==='non'||ans==='plutot_non'||ans==='ne_sais_pas') {
@@ -946,14 +971,129 @@ function yugiAnswer(ans) {
   if (q.group==='format'&&ans==='oui') yResolved.add('format');
 
   const ansLabel={oui:'OUI',non:'NON',plutot_oui:'~OUI',plutot_non:'~NON',ne_sais_pas:'?'};
-  yHistory.push({label:q.label,ans:ansLabel[ans]||ans,pool:yPool.length});
+  yHistory.push({label:q.label,ans:ansLabel[ans]||ans,pool:yPool.length, qKey:q.key, rawAns:ans});
   renderHistory(); updatePoolInfo();
 
   yThinking=true; setUI('thinking');
-  setTimeout(()=>nextStep(),500);
+
+  // Petite réaction humaine après une réponse nuancée, avant de relancer la réflexion
+  if ((ans==='plutot_oui'||ans==='plutot_non') && Math.random() < 0.4) {
+    const pool = SOFT_ANSWER_REACTIONS[ans];
+    const reaction = pool[Math.floor(Math.random()*pool.length)];
+    document.getElementById('yQtext').textContent = reaction;
+  }
+
+  setTimeout(()=>nextStep(),550);
 }
 
-// ── BLOC 5 : enterGuessPhase corrigé ─────────────────────
+// ══════════════════════════════════════════════════════════
+//  RÉCUPÉRATION SUR CONTRADICTION
+//  Quand le pool est vide, on suppose qu'une réponse "plutôt"
+//  était probablement la cause, plutôt que d'abandonner tout de suite.
+// ══════════════════════════════════════════════════════════
+
+const RECOVERY_INTROS = [
+  "Hmm, je n'ai plus aucune carte qui corresponde à tout ça… je crois que je me suis trompé quelque part, ou peut-être que c'est une réponse qui méritait d'être un peu plus nuancée.",
+  "Attendez… il ne me reste plus rien. Soit votre carte m'a totalement échappé, soit une réponse plus tôt m'a égaré.",
+  "Je tourne en rond, plus aucune carte ne colle. Peut-être qu'une de vos réponses méritait un 'plutôt' plutôt qu'un 'oui' ou 'non' tranché ?",
+  "Le champ des possibles vient de se vider complètement. Avant d'abandonner, je me demande si on n'a pas pris un mauvais virage ensemble.",
+];
+
+function offerRecoveryOrGiveUp() {
+  // S'il y a des cartes mises de côté, on les propose en priorité avant d'abandonner
+  if (yBench.length > 0) {
+    showRecoveryPrompt();
+    return;
+  }
+  showGiveUp();
+}
+
+function showRecoveryPrompt() {
+  yRecoveryMode = true;
+  yThinking = false;
+  setUI('recovery');
+
+  const intro = RECOVERY_INTROS[Math.floor(Math.random()*RECOVERY_INTROS.length)];
+  document.getElementById('yQnum').textContent = '🤔 UN INSTANT…';
+  document.getElementById('yQtext').textContent = intro + ' Pensez-vous avoir mal répondu à une question ?';
+  updateProgress();
+}
+
+// Construit la liste des dernières questions répondues "plutôt", point de suspicion n°1
+function getRecoveryCandidates() {
+  // On regarde l'historique en partant de la fin, on garde les réponses nuancées et non définitives
+  const candidates = [];
+  for (let i = yHistory.length - 1; i >= 0 && candidates.length < 5; i--) {
+    const h = yHistory[i];
+    if (h.rawAns === 'plutot_oui' || h.rawAns === 'plutot_non' || h.rawAns === 'ne_sais_pas') {
+      candidates.push({ index: i, label: h.label, ans: h.ans, qKey: h.qKey });
+    }
+  }
+  // Si rien de nuancé, on propose quand même les 3 dernières questions, point
+  if (candidates.length === 0) {
+    for (let i = yHistory.length - 1; i >= 0 && candidates.length < 3; i--) {
+      candidates.push({ index: i, label: yHistory[i].label, ans: yHistory[i].ans, qKey: yHistory[i].qKey });
+    }
+  }
+  return candidates;
+}
+
+// Le joueur confirme qu'il pense s'être trompé : on lui propose de choisir LAQUELLE
+function yugiOfferCorrection() {
+  const candidates = getRecoveryCandidates();
+  setUI('recovery_pick', candidates);
+  document.getElementById('yQnum').textContent = '🔧 CORRIGER UNE RÉPONSE';
+  document.getElementById('yQtext').textContent = "Laquelle de ces réponses vous semble la plus suspecte ?";
+}
+
+// Le joueur choisit une question précise à corriger : on annule jusqu'à ce point précis,
+// puis on relance la question correspondante pour qu'il y réponde à nouveau.
+function yugiCorrectAt(historyIndex) {
+  // On reconstruit l'état EXACTEMENT comme avant que cette question n'ait été posée,
+  // en rejouant les réponses suivantes à partir de zéro avec le pool d'origine + bench.
+  // La méthode la plus sûre est de revenir aux snapshots successifs.
+  if (historyIndex < 0 || historyIndex >= yHistory_states.length) {
+    // Sécurité : si l'historique ne correspond pas, on repart d'avant la dernière réponse connue
+    historyIndex = Math.max(0, yHistory_states.length - 1);
+  }
+  const snap = yHistory_states[historyIndex];
+  // On tronque tout ce qui vient après
+  yHistory_states = yHistory_states.slice(0, historyIndex);
+  yPool   = snap.pool.slice();
+  yBench  = snap.bench.slice();
+  yAsked  = new Set(snap.asked);
+  yResolved = new Set(snap.resolved);
+  yHistory = snap.history.slice();
+  yQCount = snap.qCount;
+  yCurQ   = snap.curQ;
+  yGuessIdx = 0; yThinking = false; ySortedPool = []; yRecoveryMode = false;
+
+  renderHistory(); updatePoolInfo();
+  showQuestion(yCurQ);
+}
+
+// Le joueur dit non, il n'a pas l'impression de s'être trompé → on tente quand même
+// de réinjecter le banc de cartes écartées par des réponses "plutôt", au cas où la
+// bonne carte s'y trouve, avant d'abandonner pour de bon.
+function yugiDeclineCorrection() {
+  if (yBench.length > 0) {
+    // On remet en jeu toutes les cartes du banc, en gardant un avertissement clair
+    const recovered = yBench.map(b => b.card);
+    const uniqueRecovered = recovered.filter((c, i) => recovered.findIndex(x => x.name === c.name) === i);
+    yPool = uniqueRecovered;
+    yBench = [];
+    yRecoveryMode = false;
+    yHistory.push({ label: 'Reprise des cartes mises de côté plus tôt', ans: '↺', pool: yPool.length });
+    renderHistory(); updatePoolInfo();
+    yThinking = true; setUI('thinking');
+    document.getElementById('yQtext').textContent = "D'accord, je rouvre toutes les pistes que j'avais mises de côté…";
+    setTimeout(() => nextStep(), 700);
+    return;
+  }
+  showGiveUp();
+}
+
+// ── Phase de propositions ─────────────────────────────────
 function enterGuessPhase() {
   ySortedPool = yPool.slice().sort((a, b) => {
     const aM = MONSTER_FRAMES.has(a.frameType) ? 1 : 0;
@@ -991,7 +1131,7 @@ const GUESS_INTROS = [
 
 
 function showGuessStep() {
-  if (yGuessIdx >= ySortedPool.length) { showGiveUp(); return; }
+  if (yGuessIdx >= ySortedPool.length) { offerRecoveryOrGiveUp(); return; }
   const card = ySortedPool[yGuessIdx]; yGuessIdx++;
   setUI('guess');
  
@@ -1028,33 +1168,42 @@ function yugiConfirmGuess(ok) {
   yThinking=true; setUI('thinking');
   setTimeout(() => {
       if (yPool.length === 0) {
-        yGameOver = true; setUI('none'); showResult(false, null, null); return;
+        offerRecoveryOrGiveUp(); return;
       }
       if (ySortedPool.length === 0) { enterGuessPhase(); return; }
       showGuessStep();
     }, 400);
-  }  // ← cette accolade ferme yugiConfirmGuess
-  
-  function showGiveUp() {
-    if (yPool.length > 0) {
-      enterGuessPhase();
-      return;
-    }
-    yGameOver = true;
-    setUI('none');
-    showResult(false, null, null);
   }
+  
+function showGiveUp() {
+  if (yPool.length > 0) {
+    enterGuessPhase();
+    return;
+  }
+  yGameOver = true;
+  setUI('none');
+  showResult(false, null, null);
+}
+
+const DEFEAT_TITLES = [
+  '☠ LE YUGINATOR S\'INCLINE',
+  '🤯 ÉCHEC ET MAT… POUR MOI',
+  '😅 VOUS M\'AVEZ EU',
+  '🃏 PARTIE REMISE',
+];
 
 function showResult(won,name,img) {
   const r=document.getElementById('yResult');
   r.className='y-result on '+(won?'win':'def');
-  document.getElementById('yRttl').textContent=won?'🃏 TROUVÉ EN '+yQCount+' QUESTION'+(yQCount>1?'S':''):'☠ LE YUGINATOR S\'INCLINE';
+  document.getElementById('yRttl').textContent = won
+    ? '🃏 TROUVÉ EN '+yQCount+' QUESTION'+(yQCount>1?'S':'')
+    : DEFEAT_TITLES[Math.floor(Math.random()*DEFEAT_TITLES.length)];
   document.getElementById('yRcard').textContent=won?name:'???';
   const rimg=document.getElementById('yRimg');
   if (rimg) { if (won&&img){rimg.src=img;rimg.style.display='block';}else{rimg.style.display='none';} }
   document.getElementById('yRdesc').textContent=won
     ?'Le Yuginator a percé le voile en '+yQCount+' réponse'+(yQCount>1?'s':'')+' sur '+ALL_CARDS.length.toLocaleString('fr')+' cartes.'
-    :'Votre carte a résisté à l\'analyse. '+yPool.length+' candidate'+(yPool.length>1?'s':'')+' restai'+(yPool.length>1?'ent':'t')+'. Quelle était-elle ?';
+    :'Votre carte a résisté à l\'analyse, même en rouvrant les pistes mises de côté. '+(yPool.length>0?yPool.length+' candidate'+(yPool.length>1?'s':'')+' restai'+(yPool.length>1?'ent':'t')+'. ':'')+'Quelle était-elle ?';
   if (!won&&yPool.length>0&&yPool.length<=20) {
     const extra=document.createElement('div');
     extra.style.cssText='font-size:.78rem;color:var(--color-text-secondary);margin-top:.5rem;font-style:italic;';
@@ -1066,19 +1215,19 @@ function showResult(won,name,img) {
 
 // ── UI HELPERS ────────────────────────────────────────────
 
-function setUI(mode) {
+function setUI(mode, payload) {
   const ans=document.getElementById('yAnswers');
   const orb=document.getElementById('yOrb');
   if (mode==='thinking') {
     orb.classList.add('thinking'); orb.textContent='⚡';
     document.getElementById('yQnum').textContent='ANALYSE EN COURS…';
-    document.getElementById('yQtext').textContent='…';
     ans.style.display='none'; return;
   }
   orb.classList.remove('thinking');
-  orb.textContent=mode==='guess'?'🎯':'🔮';
+  orb.textContent = mode==='guess' ? '🎯' : (mode==='recovery'||mode==='recovery_pick' ? '🤔' : '🔮');
   if (mode==='none') { ans.style.display='none'; return; }
   ans.style.display='flex';
+
   if (mode==='question') {
     ans.innerHTML=`
       <button class="y-btn yes"     onclick="yugiAnswer('oui')">✅ OUI</button>
@@ -1090,8 +1239,21 @@ function setUI(mode) {
     ans.innerHTML=`
       <button class="y-btn yes" onclick="yugiConfirmGuess(true)">✅ OUI, C'EST ÇA !</button>
       <button class="y-btn no"  onclick="yugiConfirmGuess(false)">❌ NON, CE N'EST PAS ÇA</button>`;
+  } else if (mode==='recovery') {
+    ans.innerHTML=`
+      <button class="y-btn yes" onclick="yugiOfferCorrection()">🔧 OUI, JE PENSE M'ÊTRE TROMPÉ(E)</button>
+      <button class="y-btn no"  onclick="yugiDeclineCorrection()">➡️ NON, CONTINUE QUAND MÊME</button>`;
+  } else if (mode==='recovery_pick') {
+    const candidates = payload || [];
+    ans.innerHTML = candidates.map(c =>
+      `<button class="y-btn idk" style="text-align:left;white-space:normal;" onclick="yugiCorrectAt(${c.index})">
+        "${c.label}" — j'avais répondu ${c.ans}
+      </button>`
+    ).join('') + `<button class="y-btn no" onclick="yugiDeclineCorrection()">Aucune de ces réponses, abandonne</button>`;
+    return; // pas de bouton retour ici, ça n'aurait pas de sens
   }
-  if (yHistory_states.length>0) {
+
+  if (yHistory_states.length>0 && mode!=='recovery_pick') {
     const u=document.createElement('button');
     u.className='y-btn undo'; u.textContent='↩ RETOUR'; u.onclick=yugiUndo;
     ans.appendChild(u);
@@ -1102,7 +1264,8 @@ function updatePoolInfo() {
   const el=document.getElementById('yPoolInfo');
   if (!el) return;
   const n=yPool.length;
-  el.textContent=n.toLocaleString('fr')+' carte'+(n>1?'s':'')+' restante'+(n>1?'s':'');
+  const benchSuffix = yBench.length > 0 ? ' (+'+yBench.length.toLocaleString('fr')+' en réserve)' : '';
+  el.textContent=n.toLocaleString('fr')+' carte'+(n>1?'s':'')+' restante'+(n>1?'s':'')+benchSuffix;
 }
 
 function renderHistory() {
@@ -1111,7 +1274,7 @@ function renderHistory() {
   list.innerHTML='';
   yHistory.forEach(h=>{
     const item=document.createElement('div'); item.className='y-hi';
-    const clsMap={'OUI':'yes','NON':'no','~OUI':'pyesbtn','~NON':'pnobtn','?':'idk'};
+    const clsMap={'OUI':'yes','NON':'no','~OUI':'pyesbtn','~NON':'pnobtn','?':'idk','↺':'idk'};
     const cls=clsMap[h.ans]||'idk';
     item.innerHTML=`<span class="hq">${h.label}</span><span class="ha ${cls}">${h.ans}</span>`;
     if (h.pool!==undefined) {
