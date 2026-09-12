@@ -130,7 +130,7 @@
     "Reiji Akaba": {
       "deck": {
         "Normal": {
-          "Main/Side": "https://www.duelingbook.com/deck?id=12169181",
+          "Main/Side": "https://www.duelingbook.com/deck?id=20669649",
           "Extra": "https://www.duelingbook.com/deck?id=12174794"
         }
       }
@@ -357,22 +357,22 @@
     "Princesse Cologne": {
       "deck": {
         "Normal": {
-          "Main/Side/Extra" : "https://www.duelingbook.com/deck?id=16853606",
-          "Ext. Duel" : "https://www.duelingbook.com/deck?id=17867721"
+          "Main/Side/Extra": "https://www.duelingbook.com/deck?id=16853606",
+          "Ext. Duel": "https://www.duelingbook.com/deck?id=17867721"
         }
       }
     },
     "Tetsu Trudge": {
       "deck": {
         "Normal": {
-          "Main/Side" : "https://www.duelingbook.com/deck?id=16999879"
+          "Main/Side": "https://www.duelingbook.com/deck?id=16999879"
         }
       }
     },
     "Blue Maiden": {
       "deck": {
         "Normal": {
-          "Main/Side" : "https://www.duelingbook.com/deck?id=17049558"
+          "Main/Side": "https://www.duelingbook.com/deck?id=17049558"
         }
       }
     },
@@ -386,20 +386,17 @@
     "Jesse Anderson": {
       "deck": {
         "Normal": {
-          "Main/Side" : "https://www.duelingbook.com/deck?id=16858979",
-          "Ext. Duel" : "https://www.duelingbook.com/deck?id=17813934"
+          "Main/Side": "https://www.duelingbook.com/deck?id=16858979",
+          "Ext. Duel": "https://www.duelingbook.com/deck?id=17813934"
         }
       }
     },
     "George Gore Heel": {
       "deck": {
         "Normal": {
-          "Main/Side" : "https://www.duelingbook.com/deck?id=16853606"
+          "Main/Side": "https://www.duelingbook.com/deck?id=16853606"
         }
       }
     }
-
-
-    
   }
 }
