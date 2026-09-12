@@ -398,5 +398,92 @@
         }
       }
     }
-  }
+  },
+  
+  "Saison 3": {
+      "Maximillion Pegasus": {
+        "deck": {
+          "Normal": {
+            "Main/Side/Extra": "https://www.duelingbook.com/deck?id=20624837",
+            "Ext. Duel": "https://www.duelingbook.com/deck?id=20696630"
+          }
+        }
+      },
+      "Marik Ishtar": {
+        "deck": {
+          "Normal": {
+            "Main/Side": "https://www.duelingbook.com/deck?id=20650489"
+          }
+        }
+      },
+      "Yami Bakura": {
+        "deck": {
+          "Normal": {
+            "Main/Side/Extra": "https://www.duelingbook.com/deck?id=20640713",
+            "Ext. Duel": "https://www.duelingbook.com/deck?id=20696624"
+          }
+        }
+      },
+      "Siegfried Von Schroeder": {
+        "deck": {
+          "Normal": {
+            "Main/Side": "https://www.duelingbook.com/deck?id=20663098"
+          }
+        }
+      },
+      "Dr. Crowler": {
+        "deck": {
+          "Normal": {
+            "Main/Side": "https://www.duelingbook.com/deck?id=20675568"
+          }
+        }
+      },
+      "Amnael": {
+        "deck": {
+          "Normal": {
+            "Main/Side": "https://www.duelingbook.com/deck?id=20690741",
+            "Ext. Duel": "https://www.duelingbook.com/deck?id=20696567"
+          }
+        }
+      },
+      "Sartorius": {
+        "deck": {
+          "Normal": {
+            "Main/Side/Extra": "https://www.duelingbook.com/deck?id=20703341",
+            "Ext. Duel": "https://www.duelingbook.com/deck?id=20741114"
+          }
+        }
+      },
+      "Yubel": {
+        "deck": {
+          "Normal": {
+            "Main/Side/Extra": "https://www.duelingbook.com/deck?id=20720147",
+            "Ext. Duel": "https://www.duelingbook.com/deck?id=20737819"
+          }
+        }
+      },
+      "Darkness": {
+        "deck": {
+          "Normal": {
+            "Main/Side": "https://www.duelingbook.com/deck?id=20729494",
+            "Ext. Duel": "https://www.duelingbook.com/deck?id=20732339"
+          }
+        }
+      },
+      "Rex Goodwin": {
+        "deck": {
+          "Normal": {
+            "Main/Side": "https://www.duelingbook.com/deck?id=20740652"
+          }
+        }
+      },
+      "Z-ONE": {
+        "deck": {
+          "Normal": {
+            "Main/Side": "https://www.duelingbook.com/deck?id=20751799"
+          }
+        }
+      }
+    }
+
 }
