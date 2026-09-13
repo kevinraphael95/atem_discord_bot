@@ -2,8 +2,7 @@
   const pages = [
     { href: 'install.html',    label: 'Installation' },
     { href: 'commandes.html',  label: 'Commandes' },
-    { href: 'vaact.html',      label: 'VAACT' },
-    { href: 'vaactdeck.html',  label: 'DECKS' },
+    { href: 'vaactdeck.html',  label: 'DECKS VAACT' },
     { href: 'minijeux.html',   label: 'Mini-jeux' },
   ];
   const themes = [
