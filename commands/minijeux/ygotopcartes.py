@@ -1,6 +1,6 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 topcarte.py
-# Objectif : Mini-jeu — Classer 5 cartes Yu-Gi-Oh! dans un top 5 à l’aveugle
+# Objectif : Mini-jeu — Classer 5 cartes Yu-Gi-Oh! dans un top 5 à l'aveugle
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Tous
 # Cooldown : 1 utilisation / 10 secondes par utilisateur
@@ -13,7 +13,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-import aiohttp
 import random
 
 from utils.discord_utils import safe_send, safe_edit
@@ -159,23 +158,22 @@ class TopCarte(commands.Cog):
     async def _get_random_cards(self):
         url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    return None
+        async with self.bot.aiohttp_session.get(url) as resp:
+            if resp.status != 200:
+                return None
 
-                data = await resp.json()
-                all_cards = data.get("data", [])
-                sample = random.sample(all_cards, 5)
+            data = await resp.json()
+            all_cards = data.get("data", [])
+            sample = random.sample(all_cards, 5)
 
-                return [
-                    {
-                        "name": c["name"],
-                        "desc": c["desc"],
-                        "image": c.get("card_images", [{}])[0].get("image_url")
-                    }
-                    for c in sample
-                ]
+            return [
+                {
+                    "name": c["name"],
+                    "desc": c["desc"],
+                    "image": c.get("card_images", [{}])[0].get("image_url")
+                }
+                for c in sample
+            ]
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne commune
@@ -207,7 +205,7 @@ class TopCarte(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="ygotopcarte",
-        description="Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l’aveugle."
+        description="Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l'aveugle."
     )
     @app_commands.checks.cooldown(rate=1, per=10.0, key=lambda i: i.user.id)
     async def slash_topcarte(self, interaction: discord.Interaction):
@@ -221,7 +219,7 @@ class TopCarte(commands.Cog):
     @commands.command(
         name="ygotopcarte",
         aliases=["ygotopcarte", "ygotopcartes", "ytopc"],
-        help="Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l’aveugle."
+        help="Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l'aveugle."
     )
     @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def prefix_topcarte(self, ctx: commands.Context):
