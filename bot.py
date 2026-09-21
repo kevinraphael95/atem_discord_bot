@@ -14,7 +14,6 @@ import uuid
 import random
 from datetime import datetime, timezone
 import asyncio
-import atexit
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Modules tiers
@@ -32,7 +31,7 @@ from utils.discord_utils import safe_send  # ✅ Utilitaires anti-429
 from utils.init_db import init_db          # <-- IMPORT INIT_DB
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Initialisation de l’environnement
+# 🔧 Initialisation de l'environnement
 # ────────────────────────────────────────────────────────────────────────────────
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv()
@@ -65,7 +64,7 @@ intents.dm_reactions = True
 
 bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=None)
 bot.INSTANCE_ID = INSTANCE_ID
-bot.aiohttp_session = None  # sera initialisée plus tard
+bot.aiohttp_session = None  # sera initialisée dans on_ready
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔒 Nettoyage aiohttp
@@ -73,8 +72,6 @@ bot.aiohttp_session = None  # sera initialisée plus tard
 async def cleanup_aiohttp():
     if bot.aiohttp_session and not bot.aiohttp_session.closed:
         await bot.aiohttp_session.close()
-
-atexit.register(lambda: asyncio.run(cleanup_aiohttp()))
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Chargement dynamique des commandes depuis /commands/*
@@ -136,7 +133,7 @@ async def on_message(message):
             color=discord.Color.red()
         )
         embed.set_footer(text="Tu dois croire en l'âme des cartes 🎴")
-        
+
         if bot.user.avatar:
             embed.set_thumbnail(url=bot.user.avatar.url)
         else:
@@ -171,9 +168,9 @@ if __name__ == "__main__":
     async def start():
         await load_commands()
         await load_tasks()
-        await bot.start(TOKEN)
+        try:
+            await bot.start(TOKEN)
+        finally:
+            await cleanup_aiohttp()
 
     asyncio.run(start())
-
-
-
