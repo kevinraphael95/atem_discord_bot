@@ -1,19 +1,19 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 vaact_utils.py — Utilitaires pour profils et gestion de l’EXP/Niveau
 # Objectif : Récupérer ou créer un profil, gérer les streaks et l’EXP des utilisateurs
 # Catégorie : Utilitaires
 # Accès : Tous
 # Base locale SQLite
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
 import sqlite3
 from pathlib import Path
 
 DB_PATH = Path("data/profil.db")
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔹 Gestion des profils
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def get_or_create_profile(user_id: int | str, username: str = None) -> dict:
     user_id_str = str(user_id)
     conn = sqlite3.connect(DB_PATH)
@@ -84,9 +84,9 @@ async def get_or_create_profile(user_id: int | str, username: str = None) -> dic
     conn.close()
     return profile
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔹 Gestion de l’EXP et des niveaux
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def add_exp(user_id: int | str, exp_gain: int) -> dict:
     """
     Ajoute de l'EXP à un profil. 5 EXP = 1 niveau.
@@ -104,9 +104,9 @@ async def add_exp(user_id: int | str, exp_gain: int) -> dict:
     conn.close()
     return profile
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔹 EXP pour les streaks (record)
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def add_exp_for_streak(user_id: int | str, new_best_streak: int) -> dict:
     """
     Ajoute de l'EXP uniquement si l'utilisateur bat son record de streak.
