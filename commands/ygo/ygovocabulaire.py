@@ -1,4 +1,4 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 vocabulaire.py — Commande interactive !vocabulaire
 # Objectif :
 #   - Affiche les définitions des termes du jeu depuis un fichier JSON
@@ -6,11 +6,11 @@
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # Cooldown : 1 utilisation / 5 sec / utilisateur
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -20,9 +20,9 @@ import os
 
 from utils.discord_utils import safe_send, safe_edit, safe_respond
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📂 Chargement des données JSON
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 VOCAB_PATH = os.path.join("data", "vocabulaire.json")
 
 def load_data():
@@ -33,9 +33,9 @@ def load_data():
         print(f"[ERREUR JSON] Impossible de charger {VOCAB_PATH} : {e}")
         return {}
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ View — Pagination interactive
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class VocabulaireView(View):
     def __init__(self, pages: list[discord.Embed]):
         super().__init__(timeout=120)
@@ -62,9 +62,9 @@ class VocabulaireView(View):
         if self.message:
             await safe_edit(self.message, view=self)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class VocabulaireCommand(commands.Cog):
     """Commande /vocabulaire et !vocabulaire — Définitions interactives de termes Yu-Gi-Oh!"""
 
@@ -108,9 +108,9 @@ class VocabulaireCommand(commands.Cog):
         view = VocabulaireView(pages)
         view.message = await safe_send(channel, embed=pages[0], view=view)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="ygovocabulaire",
         description="Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive."
@@ -122,17 +122,17 @@ class VocabulaireCommand(commands.Cog):
         await self._show_vocab(interaction.channel, mot_cle)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(name="ygovocabulaire", aliases=["ygovoc", "yvoc"], help="📘 Affiche les définitions des termes Yu-Gi-Oh! avec navigation interactive.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_vocabulaire(self, ctx: commands.Context, *, mot_cle: str = None):
         await self._show_vocab(ctx.channel, mot_cle)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = VocabulaireCommand(bot)
     for command in cog.get_commands():
