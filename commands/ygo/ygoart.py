@@ -1,4 +1,4 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 art.py
 # Objectif :
 #   - Afficher les illustrations d’une carte Yu-Gi-Oh!
@@ -10,11 +10,11 @@
 #   - Public
 # Cooldown :
 #   - 1 utilisation / 3 sec / utilisateur
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -23,9 +23,9 @@ from discord.ui import View, Button
 from utils.discord_utils import safe_send, safe_respond
 from utils.card_utils import search_card
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ View — Pagination des illustrations
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class ArtPagination(View):
     """Interface de navigation entre plusieurs illustrations."""
     def __init__(self, images: list[str], titre: str):
@@ -52,18 +52,18 @@ class ArtPagination(View):
         self.index = (self.index + 1) % len(self.images)
         await self.update_embed(interaction)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class Art(commands.Cog):
     """Commande /art et !art — Affiche les illustrations d’une carte Yu-Gi-Oh!"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Fonction interne commune
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _show_art(self, channel: discord.abc.Messageable, nom: str):
         carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
         if message:
@@ -94,9 +94,9 @@ class Art(commands.Cog):
         embed.set_image(url=images[0])
         await safe_send(channel, embed=embed, view=ArtPagination(images, titre))
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="ygoart",
         description="Affiche les illustrations d’une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT)."
@@ -108,9 +108,9 @@ class Art(commands.Cog):
         await self._show_art(interaction.channel, nom)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(
         name="ygoart",
         aliases=["yart"],
@@ -121,9 +121,9 @@ class Art(commands.Cog):
     async def prefix_art(self, ctx: commands.Context, *, nom: str):
         await self._show_art(ctx.channel, nom)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = Art(bot)
     for command in cog.get_commands():
