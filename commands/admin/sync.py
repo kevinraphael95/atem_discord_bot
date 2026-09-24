@@ -29,7 +29,7 @@ class Sync(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="sync",
-        description="Synchronise les commandes slash (serveur ou global)."
+        description="(Admin) Synchronise les commandes slash (serveur ou global)."
     )
     @app_commands.describe(scope="Tape 'global' pour synchroniser toutes les guildes.")
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: (i.user.id))
@@ -61,7 +61,7 @@ class Sync(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="sync")
+    @commands.command(name="sync", help="(Admin) Synchronise les commandes slash (serveur ou global).")
     @commands.is_owner()
     @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def prefix_sync(self, ctx: commands.Context, scope: str = None):
