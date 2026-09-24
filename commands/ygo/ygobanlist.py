@@ -191,7 +191,7 @@ class Banlist(commands.Cog):
     # ============================================================================
     # 🔹 Commande PREFIX
     # ============================================================================
-    @commands.command(name="ygobanlist", aliases=["ybl"], help="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination.")
+    @commands.command(name="ygobanlist", aliases=["ygobl", "ybanlist", "ybl"], help="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_banlist(self, ctx: commands.Context, banlist: str = "tcg"):
         groups, error = await self._run(banlist)
