@@ -3,7 +3,8 @@
 # Objectif :
 #   - Jeu du pendu interactif avec cartes Magic: The Gathering
 #   - Affiche type, couleur et set comme indice
-#   - Les espaces, tirets et apostrophes ne comptent pas comme lettres
+#   - Tout caractère non alphabétique (espace, tiret, apostrophe, virgule, etc.)
+#     est révélé automatiquement et ne compte pas comme une lettre à deviner
 #   - Les accents sont ignorés
 # Catégorie : Minijeux
 # Accès : Public
@@ -20,7 +21,7 @@ import asyncio
 import random
 import unicodedata
 
-from utils.discord_utils import safe_send, safe_edit
+from utils.discord_utils import safe_send, safe_edit, safe_delete
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🌐 Constantes Scryfall
@@ -47,8 +48,19 @@ INACTIVITE_MAX = 180  # 3 minutes
 # ────────────────────────────────────────────────────────────────────────────────
 # 🧩 Fonctions utilitaires
 # ────────────────────────────────────────────────────────────────────────────────
+
+# Ligatures et caractères précomposés que NFKD ne décompose pas en lettres simples.
+# On les normalise manuellement avant la décomposition Unicode classique.
+LIGATURES = {
+    "æ": "ae", "Æ": "ae",
+    "œ": "oe", "Œ": "oe",
+    "ß": "ss",
+}
+
 def normaliser_texte(texte: str) -> str:
-    """Supprime les accents et met en minuscules"""
+    """Supprime les accents, déplie les ligatures et met en minuscules."""
+    for src, repl in LIGATURES.items():
+        texte = texte.replace(src, repl)
     nfkd = unicodedata.normalize("NFKD", texte)
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
@@ -56,20 +68,22 @@ def normaliser_texte(texte: str) -> str:
 # 🧩 Classes internes
 # ────────────────────────────────────────────────────────────────────────────────
 class PenduGame:
-    def __init__(self, mot: str, mot_affiche: str, indice: str = None, mode: str = "solo"):
+    def __init__(self, mot: str, mot_affiche: str, indice: str = None):
         self.mot = mot
         self.mot_affiche = mot_affiche
         self.indice = indice
         self.trouve = set()
         self.rate = set()
         self.terminee = False
-        self.mode = mode
         self.max_erreurs = MAX_ERREURS
 
     def get_display_word(self) -> str:
+        """Affiche le mot : toute lettre non trouvée est masquée, tout caractère
+        non alphabétique (espace, tiret, apostrophe, virgule, chiffre, etc.)
+        est toujours visible."""
         res = ""
         for c in self.mot_affiche:
-            if c.lower() in (" ", "-", "'"):
+            if not c.isalpha():
                 res += c
             else:
                 c_norm = normaliser_texte(c)
@@ -85,7 +99,7 @@ class PenduGame:
 
     def create_embed(self) -> discord.Embed:
         embed = discord.Embed(
-            title=f"🕹️ Jeu du Pendu — mode {self.mode.capitalize()}",
+            title="🕹️ Jeu du Pendu — cartes MTG",
             description=f"```\n{self.get_pendu_ascii()}\n```",
             color=discord.Color.purple()
         )
@@ -115,10 +129,9 @@ class PenduGame:
         return "continue"
 
 class PenduSession:
-    def __init__(self, game: PenduGame, message: discord.Message, mode: str = "solo", author_id: int = None):
+    def __init__(self, game: PenduGame, message: discord.Message, author_id: int = None):
         self.game = game
         self.message = message
-        self.mode = mode
         self.last_activity = asyncio.get_event_loop().time()
         self.player_id = author_id
 
@@ -134,8 +147,13 @@ class MTGPendu(commands.Cog):
         self.sessions = {}
         self.verif_inactivite.start()
 
+    def cog_unload(self):
+        """Stoppe proprement la tâche de fond quand le cog est déchargé/rechargé,
+        pour éviter d'avoir plusieurs boucles qui tournent en parallèle."""
+        self.verif_inactivite.cancel()
+
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Tirage aléatoire d’un mot
+    # 🔹 Tirage aléatoire d'un mot
     # ────────────────────────────────────────────────────────────────────────────
     async def _fetch_random_word(self):
         try:
@@ -177,6 +195,7 @@ class MTGPendu(commands.Cog):
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(name="mtgpendu", description="Démarre une partie du jeu du pendu avec cartes MTG.")
+    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_mtgpendu(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self._start_game(interaction.channel, interaction.user)
@@ -210,10 +229,10 @@ class MTGPendu(commands.Cog):
         resultat = game.propose_lettre(contenu)
         if resultat is None:
             await safe_send(message.channel, f"❌ Lettre `{contenu}` déjà proposée.", delete_after=5)
-            await message.delete()
+            await safe_delete(message)
             return
         await safe_edit(session.message, embed=game.create_embed())
-        await message.delete()
+        await safe_delete(message)
         if resultat == "gagne":
             await safe_send(message.channel, f"🎉 Bravo {message.author.mention} ! Le mot était **{game.mot_affiche}**.")
             del self.sessions[message.channel.id]
@@ -232,6 +251,10 @@ class MTGPendu(commands.Cog):
             session = self.sessions.pop(cid, None)
             if session:
                 await safe_send(session.message.channel, "⏰ Partie terminée pour inactivité (3 minutes).")
+
+    @verif_inactivite.before_loop
+    async def before_verif_inactivite(self):
+        await self.bot.wait_until_ready()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
