@@ -1,4 +1,4 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 banlist.py — Commande interactive /banlist et !banlist
 # Objectif :
 #   - Affiche les cartes d'une banlist (TCG, OCG, GOAT)
@@ -7,11 +7,11 @@
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -19,9 +19,9 @@ import json
 from pathlib import Path
 from utils.discord_utils import safe_send, safe_respond
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📖 Chargement du dictionnaire de traduction des types
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 CARDINFO_PATH = Path("data/cardinfofr.json")
 try:
     with CARDINFO_PATH.open("r", encoding="utf-8") as f:
@@ -42,9 +42,9 @@ def translate_card_type(type_str: str) -> str:
             return fr
     return type_str
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🏷️ Statuts de banlist : ordre d'affichage, libellés FR, emoji
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 STATUS_ORDER = ["Banned", "Limited", "Semi-Limited"]
 STATUS_LABELS = {
     "Banned": ("🚫", "Interdites"),
@@ -69,9 +69,9 @@ def flatten_grouped(groups: dict[str, list[dict]]) -> list[tuple[str, dict]]:
             flat.append((status, c))
     return flat
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ View — Pagination des banlists
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class BanlistPagination(discord.ui.View):
     def __init__(self, banlist_type: str, groups: dict[str, list[dict]], per_page: int = 20):
         super().__init__(timeout=180)
@@ -134,9 +134,9 @@ class BanlistPagination(discord.ui.View):
         if self.message:
             await safe_send(self.message, view=self)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class Banlist(commands.Cog):
     """Commande /banlist et !banlist — Affiche les cartes d'une banlist (TCG, OCG, GOAT)"""
 
@@ -168,9 +168,9 @@ class Banlist(commands.Cog):
             return None, "❌ Impossible de récupérer les cartes."
         return groups, None
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="ygobanlist",
         description="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination."
@@ -188,9 +188,9 @@ class Banlist(commands.Cog):
         await interaction.followup.send(embed=embed, view=view)
         view.message = await interaction.original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(name="ygobanlist", aliases=["ybl"], help="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_banlist(self, ctx: commands.Context, banlist: str = "tcg"):
@@ -202,9 +202,9 @@ class Banlist(commands.Cog):
         embed = view.build_embed()
         view.message = await safe_send(ctx.channel, embed=embed, view=view)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = Banlist(bot)
     for command in cog.get_commands():
