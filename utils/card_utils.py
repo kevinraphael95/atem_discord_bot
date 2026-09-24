@@ -1,20 +1,20 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 utils/card_utils.py
 # Objectif : Centraliser la recherche de cartes Yu-Gi-Oh! (API YGOPRODeck)
 # Remarques : Utilise une session aiohttp globale pour éviter les erreurs
 #             "Unclosed client session" et réduire les 429 Too Many Requests
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import aiohttp
 import urllib.parse
 import random
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔧 Fonctions de recherche avec session partagée
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
 async def fetch_card_multilang(nom: str, session: aiohttp.ClientSession) -> tuple[dict | None, str]:
     """Recherche exacte du nom dans plusieurs langues (fr, de, it, pt, en)."""
@@ -56,9 +56,9 @@ async def fetch_random_card(session: aiohttp.ClientSession) -> tuple[dict | None
         return card, "fr"
 
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Fonction principale
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
 async def search_card(nom: str, session: aiohttp.ClientSession) -> tuple[dict | None, str, str]:
     """
@@ -78,9 +78,9 @@ async def search_card(nom: str, session: aiohttp.ClientSession) -> tuple[dict | 
     return None, "?", f"❌ Désolé, aucune carte trouvée pour `{nom}`."
 
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📊 META — Cartes les plus jouées
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def fetch_meta_cards(session: aiohttp.ClientSession, limit: int = 10) -> list[dict]:
     """
     Récupère une sélection de cartes 'META' actuelles.
