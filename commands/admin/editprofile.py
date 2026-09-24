@@ -154,7 +154,7 @@ class AdminEditProfile(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
     # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="editprofile", help="Ouvre une interface visuelle pour modifier un profil")
+    @commands.command(name="editprofile", help="(Admin) Ouvre une interface visuelle pour modifier un profil")
     @commands.has_permissions(administrator=True)
     async def editprofile(self, ctx: commands.Context, member: discord.Member):
         await self._send_menu(member, ctx.channel)
@@ -162,7 +162,7 @@ class AdminEditProfile(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande SLASH
     # ────────────────────────────────────────────────────────────────────────────
-    @app_commands.command(name="editprofile", description="Ouvre une interface visuelle pour modifier un profil")
+    @app_commands.command(name="editprofile", description="(Admin) Ouvre une interface visuelle pour modifier un profil")
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_editprofile(self, interaction: discord.Interaction, member: discord.Member):
         await interaction.response.defer(ephemeral=True)
