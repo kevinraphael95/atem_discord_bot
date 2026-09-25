@@ -11,6 +11,7 @@
 # ================================================================================
 import asyncio
 import os
+import subprocess
 import sys
 
 import discord
@@ -153,20 +154,29 @@ class ControlView(View):
         await interaction.response.edit_message(embed=embed, view=self)
 
         try:
-            # ⚠️ Ne PAS faire "await self.bot.close()" ici : ça termine
-            # bot.start(), ce qui fait sortir asyncio.run() dans bot.py, qui
-            # annule alors TOUTES les tâches en cours (dont celle-ci) avant
-            # que os.execv() ait pu s'exécuter — le process se termine
-            # proprement sans jamais redémarrer (race condition).
-            # os.execv() remplace le process instantanément, pas besoin de
-            # fermer proprement la connexion avant.
+            # ⚠️ On NE fait PAS os.execv() ici.
+            # execv() remplace l'image du process en place, mais provoque un
+            # pic de charge le temps de la transition (ancien + nouveau
+            # process qui se chevauchent brièvement) — sur une tablette avec
+            # peu de RAM, ça peut pousser Android à tuer d'autres sessions
+            # Termux en arrière-plan (ex: un autre bot qui tourne à côté).
+            #
+            # À la place, on relance start.sh (qui détache le bot du
+            # terminal via setsid et redirige ses logs vers bot.log), puis
+            # on tue le process courant avec SIGKILL. Redémarrage propre,
+            # sans chevauchement de deux instances.
+            start_sh = os.path.join(os.getcwd(), "start.sh")
+
+            subprocess.Popen(["bash", start_sh])
+
             sys.stdout.flush()
             sys.stderr.flush()
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            await asyncio.sleep(1)
+            os.kill(os.getpid(), 9)
         except Exception as e:
-            # Si on arrive ici, execv a échoué : on ne veut pas rester
-            # bloqué en "busy" pour toujours.
-            print(f"[Restart] os.execv a échoué : {e}")
+            # Si on arrive ici, le relancement a échoué : on ne veut pas
+            # rester bloqué en "busy" pour toujours.
+            print(f"[Restart] Échec du redémarrage : {e}")
             self.busy = False
             for child in self.children:
                 child.disabled = False
