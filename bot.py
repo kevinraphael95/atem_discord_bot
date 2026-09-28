@@ -9,10 +9,7 @@
 # 📦 Modules standards
 # ================================================================================
 import os
-import json
 import uuid
-import random
-from datetime import datetime, timezone
 import asyncio
 
 # ================================================================================
@@ -21,7 +18,6 @@ import asyncio
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
-from dateutil import parser
 import aiohttp
 
 # ================================================================================
@@ -42,6 +38,9 @@ INSTANCE_ID = str(uuid.uuid4())
 
 with open("instance_id.txt", "w") as f:
     f.write(INSTANCE_ID)
+
+GITHUB_URL = "https://github.com/kevinraphael95/atem_discord_bot"
+SITE_URL   = "https://kevinraphael95.github.io/atem_discord_bot/index.html"
 
 def get_prefix(bot, message):
     return COMMAND_PREFIX
@@ -110,7 +109,12 @@ async def on_ready():
     if bot.aiohttp_session is None:
         bot.aiohttp_session = aiohttp.ClientSession()  # ✅ Créée dans le loop
     print(f"✅ Connecté en tant que {bot.user.name}")
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="Duel Monsters"))
+    await bot.change_presence(
+        activity=discord.Activity(
+            type=discord.ActivityType.playing,
+            name="Duel Monsters"
+        )
+    )
 
 # ================================================================================
 # 📩 Message reçu : réagir aux mots-clés et lancer les commandes
@@ -139,7 +143,20 @@ async def on_message(message):
         else:
             embed.set_thumbnail(url=bot.user.default_avatar.url)
 
-        await safe_send(message.channel, embed=embed)
+        # Boutons site + GitHub
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(
+            label="🌐 Site / Présentation",
+            url=SITE_URL,
+            style=discord.ButtonStyle.link
+        ))
+        view.add_item(discord.ui.Button(
+            label="📂 Github",
+            url=GITHUB_URL,
+            style=discord.ButtonStyle.link
+        ))
+
+        await safe_send(message.channel, embed=embed, view=view)
         return
 
     await bot.process_commands(message)
@@ -159,7 +176,9 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.CommandNotFound):
         return
     else:
-        raise error
+        # 👇 Affiche la VRAIE erreur dans le terminal
+        import traceback
+        traceback.print_exception(type(error), error, error.__traceback__)
 
 # ================================================================================
 # 🚀 Lancement
