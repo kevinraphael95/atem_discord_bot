@@ -1,14 +1,14 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 check_ranked_matches.py
 # Objectif : Surveillance automatique des logs SQLite du serveur EDOPro VAACT
 # Catégorie : Tâche automatisée
 # Accès : Système
 # Cooldown : 24.0h (1 exécution par jour pour préserver le serveur)
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord.ext import commands, tasks
 import sqlite3
@@ -23,9 +23,9 @@ from utils.elo_db import (
 SERVER_DB_PATH = os.getenv("SERVER_DB_PATH", "./expansions/VAACT/cards.cdb")
 RANKED_CHANNEL_ID = int(os.getenv("RANKED_CHANNEL_ID", "0"))
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal de la tâche
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class RankedMatchTask(commands.Cog):
     """
     Tâche automatique vérifiant la base de données du serveur EDOPro
@@ -38,9 +38,9 @@ class RankedMatchTask(commands.Cog):
     def cog_unload(self):
         self.check_vaact_matches.cancel()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Boucle de fond (Exécution 1x par jour pour réduire la charge serveur)
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @tasks.loop(hours=24)
     async def check_vaact_matches(self):
         if not RANKED_CHANNEL_ID:
@@ -96,8 +96,8 @@ class RankedMatchTask(commands.Cog):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     await bot.add_cog(RankedMatchTask(bot))
