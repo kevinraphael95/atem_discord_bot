@@ -1,5 +1,5 @@
 # ================================================================================
-# 📌 bot.py — Script principal du bot Discord
+# 📌 bot.py — Script principal du bot Discord (Atem / Yu-Gi-Oh)
 # Objectif : Initialisation, gestion des commandes et événements du bot
 # Catégorie : Général
 # Accès : Public
@@ -9,7 +9,6 @@
 # 📦 Modules standards
 # ================================================================================
 import os
-import uuid
 import asyncio
 
 # ================================================================================
@@ -17,14 +16,15 @@ import asyncio
 # ================================================================================
 import discord
 from discord.ext import commands
+from discord import app_commands
 from dotenv import load_dotenv
 import aiohttp
 
 # ================================================================================
 # 📦 Modules internes
 # ================================================================================
-from utils.discord_utils import safe_send  # ✅ Utilitaires anti-429
-from utils.init_db import init_db          # <-- IMPORT INIT_DB
+from utils.discord_utils import safe_send, safe_respond, safe_interact
+from utils.init_db import init_db
 
 # ================================================================================
 # 🔧 Initialisation de l'environnement
@@ -32,24 +32,14 @@ from utils.init_db import init_db          # <-- IMPORT INIT_DB
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv()
 
-TOKEN = os.getenv("DISCORD_TOKEN")
+TOKEN          = os.getenv("DISCORD_TOKEN")
 COMMAND_PREFIX = os.getenv("COMMAND_PREFIX", "%")
-INSTANCE_ID = str(uuid.uuid4())
-
-with open("instance_id.txt", "w") as f:
-    f.write(INSTANCE_ID)
 
 GITHUB_URL = "https://github.com/kevinraphael95/atem_discord_bot"
 SITE_URL   = "https://kevinraphael95.github.io/atem_discord_bot/index.html"
 
 def get_prefix(bot, message):
     return COMMAND_PREFIX
-
-# ================================================================================
-# 🧠 Initialisation des bases SQLite locales
-# ================================================================================
-init_db()  # <-- ici on crée tournoi.db et profil.db si elles n'existent pas
-print("✅ Bases SQLite prêtes")
 
 # ================================================================================
 # ⚙️ Intents & Création du bot
@@ -61,19 +51,15 @@ intents.members = True
 intents.guild_reactions = True
 intents.dm_reactions = True
 
-bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=None)
-bot.INSTANCE_ID = INSTANCE_ID
-bot.aiohttp_session = None  # sera initialisée dans on_ready
+bot = commands.Bot(
+    command_prefix=get_prefix,
+    intents=intents,
+    help_command=None
+)
+bot.aiohttp_session = None
 
 # ================================================================================
-# 🔒 Nettoyage aiohttp
-# ================================================================================
-async def cleanup_aiohttp():
-    if bot.aiohttp_session and not bot.aiohttp_session.closed:
-        await bot.aiohttp_session.close()
-
-# ================================================================================
-# 🔌 Chargement dynamique des commandes depuis /commands/*
+# 🔌 Chargement dynamique des commandes
 # ================================================================================
 async def load_commands():
     for category in os.listdir("commands"):
@@ -88,9 +74,6 @@ async def load_commands():
                     except Exception as e:
                         print(f"❌ Failed to load {path}: {e}")
 
-# ================================================================================
-# 🔌 Chargement dynamique des tasks depuis /tasks/*
-# ================================================================================
 async def load_tasks():
     for filename in os.listdir("tasks"):
         if filename.endswith(".py") and filename != "__init__.py":
@@ -102,12 +85,12 @@ async def load_tasks():
                 print(f"❌ Failed to load task {path}: {e}")
 
 # ================================================================================
-# 🔔 On Ready : présence et création de session aiohttp
+# 🔔 On Ready
 # ================================================================================
 @bot.event
 async def on_ready():
     if bot.aiohttp_session is None:
-        bot.aiohttp_session = aiohttp.ClientSession()  # ✅ Créée dans le loop
+        bot.aiohttp_session = aiohttp.ClientSession()
     print(f"✅ Connecté en tant que {bot.user.name}")
     await bot.change_presence(
         activity=discord.Activity(
@@ -117,7 +100,7 @@ async def on_ready():
     )
 
 # ================================================================================
-# 📩 Message reçu : réagir aux mots-clés et lancer les commandes
+# 📩 On Message
 # ================================================================================
 @bot.event
 async def on_message(message):
@@ -126,7 +109,6 @@ async def on_message(message):
 
     if message.content.strip() in [f"<@!{bot.user.id}>", f"<@{bot.user.id}>"]:
         prefix = get_prefix(bot, message)
-
         embed = discord.Embed(
             title="Coucou ! 🃏",
             description=(
@@ -143,18 +125,9 @@ async def on_message(message):
         else:
             embed.set_thumbnail(url=bot.user.default_avatar.url)
 
-        # Boutons site + GitHub
         view = discord.ui.View()
-        view.add_item(discord.ui.Button(
-            label="🌐 Site / Présentation",
-            url=SITE_URL,
-            style=discord.ButtonStyle.link
-        ))
-        view.add_item(discord.ui.Button(
-            label="📂 Github",
-            url=GITHUB_URL,
-            style=discord.ButtonStyle.link
-        ))
+        view.add_item(discord.ui.Button(label="🌐 Site", url=SITE_URL, style=discord.ButtonStyle.link))
+        view.add_item(discord.ui.Button(label="📂 Github", url=GITHUB_URL, style=discord.ButtonStyle.link))
 
         await safe_send(message.channel, embed=embed, view=view)
         return
@@ -162,7 +135,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # ================================================================================
-# ❗ Gestion des erreurs de commandes
+# ❗ Gestion des erreurs
 # ================================================================================
 @bot.event
 async def on_command_error(ctx, error):
@@ -176,15 +149,33 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.CommandNotFound):
         return
     else:
-        # 👇 Affiche la VRAIE erreur dans le terminal
         import traceback
         traceback.print_exception(type(error), error, error.__traceback__)
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.CommandOnCooldown):
+        await safe_interact(interaction, f"⏳ Attends encore {error.retry_after:.1f}s.", edit=True, ephemeral=True)
+    elif isinstance(error, app_commands.MissingPermissions):
+        await safe_interact(interaction, "❌ Tu n'as pas les permissions.", edit=True, ephemeral=True)
+    else:
+        import traceback
+        traceback.print_exception(type(error), error, error.__traceback__)
+        await safe_interact(interaction, "❌ Une erreur est survenue.", edit=True, ephemeral=True)
+
+# ================================================================================
+# 🔒 Nettoyage aiohttp
+# ================================================================================
+async def cleanup_aiohttp():
+    if bot.aiohttp_session and not bot.aiohttp_session.closed:
+        await bot.aiohttp_session.close()
 
 # ================================================================================
 # 🚀 Lancement
 # ================================================================================
 if __name__ == "__main__":
     async def start():
+        init_db()
         await load_commands()
         await load_tasks()
         try:
