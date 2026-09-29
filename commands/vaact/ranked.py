@@ -1,14 +1,14 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 ranked.py
 # Objectif : Gestion des commandes Ranked (score ELO, stats et classement Top 10)
 # Catégorie : Yu-Gi-Oh
 # Accès : Tous
 # Cooldown : 5.0s
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -18,9 +18,9 @@ import os
 from utils.discord_utils import safe_send
 from utils.elo_db import get_or_create_player, ATEM_ELO_DB
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal avec cooldowns centralisés
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class Ranked(commands.Cog):
     """
     Commande /rank, !rank, /leaderboard et !leaderboard — Système Ranked VAACT
@@ -28,9 +28,9 @@ class Ranked(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Fonctions internes communes
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _show_rank(self, channel: discord.abc.Messageable, author_name: str, target_name: str = None):
         target = target_name if target_name else author_name
         elo, wins, losses = get_or_create_player(target)
@@ -70,9 +70,9 @@ class Ranked(commands.Cog):
         embed.description = desc if desc else "Aucun duel enregistré pour le moment."
         await safe_send(channel, embed=embed)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH — Rank
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="rank",
         description="Affiche le classement ELO et le profil d'un duelliste."
@@ -83,17 +83,17 @@ class Ranked(commands.Cog):
         await self._show_rank(interaction.channel, interaction.user.name, joueur)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX — Rank
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(name="rank")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_rank(self, ctx: commands.Context, joueur: str = None):
         await self._show_rank(ctx.channel, ctx.author.name, joueur)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH — Leaderboard
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="leaderboard",
         description="Affiche le Top 10 des duellistes du serveur."
@@ -104,17 +104,17 @@ class Ranked(commands.Cog):
         await self._show_leaderboard(interaction.channel)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX — Leaderboard
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(name="leaderboard")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_leaderboard(self, ctx: commands.Context):
         await self._show_leaderboard(ctx.channel)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = Ranked(bot)
     for command in cog.get_commands():
