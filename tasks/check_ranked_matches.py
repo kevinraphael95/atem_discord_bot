@@ -3,7 +3,7 @@
 # Objectif : Surveillance automatique des logs SQLite du serveur EDOPro VAACT
 # Catégorie : Tâche automatisée
 # Accès : Système
-# Cooldown : 30.0s
+# Cooldown : 24.0h (1 exécution par jour pour préserver le serveur)
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -39,9 +39,9 @@ class RankedMatchTask(commands.Cog):
         self.check_vaact_matches.cancel()
 
     # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Boucle de fond
+    # 🔹 Boucle de fond (Exécution 1x par jour pour réduire la charge serveur)
     # ────────────────────────────────────────────────────────────────────────────
-    @tasks.loop(seconds=30)
+    @tasks.loop(hours=24)
     async def check_vaact_matches(self):
         if not RANKED_CHANNEL_ID:
             return
