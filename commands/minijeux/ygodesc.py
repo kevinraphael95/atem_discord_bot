@@ -1,15 +1,15 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 ygodescription.py
 # Objectif : Deviner une carte Yu-Gi-Oh à partir de sa description
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 8 secondes / utilisateur
 # Version optimisée : 2 appels API par partie (0 cache, 0 RAM)
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -23,9 +23,9 @@ from utils.discord_utils import safe_send, safe_edit, safe_reply
 from utils.vaact_utils import add_exp_for_streak, DB_PATH
 from utils.card_utils import fetch_random_card, fetch_cards_by_type, fetch_cards_by_archetype
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔒 Empêcher l'utilisation en MP
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 def no_dm():
     async def predicate(ctx):
         if ctx.guild is None:
@@ -34,9 +34,9 @@ def no_dm():
         return True
     return commands.check(predicate)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔍 Fonctions utilitaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 def similarity_ratio(a, b):
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
@@ -67,9 +67,9 @@ def get_type_group(card_type):
 def censor_card_name(desc, name):
     return re.sub(re.escape(name), "[cette carte]", desc, flags=re.IGNORECASE)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔄 Mise à jour des streaks et EXP (SQLite)
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def update_streak(user_id: str, correct: bool):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -94,9 +94,9 @@ async def update_streak(user_id: str, correct: bool):
     if new_best > best:
         await add_exp_for_streak(user_id, new_best)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ View et boutons du quiz
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class QuizView(View):
     def __init__(self, bot, choices, main_name):
         super().__init__(timeout=60)
@@ -132,9 +132,9 @@ class QuizButton(Button):
             ephemeral=True
         )
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class YGODescription(commands.Cog):
     """Commande /ygodescription et !ygodescription — Devine une carte Yu-Gi-Oh à partir de sa description"""
 
@@ -142,9 +142,9 @@ class YGODescription(commands.Cog):
         self.bot = bot
         self.active_sessions = {}
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Fonction interne commune
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _start_quiz(self, ctx_or_inter, interaction=False):
         guild_id = ctx_or_inter.guild.id
         if self.active_sessions.get(guild_id):
@@ -220,9 +220,9 @@ class YGODescription(commands.Cog):
         finally:
             self.active_sessions[guild_id] = None
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="ygodescription",
         description="Devine une carte Yu-Gi-Oh à partir de sa description"
@@ -233,9 +233,9 @@ class YGODescription(commands.Cog):
         await self._start_quiz(interaction, interaction=True)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(
         name="ygodescription",
         aliases=["ygodesc", "yd"],
@@ -246,9 +246,9 @@ class YGODescription(commands.Cog):
     async def prefix_ygodescription(self, ctx):
         await self._start_quiz(ctx)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = YGODescription(bot)
     for command in cog.get_commands():
