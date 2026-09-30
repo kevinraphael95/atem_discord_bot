@@ -1,10 +1,10 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 mtgcarte.py — Commande /mtgcarte et !mtgcarte
 # Objectif : Afficher une carte Magic: The Gathering via Scryfall
-#           Peut afficher une carte aléatoire si aucun nom n’est fourni
 # Catégorie : MagicTCG
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
+# Version optimisée : safe_defer + safe_followup
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils.discord_utils import safe_send, safe_respond
+from utils.discord_utils import safe_send, safe_defer, safe_followup, safe_edit_original
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🌐 Constantes Scryfall
@@ -30,9 +30,8 @@ HEADERS = {
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class MTGCarte(commands.Cog):
-    """
-    Commande /mtgcarte et !mtgcarte — Affiche une carte Magic
-    """
+    """Commande /mtgcarte et !mtgcarte — Affiche une carte Magic"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -40,11 +39,10 @@ class MTGCarte(commands.Cog):
     # 🔹 Utilitaire API
     # ────────────────────────────────────────────────────────────────────────────
     async def fetch_card(self, name: str | None = None) -> dict | None:
-        """
-        Récupère une carte Magic depuis Scryfall en réutilisant la session aiohttp du bot.
-        Si name=None, renvoie une carte aléatoire.
-        """
-        session = self.bot.aiohttp_session  # ✅ Session globale du bot
+        """Récupère une carte Magic depuis Scryfall (ou une carte aléatoire)."""
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return None
 
         if name:
             url = f"{SCRYFALL_API}/cards/named"
@@ -53,10 +51,14 @@ class MTGCarte(commands.Cog):
             url = f"{SCRYFALL_API}/cards/random"
             params = {}
 
-        async with session.get(url, params=params, headers=HEADERS) as resp:
-            if resp.status != 200:
-                return None
-            return await resp.json()
+        try:
+            async with session.get(url, params=params, headers=HEADERS) as resp:
+                if resp.status != 200:
+                    return None
+                return await resp.json()
+        except Exception as e:
+            print(f"[mtgcarte] Erreur fetch : {e}")
+            return None
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Création de l'embed carte
@@ -111,13 +113,16 @@ class MTGCarte(commands.Cog):
         interaction: discord.Interaction,
         nom: str | None = None
     ):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
+
         data = await self.fetch_card(nom)
         if not data:
-            await safe_respond(interaction, "❌ Carte introuvable.")
-            return
+            return await safe_followup(interaction, "❌ Carte introuvable.", ephemeral=True)
+
         embed = self.build_card_embed(data)
-        await safe_respond(interaction, embed=embed)
+        await safe_edit_original(interaction, embed=embed)
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
