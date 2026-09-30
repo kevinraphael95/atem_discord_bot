@@ -4,6 +4,7 @@
 # Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
+# Version optimisée : safe_defer + safe_followup
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -15,7 +16,9 @@ from discord.ext import commands
 from discord.ui import View
 import random
 
-from utils.discord_utils import safe_send, safe_edit, safe_respond, safe_followup
+from utils.discord_utils import (
+    safe_send, safe_edit, safe_defer, safe_followup
+)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ View — Boutons de réponse
@@ -40,7 +43,10 @@ class GuessView(View):
         for child in self.children:
             child.disabled = True
         if self.message:
-            await safe_edit(self.message, embed=self.embed, view=self)
+            try:
+                await safe_edit(self.message, embed=self.embed, view=self)
+            except Exception:
+                pass
 
     async def handle_guess(self, interaction: discord.Interaction, guess: bool):
         if interaction.user.id != self.user.id:
@@ -73,7 +79,8 @@ class GuessView(View):
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class StapleOuPas(commands.Cog):
-    """Commande /staple_ou_pas et !staple_ou_pas — Devine si la carte est une staple ou pas"""
+    """Commande /ygosop et !ygosop — Devine si la carte est une staple ou pas"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -82,34 +89,40 @@ class StapleOuPas(commands.Cog):
     # ────────────────────────────────────────────────────────────
     async def get_random_staple(self):
         """Tire une carte parmi les vraies staples."""
-        async with self.bot.aiohttp_session.get(
-            "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
-        ) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json()
-            cards = data.get("data", [])
-            return random.choice(cards) if cards else None
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return None
+        try:
+            async with session.get(
+                "https://db.ygoprodeck.com/api/v7/cardinfo.php?staple=yes&language=fr"
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                cards = data.get("data", [])
+                return random.choice(cards) if cards else None
+        except Exception as e:
+            print(f"[staple_ou_pas] Erreur staple : {e}")
+            return None
 
     async def get_random_non_staple(self):
-        """
-        Tire une carte aléatoire qui N'EST PAS une staple.
-        On retire les staples du pool AVANT de tirer, pour éviter
-        de tomber par hasard sur une staple quand is_staple=False.
-        """
-        async with self.bot.aiohttp_session.get(
-            "https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr"
-        ) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json()
-            cards = data.get("data", [])
-
-        # Retire les cartes marquées staple pour garantir la cohérence du jeu
-        non_staples = [c for c in cards if not c.get("staple")]
-        if non_staples:
-            return random.choice(non_staples)
-        return random.choice(cards) if cards else None
+        """Tire une carte aléatoire qui N'EST PAS une staple."""
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return None
+        try:
+            async with session.get(
+                "https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr"
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                cards = data.get("data", [])
+                non_staples = [c for c in cards if not c.get("staple")]
+                return random.choice(non_staples) if non_staples else None
+        except Exception as e:
+            print(f"[staple_ou_pas] Erreur non_staple : {e}")
+            return None
 
     async def build_embed(self, card: dict) -> discord.Embed:
         name = card.get("name", "Carte inconnue")
@@ -127,20 +140,22 @@ class StapleOuPas(commands.Cog):
     # ────────────────────────────────────────────────────────────
     # 🔹 Partie commune slash / prefix
     # ────────────────────────────────────────────────────────────
-    async def play_round(self, ctx_or_inter, is_slash: bool):
+    async def play_round(self, channel: discord.abc.Messageable, author, is_slash: bool = False, interaction=None):
         is_staple = random.choice([True, False])
         card = await (self.get_random_staple() if is_staple else self.get_random_non_staple())
         if not card:
             msg = "❌ Impossible de tirer une carte."
-            return await (safe_followup(ctx_or_inter, msg) if is_slash else safe_send(ctx_or_inter, msg))
+            if is_slash and interaction:
+                return await safe_followup(interaction, msg, ephemeral=True)
+            return await safe_send(channel, msg)
 
         embed = await self.build_embed(card)
-        view = GuessView(is_staple, embed, ctx_or_inter.user if is_slash else ctx_or_inter.author)
+        view = GuessView(is_staple, embed, author)
 
-        if is_slash:
-            sent = await safe_followup(ctx_or_inter, embed=embed, view=view)
+        if is_slash and interaction:
+            sent = await safe_followup(interaction, embed=embed, view=view)
         else:
-            sent = await safe_send(ctx_or_inter, embed=embed, view=view)
+            sent = await safe_send(channel, embed=embed, view=view)
         view.message = sent
 
     # ────────────────────────────────────────────────────────────
@@ -152,8 +167,10 @@ class StapleOuPas(commands.Cog):
     )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_staple_ou_pas(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        await self.play_round(interaction, True)
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
+        await self.play_round(interaction.channel, interaction.user, is_slash=True, interaction=interaction)
 
     # ────────────────────────────────────────────────────────────
     # 🔹 Commande PREFIX
@@ -165,7 +182,7 @@ class StapleOuPas(commands.Cog):
     )
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_staple_ou_pas(self, ctx: commands.Context):
-        await self.play_round(ctx, False)
+        await self.play_round(ctx.channel, ctx.author, is_slash=False)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
