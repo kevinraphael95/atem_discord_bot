@@ -1,25 +1,26 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 topcarte.py
 # Objectif : Mini-jeu — Classer 5 cartes Yu-Gi-Oh! dans un top 5 à l'aveugle
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Tous
 # Cooldown : 1 utilisation / 10 secondes par utilisateur
-# ────────────────────────────────────────────────────────────────────────────────
+# Version optimisée : utilise card_utils (0 RAM permanente)
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-import random
 
 from utils.discord_utils import safe_send, safe_edit
+from utils.card_utils import fetch_random_cards
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ UI — Vue principale de classement
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class ClassementView(View):
     def __init__(self, bot, author, cartes):
         super().__init__(timeout=150)
@@ -98,10 +99,9 @@ class ClassementView(View):
             view=ValidationView(self.author)
         )
 
-
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ Bouton de position
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class PositionButton(Button):
     def __init__(self, parent_view: ClassementView, position: int):
         super().__init__(label=f"#{position + 1}", style=discord.ButtonStyle.primary)
@@ -111,10 +111,9 @@ class PositionButton(Button):
     async def callback(self, interaction: discord.Interaction):
         await self.parent_view.assign_position(interaction, self.position)
 
-
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ Vue de validation finale
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class ValidationView(View):
     def __init__(self, author):
         super().__init__(timeout=60)
@@ -140,44 +139,41 @@ class ValidationView(View):
             view=None
         )
 
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal avec cooldown centralisé
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
+# 🧠 Cog principal
+# ================================================================================
 class TopCarte(commands.Cog):
-    """
-    Commande /topcarte et !topcarte — Mini-jeu Top 5 Yu-Gi-Oh!
-    """
+    """Commande /ygotopcarte et !ygotopcarte — Mini-jeu Top 5 Yu-Gi-Oh!"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Récupération des cartes aléatoires
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _get_random_cards(self):
-        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
+        """Récupère 5 cartes aléatoires (5 appels API parallèles)."""
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return None
 
-        async with self.bot.aiohttp_session.get(url) as resp:
-            if resp.status != 200:
-                return None
+        # ✅ 5 cartes aléatoires (5 appels API en parallèle)
+        cards = await fetch_random_cards(session, n=5)
+        if len(cards) < 5:
+            return None
 
-            data = await resp.json()
-            all_cards = data.get("data", [])
-            sample = random.sample(all_cards, 5)
+        return [
+            {
+                "name": c["name"],
+                "desc": c.get("desc", "Pas de description."),
+                "image": c.get("card_images", [{}])[0].get("image_url")
+            }
+            for c in cards
+        ]
 
-            return [
-                {
-                    "name": c["name"],
-                    "desc": c["desc"],
-                    "image": c.get("card_images", [{}])[0].get("image_url")
-                }
-                for c in sample
-            ]
-
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Fonction interne commune
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _start_game(self, channel, author):
         cartes = await self._get_random_cards()
         if not cartes:
@@ -200,9 +196,9 @@ class TopCarte(commands.Cog):
 
         view.message = await safe_send(channel, embed=embed, view=view)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="ygotopcarte",
         description="Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l'aveugle."
@@ -213,22 +209,21 @@ class TopCarte(commands.Cog):
         await self._start_game(interaction.channel, interaction.user)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(
         name="ygotopcarte",
-        aliases=["ygotopcarte", "ygotopcartes", "ytopc"],
+        aliases=["ygotopcartes", "ytopc"],
         help="Mini-jeu : Classe 5 cartes Yu-Gi-Oh! dans un top 5 à l'aveugle."
     )
     @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def prefix_topcarte(self, ctx: commands.Context):
         await self._start_game(ctx.channel, ctx.author)
 
-
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = TopCarte(bot)
     for command in cog.get_commands():
