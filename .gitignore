@@ -1,0 +1,134 @@
+# ================================================================================
+# 📌 .gitignore — Bot Discord Atem (Python)
+# ================================================================================
+
+# ─── 🔐 Secrets & configuration ─────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.env
+config_secret.json
+secrets.json
+
+# ─── 🗄️ Base de données locale ──────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+database/
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/*.db-journal
+data/backups/
+
+# ─── 📂 Données générées à l'exécution ──────────────────────────────────────────
+instance_id.txt
+data/ygo_cards_cache.json
+data/*cache*.json
+logs/
+*.log
+logs.txt
+log.txt
+
+# ─── 🐍 Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ─── 🐍 Environnements virtuels ─────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# ─── 🧪 Tests & couverture ──────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+*.cover
+.hypothesis/
+
+# ─── 🎨 IDE & éditeurs ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-workspace
+*.sublime-project
+
+# ─── 📦 Node (si panel web / build front) ───────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.eslintcache
+
+# ─── 🌐 Flask / Panel admin ─────────────────────────────────────────────────────
+instance/
+.webassets-cache
+flask_session/
+*.pid
+
+# ─── 📝 Backups & dumps ─────────────────────────────────────────────────────────
+*.bak
+*.backup
+*.old
+*.tmp
+*.temp
+*.orig
+
+# ─── 🗂️ Fichiers OS ────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+desktop.ini
+
+# ─── 🎮 Fichiers spécifiques au bot ─────────────────────────────────────────────
+# Cache des cartes YGO/MTG/Pokémon (régénéré automatiquement)
+data/ygo_cards_cache.json
+data/mtg_cache.json
+data/pokemon_cache.json
+data/optcg_cache.json
+
+# Sessions en cours (si tu en as)
+sessions/
+
+# Sauvegardes manuelles
+backups/
+*.zip
+*.tar.gz
