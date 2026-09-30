@@ -1,15 +1,15 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 ygoillustration.py
 # Objectif : Deviner une carte Yu-Gi-Oh! à partir de son illustration croppée
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # Version optimisée : 2 appels API par partie (0 cache, 0 RAM)
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -20,9 +20,9 @@ import traceback
 from utils.discord_utils import safe_send, safe_edit
 from utils.card_utils import fetch_random_card, fetch_cards_by_type, fetch_cards_by_archetype
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔒 Empêcher l'utilisation en MP
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 def no_dm():
     async def predicate(ctx):
         if ctx.guild is None:
@@ -31,9 +31,9 @@ def no_dm():
         return True
     return commands.check(predicate)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal — YGOIllustration
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class YGOIllustration(commands.Cog):
     """
     Commande /ygoillu et !ygoillu — Devine une carte Yu-Gi-Oh! à partir de son illustration croppée
@@ -42,9 +42,9 @@ class YGOIllustration(commands.Cog):
         self.bot = bot
         self.active_sessions = {}
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Lancer le quiz
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def start_quiz(self, channel: discord.abc.Messageable):
         guild_id = getattr(channel, "guild", None).id if hasattr(channel, "guild") else None
         if guild_id and self.active_sessions.get(guild_id):
@@ -117,9 +117,9 @@ class YGOIllustration(commands.Cog):
             if guild_id:
                 self.active_sessions[guild_id] = None
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 View et Button pour le quiz
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     class QuizView(View):
         def __init__(self, bot, choices, correct_idx):
             super().__init__(timeout=60)
@@ -147,18 +147,18 @@ class YGOIllustration(commands.Cog):
                 self.parent_view.answers[interaction.user.id] = self.idx
             await interaction.response.send_message(f"✅ Réponse enregistrée : **{self.label}**", ephemeral=True)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(name="ygoillustration", aliases=["ygoillu","yi"], help="Devine une carte Yu-Gi-Oh! à partir de son illustration")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @no_dm()
     async def prefix_ygoillu(self, ctx):
         await self.start_quiz(ctx.channel)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(name="ygoillustration", description="Devine une carte Yu-Gi-Oh! à partir de son illustration")
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_ygoillu(self, interaction: discord.Interaction):
@@ -166,9 +166,9 @@ class YGOIllustration(commands.Cog):
         await self.start_quiz(interaction.channel)
         await interaction.delete_original_response()
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = YGOIllustration(bot)
     for command in cog.get_commands():
