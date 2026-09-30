@@ -131,3 +131,16 @@ async def safe_defer(interaction: discord.Interaction, ephemeral: bool = False) 
     except Exception as e:
         print(f"[safe_defer] Erreur : {e}")
         return False
+
+
+# ================================================================================
+# ✅ safe_edit_original — Édite la réponse originale (après defer)
+# ================================================================================
+async def safe_edit_original(interaction: discord.Interaction, **kwargs):
+    """Édite la réponse originale d'une interaction (après defer)."""
+    return await _discord_action(interaction.edit_original_response, **kwargs)
+
+
+async def safe_delete_original(interaction: discord.Interaction):
+    """Supprime la réponse originale d'une interaction."""
+    return await _discord_action(interaction.delete_original_response)
