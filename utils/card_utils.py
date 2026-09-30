@@ -85,6 +85,37 @@ async def fetch_staple_cards(session: aiohttp.ClientSession) -> list[dict]:
 
 
 # ================================================================================
+# 🔍 Récupération complète (1 seul appel)
+# ================================================================================
+
+async def fetch_card_full(nom: str, session: aiohttp.ClientSession) -> dict | None:
+    """
+    Récupère une carte complète en 1 seul appel API.
+    Essaie d'abord en FR, puis fallback EN si non trouvé.
+    """
+    nom_encode = urllib.parse.quote(nom)
+    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language=fr"
+
+    try:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                # Fallback sans langue (anglais)
+                url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
+                async with session.get(url) as resp2:
+                    if resp2.status != 200:
+                        return None
+                    data = await resp2.json()
+                    cards = data.get("data", [])
+                    return cards[0] if cards else None
+            data = await resp.json()
+            cards = data.get("data", [])
+            return cards[0] if cards else None
+    except Exception as e:
+        print(f"[card_utils] fetch_card_full : {e}")
+        return None
+
+
+# ================================================================================
 # 🔧 Fonctions de recherche (inchangées)
 # ================================================================================
 
