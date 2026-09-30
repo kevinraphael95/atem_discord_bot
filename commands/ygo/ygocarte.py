@@ -1,12 +1,12 @@
 # ================================================================================
-# 📌 carte.py — Commande interactive !carte
+# 📌 carte.py — Commande interactive !ygocarte
 # Objectif :
 #   - Rechercher et afficher les détails d'une carte Yu-Gi-Oh!
-#   - OU tirer une carte aléatoire avec !carte random
+#   - OU tirer une carte aléatoire avec !ygocarte random
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # Cooldown : 1 utilisation / 3 sec / utilisateur
-# Version optimisée : 1 seul appel API par recherche
+# Version optimisée : safe_defer + fetch_card_full importé de card_utils
 # ================================================================================
 
 # ================================================================================
@@ -18,11 +18,11 @@ from discord.ext import commands
 from discord.ui import View, Button
 import json
 from pathlib import Path
-import urllib.parse
 import sqlite3
 
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_defer
 from utils.vaact_utils import DB_PATH, get_or_create_profile
+from utils.card_utils import fetch_card_full
 
 # ================================================================================
 # 🎨 Chargement décorations et couleurs
@@ -119,45 +119,6 @@ def format_race(race: str, type_raw: str) -> str:
     return TYPE_EMOJI.get(race, race)
 
 # ================================================================================
-# 🔧 FONCTION UNIQUE : fetch la carte complète en 1 appel
-# ================================================================================
-async def fetch_card_full(nom: str | None, session, multi_lang: bool = True):
-    """
-    Récupère une carte complète en UN SEUL appel API.
-
-    - Si `nom` est None ou "random" → carte aléatoire
-    - Sinon → recherche par nom (multi-langue : fr, de, it, pt, en)
-
-    Retourne le dict de la carte ou None.
-    """
-    if not nom or nom.lower() == "random":
-        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr"
-    else:
-        nom_encode = urllib.parse.quote(nom)
-        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language=fr"
-
-    try:
-        async with session.get(url) as resp:
-            if resp.status != 200:
-                # Si pas trouvé en FR, essaie sans langue (anglais)
-                if nom and multi_lang:
-                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={urllib.parse.quote(nom)}"
-                    async with session.get(url) as resp2:
-                        if resp2.status != 200:
-                            return None
-                        data = await resp2.json()
-                        cards = data.get("data", [])
-                        return cards[0] if cards else None
-                return None
-
-            data = await resp.json()
-            cards = data.get("data", [])
-            return cards[0] if cards else None
-    except Exception as e:
-        print(f"[fetch_card_full] Erreur : {e}")
-        return None
-
-# ================================================================================
 # 🧠 Cog principal
 # ================================================================================
 class Carte(commands.Cog):
@@ -178,24 +139,22 @@ class Carte(commands.Cog):
                 return await safe_send(channel, "❌ Impossible de tirer une carte aléatoire.")
             return await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
 
-        # ✅ Tout est déjà dans `carte` (1 seul appel)
-        card_name_fr  = carte.get("name_fr") or carte.get("name")
-        card_name_en  = carte.get("name")  # Nom anglais toujours présent
-        card_id       = carte.get("id")
-        type_raw      = carte.get("type", "")
-        race          = carte.get("race", "")
-        attr          = carte.get("attribute", "")
-        atk           = carte.get("atk")
-        defe          = carte.get("def")
-        level         = carte.get("level")
-        rank          = carte.get("rank")
-        linkval       = carte.get("linkval") or carte.get("link_rating")
-        desc          = carte.get("desc_fr") or carte.get("desc") or "Pas de description."
-        archetype     = carte.get("archetype")
-        genesys       = carte.get("genesys_points")
-        banlist_info  = carte.get("banlist_info", {})
+        # ✅ Tout est déjà dans `carte`
+        card_name_fr = carte.get("name_fr") or carte.get("name")
+        card_name_en = carte.get("name")
+        type_raw     = carte.get("type", "")
+        race         = carte.get("race", "")
+        attr         = carte.get("attribute", "")
+        atk          = carte.get("atk")
+        defe         = carte.get("def")
+        level        = carte.get("level")
+        rank         = carte.get("rank")
+        linkval      = carte.get("linkval") or carte.get("link_rating")
+        desc         = carte.get("desc_fr") or carte.get("desc") or "Pas de description."
+        archetype    = carte.get("archetype")
+        genesys      = carte.get("genesys_points")
+        banlist_info = carte.get("banlist_info", {})
 
-        # Banlist
         tcg_limit  = banlist_info.get("ban_tcg", "Autorisé")
         ocg_limit  = banlist_info.get("ban_ocg", "Autorisé")
         goat_limit = banlist_info.get("ban_goat", "Autorisé")
@@ -253,9 +212,11 @@ class Carte(commands.Cog):
     @app_commands.describe(nom="Nom de la carte ou 'random'")
     @app_commands.checks.cooldown(rate=1, per=3.0, key=lambda i: i.user.id)
     async def slash_carte(self, interaction: discord.Interaction, nom: str = None):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self._show_card(interaction.channel, nom, user=interaction.user)
-        await interaction.delete_original_response()
+        # Pas de delete, defer = invisible
 
     # ============================================================================
     # 🔹 Commande PREFIX
