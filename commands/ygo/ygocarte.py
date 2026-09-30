@@ -1,5 +1,11 @@
 # ================================================================================
 # 📌 carte.py — Commande interactive !ygocarte
+# Objectif :
+#   - Rechercher et afficher les détails d'une carte Yu-Gi-Oh!
+#   - OU tirer une carte aléatoire avec !ygocarte random
+# Catégorie : 🃏 Yu-Gi-Oh!
+# Accès : Public
+# Cooldown : 1 utilisation / 3 sec / utilisateur
 # ================================================================================
 
 # ================================================================================
