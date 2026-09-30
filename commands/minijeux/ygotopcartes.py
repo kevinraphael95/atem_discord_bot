@@ -4,7 +4,7 @@
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Tous
 # Cooldown : 1 utilisation / 10 secondes par utilisateur
-# Version optimisée : utilise card_utils (0 RAM permanente)
+# Version optimisée : safe_defer + safe_edit + fetch_random_cards
 # ================================================================================
 
 # ================================================================================
@@ -15,7 +15,7 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 
-from utils.discord_utils import safe_send, safe_edit
+from utils.discord_utils import safe_send, safe_edit, safe_defer
 from utils.card_utils import fetch_random_cards
 
 # ================================================================================
@@ -42,7 +42,10 @@ class ClassementView(View):
         for child in self.children:
             child.disabled = True
         if self.message:
-            await safe_edit(self.message, view=self)
+            try:
+                await safe_edit(self.message, view=self)
+            except Exception:
+                pass
 
     async def update_message(self):
         carte = self.cartes[self.index]
@@ -157,7 +160,6 @@ class TopCarte(commands.Cog):
         if not session or session.closed:
             return None
 
-        # ✅ 5 cartes aléatoires (5 appels API en parallèle)
         cards = await fetch_random_cards(session, n=5)
         if len(cards) < 5:
             return None
@@ -205,9 +207,11 @@ class TopCarte(commands.Cog):
     )
     @app_commands.checks.cooldown(rate=1, per=10.0, key=lambda i: i.user.id)
     async def slash_topcarte(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self._start_game(interaction.channel, interaction.user)
-        await interaction.delete_original_response()
+        # Pas de delete, defer = invisible
 
     # ============================================================================
     # 🔹 Commande PREFIX
