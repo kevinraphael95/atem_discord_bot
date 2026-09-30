@@ -1,10 +1,10 @@
 # ================================================================================
 # 📌 roulette_devine.py
-# Objectif : Tire une carte aléatoire via roulette YGO (Monster/Spell/Trap/Token) et devine le type
+# Objectif : Tire une carte aléatoire via roulette YGO et devine le type
 # Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 5 secondes
-# Version optimisée : utilise card_utils (session partagée, 1 appel API)
+# Version optimisée : safe_defer + 1 appel API
 # ================================================================================
 
 # ================================================================================
@@ -15,7 +15,7 @@ from discord import app_commands
 from discord.ext import commands
 import random
 
-from utils.discord_utils import safe_send, safe_edit
+from utils.discord_utils import safe_send, safe_edit, safe_defer
 from utils.card_utils import fetch_cards_by_type
 
 # ================================================================================
@@ -59,7 +59,11 @@ class GuessButton(discord.ui.Button):
 
         correct = self.guess_type == self.parent_view.correct_type
         color = discord.Color.green() if correct else discord.Color.red()
-        verdict = "✅ Bien joué ! Tu as deviné le type." if correct else f"❌ Mauvaise devinette… C'était **{self.parent_view.correct_type.capitalize()}**."
+        verdict = (
+            "✅ Bien joué ! Tu as deviné le type."
+            if correct
+            else f"❌ Mauvaise devinette… C'était **{self.parent_view.correct_type.capitalize()}**."
+        )
 
         embed = discord.Embed(
             title=f"{self.parent_view.card.get('name', 'Carte inconnue')} ({self.parent_view.correct_type.capitalize()})",
@@ -131,8 +135,11 @@ class RouletteDevine(commands.Cog):
     )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_roulette_devine(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self._run_roulette(interaction.channel)
+        # Pas de delete, defer = invisible
 
     # ============================================================================
     # 🔹 Commande PREFIX
