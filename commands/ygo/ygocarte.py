@@ -203,16 +203,36 @@ class Carte(commands.Cog):
             if not nom or nom.lower() == "random":
                 return await safe_send(channel, "❌ Impossible de tirer une carte aléatoire.")
 
-            # 🔍 Fuzzy → propose des alternatives
+            # 🔍 Fuzzy → propose des alternatives dans un embed
             suggestions = await fetch_card_fuzzy(nom, session)
             if suggestions:
-                titres = "\n".join(f"• **{c.get('name')}**" for c in suggestions[:5])
-                return await safe_send(
-                    channel,
-                    f"❌ Aucune carte exacte pour `{nom}`.\n\n"
-                    f"🔍 **Peut-être voulais-tu dire :**\n{titres}\n\n"
-                    f"💡 Relance la commande avec le nom exact."
+                embed = discord.Embed(
+                    title="🔍 Aucune carte exacte trouvée",
+                    description=(
+                        f"Aucun résultat pour `{nom}`.\n\n"
+                        f"**Peut-être voulais-tu dire :**"
+                    ),
+                    color=discord.Color.orange()
                 )
+                for c in suggestions[:5]:
+                    nom_carte = c.get("name", "?")
+                    type_carte = translate_card_type(c.get("type", ""))
+                    embed.add_field(
+                        name=f"🃏 {nom_carte}",
+                        value=type_carte or "—",
+                        inline=False
+                    )
+
+                # Miniature de la 1ère suggestion
+                first = suggestions[0]
+                if first.get("card_images"):
+                    thumb = first["card_images"][0].get("image_url_cropped")
+                    if thumb:
+                        embed.set_thumbnail(url=thumb)
+
+                embed.set_footer(text="Relance la commande avec le nom exact.")
+                return await safe_send(channel, embed=embed)
+
             return await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
 
         # --- Extraction ---------------------------------------------------------
