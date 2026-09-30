@@ -236,13 +236,18 @@ async def fetch_card_multilang(nom: str, session: aiohttp.ClientSession) -> tupl
 
 
 async def fetch_card_fuzzy(nom: str, session: aiohttp.ClientSession) -> list[dict]:
+    """Recherche floue (fname) — max 10 résultats, avec misc=yes."""
     nom_encode = urllib.parse.quote(str(nom))
-    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}&language=fr"
-    async with session.get(url) as resp:
-        if resp.status == 200:
+    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}&language=fr&misc=yes"
+    try:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                return []
             data = await resp.json()
-            return data.get("data", [])
-    return []
+            return data.get("data", [])[:10]
+    except Exception as e:
+        print(f"[card_utils] fetch_card_fuzzy : {e}")
+        return []
 
 
 async def search_card(nom: str, session: aiohttp.ClientSession) -> tuple[dict | None, str, str]:
