@@ -1,9 +1,10 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # 📌 sets.py
-# Objectif : Afficher tous les sets d’une carte Yu-Gi-Oh! avec pagination interactive
+# Objectif : Afficher tous les sets d'une carte Yu-Gi-Oh! avec pagination interactive
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes par utilisateur
+# Version optimisée : 1 seul appel API via card_utils.fetch_card_full
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -14,14 +15,14 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 
-from utils.discord_utils import safe_send, safe_edit, safe_respond
-from utils.card_utils import search_card
+from utils.discord_utils import safe_send, safe_edit
+from utils.card_utils import fetch_card_full
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🎛️ UI — Pagination interactive des sets
 # ────────────────────────────────────────────────────────────────────────────────
 class SetsPagination(View):
-    """Navigation interactive entre les sets d’une carte."""
+    """Navigation interactive entre les sets d'une carte."""
 
     def __init__(self, sets: list[dict], card_name: str):
         super().__init__(timeout=120)
@@ -39,8 +40,8 @@ class SetsPagination(View):
     async def update_embed(self, interaction: discord.Interaction):
         s = self.sets[self.index]
         prix_cm = s.get("set_price", "N/A")
-        rarity = s.get("set_rarity", "N/A")
-        date = s.get("tcg_date", "Inconnue")
+        rarity  = s.get("set_rarity", "N/A")
+        date    = s.get("tcg_date", "Inconnue")
 
         embed = discord.Embed(
             title=f"{self.card_name} — Set {self.index + 1}/{len(self.sets)}",
@@ -64,14 +65,11 @@ class SetsPagination(View):
         self.index = (self.index + 1) % len(self.sets)
         await self.update_embed(interaction)
 
-
 # ────────────────────────────────────────────────────────────────────────────────
-# 🧠 Cog principal avec cooldown centralisé
+# 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class Sets(commands.Cog):
-    """
-    Commande /sets et !sets — Affiche tous les sets d’une carte Yu-Gi-Oh!
-    """
+    """Commande /ygosets et !ygosets — Affiche tous les sets d'une carte Yu-Gi-Oh!"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -80,29 +78,29 @@ class Sets(commands.Cog):
     # 🔹 Fonction interne commune
     # ────────────────────────────────────────────────────────────────────────────
     async def _send_sets(self, channel: discord.abc.Messageable, nom: str):
-        carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return await safe_send(channel, "❌ Session HTTP non disponible.")
 
-        if message:
-            await safe_send(channel, message)
-            return
-
+        # ✅ 1 seul appel API
+        carte = await fetch_card_full(nom, session)
         if not carte:
-            await safe_send(channel, f"❌ Impossible de trouver la carte `{nom}`.")
-            return
+            return await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
 
         sets = carte.get("card_sets", [])
         if not sets:
-            await safe_send(channel, "❌ Aucun set disponible pour cette carte.")
-            return
+            return await safe_send(channel, "❌ Aucun set disponible pour cette carte.")
 
         # Premier embed
         s = sets[0]
         prix_cm = s.get("set_price", "N/A")
-        rarity = s.get("set_rarity", "N/A")
-        date = s.get("tcg_date", "Inconnue")
+        rarity  = s.get("set_rarity", "N/A")
+        date    = s.get("tcg_date", "Inconnue")
+
+        card_name = carte.get("name_fr") or carte.get("name", "Carte inconnue")
 
         embed = discord.Embed(
-            title=f"{carte.get('name', 'Carte inconnue')} — Set 1/{len(sets)}",
+            title=f"{card_name} — Set 1/{len(sets)}",
             color=discord.Color.green()
         )
         embed.add_field(
@@ -111,7 +109,7 @@ class Sets(commands.Cog):
             inline=False
         )
 
-        view = SetsPagination(sets, carte.get("name"))
+        view = SetsPagination(sets, card_name)
         view.message = await safe_send(channel, embed=embed, view=view)
 
     # ────────────────────────────────────────────────────────────────────────────
@@ -119,7 +117,7 @@ class Sets(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="ygosets",
-        description="📦 Affiche tous les sets d’une carte avec rareté, prix et date TCG."
+        description="📦 Affiche tous les sets d'une carte avec rareté, prix et date TCG."
     )
     @app_commands.describe(nom="Nom de la carte")
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
@@ -135,7 +133,6 @@ class Sets(commands.Cog):
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_sets(self, ctx: commands.Context, *, nom: str):
         await self._send_sets(ctx.channel, nom)
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔌 Setup du Cog
