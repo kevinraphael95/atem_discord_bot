@@ -4,6 +4,7 @@
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 8 secondes / utilisateur
+# Version optimisée : 2 appels API par partie (0 cache, 0 RAM)
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -17,10 +18,10 @@ import random
 import re
 import sqlite3
 from difflib import SequenceMatcher
-import aiohttp
 
-from utils.discord_utils import safe_send, safe_reply, safe_edit
+from utils.discord_utils import safe_send, safe_edit, safe_reply
 from utils.vaact_utils import add_exp_for_streak, DB_PATH
+from utils.card_utils import fetch_random_card, fetch_cards_by_type, fetch_cards_by_archetype
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔒 Empêcher l'utilisation en MP
@@ -135,12 +136,11 @@ class QuizButton(Button):
 # 🧠 Cog principal
 # ────────────────────────────────────────────────────────────────────────────────
 class YGODescription(commands.Cog):
-    """
-    Commande /ygodescription et !ygodescription — Devine une carte Yu-Gi-Oh à partir de sa description
-    """
+    """Commande /ygodescription et !ygodescription — Devine une carte Yu-Gi-Oh à partir de sa description"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.active_sessions = {}  # guild_id → quiz en cours
+        self.active_sessions = {}
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Fonction interne commune
@@ -148,62 +148,69 @@ class YGODescription(commands.Cog):
     async def _start_quiz(self, ctx_or_inter, interaction=False):
         guild_id = ctx_or_inter.guild.id
         if self.active_sessions.get(guild_id):
-            return await safe_reply(ctx_or_inter,"⚠️ Un quiz est déjà en cours.", mention_author=False)
+            return await safe_reply(ctx_or_inter, "⚠️ Un quiz est déjà en cours.", mention_author=False)
         self.active_sessions[guild_id] = True
 
         try:
-            async with aiohttp.ClientSession() as session:
-                url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
-                async with session.get(url) as resp:
-                    data = await resp.json()
-                    cards = random.sample(data.get("data", []), min(100, len(data.get("data", []))))
+            session = getattr(self.bot, "aiohttp_session", None)
+            if not session or session.closed:
+                return await safe_send(ctx_or_inter, "🚨 Session HTTP non disponible.")
 
-            main_card = next((c for c in cards if "desc" in c and is_clean_card(c)), None)
-            if not main_card:
-                return await safe_send(ctx_or_inter,"❌ Aucune carte valide trouvée.")
+            # 1️⃣ Carte à deviner (1 appel API)
+            main_card, _ = await fetch_random_card(session)
+            if not main_card or "desc" not in main_card or not is_clean_card(main_card):
+                return await safe_send(ctx_or_inter, "❌ Aucune carte valide trouvée.")
 
             main_name = main_card["name"]
             main_desc = censor_card_name(main_card["desc"], main_name)
-            main_type = main_card.get("type","")
+            main_type = main_card.get("type", "")
             archetype = main_card.get("archetype")
-            type_group = get_type_group(main_type)
 
+            # 2️⃣ Fausses cartes (1 appel API)
             if archetype:
-                group = [c for c in cards if c.get("name") != main_name and "desc" in c]
+                wrongs = await fetch_cards_by_archetype(session, archetype, n=10)
             else:
-                group = [c for c in cards if c.get("name") != main_name and "desc" in c and get_type_group(c.get("type",""))==type_group and is_clean_card(c)]
-                group.sort(key=lambda c: common_word_score(main_name,c["name"])+similarity_ratio(main_name,c["name"]), reverse=True)
+                wrongs = await fetch_cards_by_type(session, main_type, n=10)
 
-            if len(group) < 3:
-                return await safe_send(ctx_or_inter,"❌ Pas assez de fausses cartes valides.")
+            # Filtrer
+            wrongs = [
+                c for c in wrongs
+                if c["name"] != main_name and "desc" in c and is_clean_card(c)
+            ]
 
-            wrongs = random.sample(group,3)
-            choices = [main_name]+[c["name"] for c in wrongs]
+            if len(wrongs) < 3:
+                return await safe_send(ctx_or_inter, "❌ Pas assez de fausses cartes valides.")
+
+            wrongs = random.sample(wrongs, 3)
+            choices = [main_name] + [c["name"] for c in wrongs]
             random.shuffle(choices)
 
+            # 3️⃣ Embed
             embed = discord.Embed(
                 title="🧠 Quelle est cette carte ?",
-                description=f"📘 **Type :** {main_type}\n📝 *{main_desc[:1500]}{'...' if len(main_desc)>1500 else ''}*",
+                description=f"📘 **Type :** {main_type}\n📝 *{main_desc[:1500]}{'...' if len(main_desc) > 1500 else ''}*",
                 color=discord.Color.purple()
             )
             embed.add_field(name="🔹 Archétype", value=f"||{archetype or 'Aucun'}||", inline=False)
             if main_type.lower().startswith("monstre"):
-                embed.add_field(name="💥 ATK", value=str(main_card.get("atk","—")), inline=True)
-                embed.add_field(name="🛡️ DEF", value=str(main_card.get("def","—")), inline=True)
-                embed.add_field(name="⚙️ Niveau", value=str(main_card.get("level","—")), inline=True)
+                embed.add_field(name="💥 ATK", value=str(main_card.get("atk", "—")), inline=True)
+                embed.add_field(name="🛡️ DEF", value=str(main_card.get("def", "—")), inline=True)
+                embed.add_field(name="⚙️ Niveau", value=str(main_card.get("level", "—")), inline=True)
 
+            # 4️⃣ View
             view = QuizView(self.bot, choices, main_name)
-            if interaction:
-                view.message = await safe_send(ctx_or_inter.channel, embed=embed, view=view)
-            else:
-                view.message = await safe_send(ctx_or_inter, embed=embed, view=view)
+            view.message = await safe_send(ctx_or_inter.channel, embed=embed, view=view)
             await view.wait()
 
-            winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if choices[idx]==main_name]
+            # 5️⃣ Résultats
+            winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if choices[idx] == main_name]
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
-                description=(f"✅ Réponse : **{main_name}**\n"
-                             + (f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}" if winners else "😢 Personne n'a trouvé...")),
+                description=(
+                    f"✅ Réponse : **{main_name}**\n" +
+                    (f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}"
+                     if winners else "😢 Personne n'a trouvé...")
+                ),
                 color=discord.Color.green() if winners else discord.Color.red()
             )
             await safe_send(ctx_or_inter, embed=result_embed)
@@ -231,7 +238,7 @@ class YGODescription(commands.Cog):
     # ────────────────────────────────────────────────────────────────────────────
     @commands.command(
         name="ygodescription",
-        aliases=["ygodesc","yd"],
+        aliases=["ygodesc", "yd"],
         help="Devine une carte Yu-Gi-Oh à partir de sa description"
     )
     @no_dm()
