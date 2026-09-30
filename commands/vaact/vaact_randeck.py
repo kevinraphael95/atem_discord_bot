@@ -1,14 +1,15 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 vaact_randeck.py
 # Objectif : Tirer un deck custom aléatoire avec boutons interactifs
 # Catégorie : VAACT
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes par utilisateur
-# ────────────────────────────────────────────────────────────────────────────────
+# Version optimisée : safe_defer + fix setup
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -17,11 +18,11 @@ import json
 import os
 import random
 
-from utils.discord_utils import safe_send, safe_respond  
+from utils.discord_utils import safe_send, safe_defer
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📂 Chargement des données JSON
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 DATA_JSON_PATH = os.path.join("data", "deck_data.json")
 
 def load_data():
@@ -33,9 +34,9 @@ def load_data():
         print(f"[ERREUR JSON] Impossible de charger {DATA_JSON_PATH} : {e}")
         return {}
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ View Boutons Deck
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class DeckLinkView(View):
     def __init__(self, links: dict):
         super().__init__(timeout=120)
@@ -43,20 +44,18 @@ class DeckLinkView(View):
         for name, url in links.items():
             self.add_item(Button(label=name, url=url))
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class VaactRandeck(commands.Cog):
-    """
-    Commande /vaact_randeck et !vaact_randeck — Tire un deck custom aléatoire
-    """
+    """Commande /vaact_randeck et !vaact_randeck — Tire un deck custom aléatoire"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Fonction interne commune
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _send_random_deck(self, channel: discord.abc.Messageable, author: discord.Member):
         data = load_data()
         if not data:
@@ -109,22 +108,24 @@ class VaactRandeck(commands.Cog):
 
         await safe_send(channel, embed=embed, view=view)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="vaact_randeck",
         description="Tire un deck custom aléatoire à jouer."
     )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_vaact_randeck(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=False)
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self._send_random_deck(interaction.channel, interaction.user)
-        await interaction.delete_original_response()
+        # Pas de delete, defer = invisible
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(
         name="vaact_randeck",
         aliases=["vaactrandeck"]
@@ -133,11 +134,11 @@ class VaactRandeck(commands.Cog):
     async def prefix_vaact_randeck(self, ctx: commands.Context):
         await self._send_random_deck(ctx.channel, ctx.author)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
-    cog = Randeck(bot)
+    cog = VaactRandeck(bot)   # ✅ Fix : VaactRandeck (pas Randeck)
     for command in cog.get_commands():
         if not hasattr(command, "category"):
             command.category = "VAACT"
