@@ -200,16 +200,15 @@ async def fetch_card_full(nom: str | None, session: aiohttp.ClientSession) -> di
 async def _enrich_genesys(session: aiohttp.ClientSession, card: dict):
     """
     Ajoute genesys_points (TCG) et genesys_ocg_points si dispo.
-    Appel TCG fait seulement si pas déjà présent.
+    Force l'appel TCG avec format=genesys.
     Appel OCG seulement si TCG > 0 (économie d'API).
     """
-    if "genesys_points" not in card:
-        card_gs = await _fetch_by_id(session, card["id"], with_genesys=True)
-        if card_gs:
-            card["genesys_points"] = card_gs.get("genesys_points")
+    card_gs = await _fetch_by_id(session, card["id"], with_genesys=True)
+    if card_gs and card_gs.get("genesys_points") is not None:
+        card["genesys_points"] = card_gs.get("genesys_points")
 
     tcg = card.get("genesys_points")
-    if tcg and tcg > 0 and "genesys_ocg_points" not in card:
+    if tcg and tcg > 0:
         ocg = await fetch_genesys_ocg(session, card["id"])
         if ocg is not None:
             card["genesys_ocg_points"] = ocg
