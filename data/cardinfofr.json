@@ -111,8 +111,11 @@
     "trap": "Piège",
     "xyz": "Xyz",
     "xyz_pendulum": "Xyz Pendule"
+  },
+  "BANLIST_TRANSLATION": {
+    "Banned":       { "label": "🚫 Interdite",    "max": 0 },
+    "Limited":      { "label": "⚠️ Limitée",      "max": 1 },
+    "Semi-Limited": { "label": "🔸 Semi-limitée", "max": 2 },
+    "Unlimited":    { "label": "✅ Autorisée",    "max": 3 }
   }
 }
-
-
-
