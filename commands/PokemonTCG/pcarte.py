@@ -1,14 +1,14 @@
-# ─────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 pcarte.py — Commande Pokémon TCG
 # Objectif : Afficher une carte Pokémon (ou random)
 # Catégorie : 🃏 Pokémon TCG
 # Accès : Public
 # Cooldown : 1 / 3 sec
-# ─────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -19,16 +19,16 @@ from utils.discord_utils import safe_send
 
 BASE_URL = "https://api.tcgdex.net/v2/en"
 
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 # 🧠 Cog principal
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 class PokemonCarte(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ─────────────────────────────────────────────────────────
+    # =========================================================
     # 🔹 Fonction interne pour afficher une carte
-    # ─────────────────────────────────────────────────────────
+    # =========================================================
     async def _show_card(self, channel, query: str | None):
         async with aiohttp.ClientSession() as session:
             # 🔀 Random
@@ -59,9 +59,9 @@ class PokemonCarte(commands.Cog):
             await safe_send(channel, "❌ Carte introuvable.")
             return
 
-        # ───────────────
+        # ===============
         # 📊 Infos carte
-        # ───────────────
+        # ===============
         name = card.get("name", "Carte inconnue")
         hp = card.get("hp")
         types = card.get("types", [])
@@ -107,9 +107,9 @@ class PokemonCarte(commands.Cog):
 
         await safe_send(channel, embed=embed)
 
-    # ─────────────────────────────────────────────────────────
+    # =========================================================
     # 🔹 Slash command
-    # ─────────────────────────────────────────────────────────
+    # =========================================================
     @app_commands.command(
         name="pcarte",
         description="Afficher une carte Pokémon TCG (ou random)."
@@ -121,17 +121,17 @@ class PokemonCarte(commands.Cog):
         await self._show_card(interaction.channel, nom)
         await interaction.delete_original_response()
 
-    # ─────────────────────────────────────────────────────────
+    # =========================================================
     # 🔹 Prefix command
-    # ─────────────────────────────────────────────────────────
+    # =========================================================
     @commands.command(name="pcarte", aliases=["pokemon"], help="Afficher une carte Pokémon TCG (ou random).")
     @commands.cooldown(1, 3.0, commands.BucketType.user)
     async def prefix_pcarte(self, ctx: commands.Context, *, nom: str = None):
         await self._show_card(ctx.channel, nom)
 
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 # 🔌 Setup du Cog
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 async def setup(bot: commands.Bot):
     cog = PokemonCarte(bot)
     for cmd in cog.get_commands():
