@@ -1,25 +1,26 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 roulette_devine.py
 # Objectif : Tire une carte aléatoire via roulette YGO (Monster/Spell/Trap/Token) et devine le type
 # Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 5 secondes
-# ────────────────────────────────────────────────────────────────────────────────
+# Version optimisée : utilise card_utils (session partagée, 1 appel API)
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
-import aiohttp
 import random
 
 from utils.discord_utils import safe_send, safe_edit
+from utils.card_utils import fetch_cards_by_type
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎰 Roulette : types + poids
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 ROULETTE = [
     ("monster", 33),
     ("spell", 33),
@@ -31,28 +32,9 @@ def spin_roulette():
     types, weights = zip(*ROULETTE)
     return random.choices(types, weights=weights, k=1)[0]
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔹 Récupération carte aléatoire via YGOPRODeck
-# ────────────────────────────────────────────────────────────────────────────────
-async def fetch_random_card(card_type: str):
-    url_type_map = {
-        "monster": "Monster",
-        "spell": "Spell%20Card",
-        "trap": "Trap%20Card",
-        "token": "Token"
-    }
-    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?type={url_type_map[card_type]}&language=fr"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json()
-            cards = data.get("data", [])
-            return random.choice(cards) if cards else None
-
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ UI — Deviner le type de carte
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class GuessTypeView(discord.ui.View):
     def __init__(self, correct_type: str, card: dict):
         super().__init__(timeout=30)
@@ -89,24 +71,22 @@ class GuessButton(discord.ui.Button):
 
         embed.set_footer(text=verdict)
 
-        # Désactive les boutons
         for child in self.parent_view.children:
             child.disabled = True
         await interaction.response.edit_message(embed=embed, view=self.parent_view)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class RouletteDevine(commands.Cog):
-    """
-    Commande /roulette_devine et !roulette_devine — Tire une carte aléatoire via roulette pondérée et devine le type
-    """
+    """Commande /ygoroulette et !ygoroulette — Tire une carte et devine le type"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Fonction commune
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _run_roulette(self, channel: discord.abc.Messageable):
         embed = discord.Embed(
             title="🎰 Roulette YGO",
@@ -123,36 +103,48 @@ class RouletteDevine(commands.Cog):
 
         # Tirage réel de la roulette
         card_type = spin_roulette()
-        card = await fetch_random_card(card_type)
-        if not card:
-            await safe_send(channel, "❌ Impossible de récupérer une carte. Réessaye plus tard.")
-            return
 
+        # ✅ Utilise card_utils (session partagée, 1 appel API)
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return await safe_send(channel, "❌ Session HTTP non disponible.")
+
+        type_map = {
+            "monster": "Monster",
+            "spell": "Spell Card",
+            "trap": "Trap Card",
+            "token": "Token"
+        }
+        cards = await fetch_cards_by_type(session, type_map[card_type], n=1)
+        if not cards:
+            return await safe_send(channel, "❌ Impossible de récupérer une carte. Réessaye plus tard.")
+
+        card = cards[0]
         await safe_send(channel, embed=embed, view=GuessTypeView(card_type, card))
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="ygoroulette",
-        description="Jouer au Blackjack avec des cartes Yu-Gi-Oh!."
+        description="Tire une carte YGO et devine son type !"
     )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_roulette_devine(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self._run_roulette(interaction.channel)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
-    @commands.command(name="ygoroulette", help="Jouer au Blackjack avec des cartes Yu-Gi-Oh!.")
+    # ============================================================================
+    @commands.command(name="ygoroulette", help="Tire une carte YGO et devine son type !")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_roulette_devine(self, ctx: commands.Context):
         await self._run_roulette(ctx.channel)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = RouletteDevine(bot)
     for command in cog.get_commands():
