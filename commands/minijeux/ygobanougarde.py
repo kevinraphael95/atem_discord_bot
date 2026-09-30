@@ -1,26 +1,27 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 bannisougarde.py
-# Objectif : Mini-jeu fun Yu-Gi-Oh! où tu décides pour 3 cartes si elles sont bannies,
-# gardées à 3 ou limitées à 1.
+# Objectif : Mini-jeu fun Yu-Gi-Oh! — pour 3 cartes, choisis bannir/garder/limiter
 # Catégorie : 🃏 Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 30 sec / utilisateur
-# ────────────────────────────────────────────────────────────────────────────────
+# Version optimisée : utilise card_utils (0 RAM permanente)
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-import aiohttp
 import random
-from utils.discord_utils import safe_send, safe_edit
 
-# ────────────────────────────────────────────────────────────────────────────────
+from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.card_utils import fetch_random_cards
+
+# ================================================================================
 # 🎛️ UI — Boutons pour chaque carte
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class ChoixCarteView(View):
     def __init__(self, bot, ctx, cartes, index=0, choix_faits=None, choix_restants=None):
         super().__init__(timeout=120)
@@ -72,7 +73,7 @@ class ChoixCarteView(View):
             statut = status_map.get(self.choix_faits.get(i, "?"), "?")
             embed.add_field(name=carte["name"], value=f"{statut}\n{carte['desc'][:300]}...", inline=False)
         await safe_edit(interaction.message, content=None, embed=embed, view=None)
-        await safe_send(self.ctx.channel, "Merci d’avoir joué à !bannisougarde 🎲")
+        await safe_send(self.ctx.channel, "Merci d'avoir joué à !ygobannisougarde 🎲")
 
     async def on_timeout(self):
         for child in self.children:
@@ -93,40 +94,35 @@ class ChoixButton(Button):
         await interaction.response.defer()
         await self.parent_view.avance(interaction, self.choix)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class BannisOuGarde(commands.Cog):
-    """
-    Commande /bannisougarde et !bannisougarde — Mini-jeu fun : pour 3 cartes,
-    choisis bannir, garder ou limiter.
-    """
+    """Commande /ygobannisougarde et !ygobannisougarde — Mini-jeu pour 3 cartes"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     async def get_random_cards(self):
-        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                all_cards = data.get("data", [])
-                if len(all_cards) < 3:
-                    return None
-                sample = random.sample(all_cards, 3)
-                return [
-                    {
-                        "name": c["name"],
-                        "desc": c["desc"],
-                        "image": c.get("card_images", [{}])[0].get("image_url")
-                    }
-                    for c in sample
-                ]
+        """Récupère 3 cartes aléatoires (3 appels API parallèles)."""
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return None
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction interne commune
-    # ────────────────────────────────────────────────────────────────────────────
+        # ✅ 3 cartes aléatoires (3 appels API en parallèle)
+        cards = await fetch_random_cards(session, n=3)
+        if len(cards) < 3:
+            return None
+
+        return [
+            {
+                "name": c["name"],
+                "desc": c.get("desc", "Pas de description."),
+                "image": c.get("card_images", [{}])[0].get("image_url")
+            }
+            for c in cards
+        ]
+
     async def _start_game(self, channel: discord.abc.Messageable, author, cartes):
         view = ChoixCarteView(self.bot, author, cartes)
         premiere_carte = cartes[0]
@@ -140,9 +136,6 @@ class BannisOuGarde(commands.Cog):
         embed.set_footer(text="Choisis le statut de cette carte : 🗑️ Bannir, 🔥 Garder, 👎 Limiter")
         await safe_send(channel, embed=embed, view=view)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="ygobannisougarde",
         description="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter."
@@ -160,9 +153,6 @@ class BannisOuGarde(commands.Cog):
             print(f"[ERREUR /bannisougarde] {e}")
             await safe_respond(interaction, "❌ Une erreur est survenue.", ephemeral=True)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="ygobannisougarde", aliases=["ybog"], help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.")
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def prefix_bannisougarde(self, ctx: commands.Context):
@@ -175,9 +165,9 @@ class BannisOuGarde(commands.Cog):
             print(f"[ERREUR !bannisougarde] {e}")
             await safe_send(ctx.channel, "❌ Une erreur est survenue.")
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = BannisOuGarde(bot)
     for command in cog.get_commands():
