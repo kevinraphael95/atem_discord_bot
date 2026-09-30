@@ -21,7 +21,7 @@ import sqlite3
 
 from utils.discord_utils import safe_send, safe_defer
 from utils.vaact_utils import DB_PATH, get_or_create_profile
-from utils.card_utils import fetch_card_full
+from utils.card_utils import fetch_card_full, fetch_card_fuzzy
 
 # ================================================================================
 # 🎨 Chargement décorations et couleurs
@@ -202,6 +202,17 @@ class Carte(commands.Cog):
         if not carte:
             if not nom or nom.lower() == "random":
                 return await safe_send(channel, "❌ Impossible de tirer une carte aléatoire.")
+
+            # 🔍 Fuzzy → propose des alternatives
+            suggestions = await fetch_card_fuzzy(nom, session)
+            if suggestions:
+                titres = "\n".join(f"• **{c.get('name')}**" for c in suggestions[:5])
+                return await safe_send(
+                    channel,
+                    f"❌ Aucune carte exacte pour `{nom}`.\n\n"
+                    f"🔍 **Peut-être voulais-tu dire :**\n{titres}\n\n"
+                    f"💡 Relance la commande avec le nom exact."
+                )
             return await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
 
         # --- Extraction ---------------------------------------------------------
