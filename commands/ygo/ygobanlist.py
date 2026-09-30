@@ -7,6 +7,7 @@
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
+# Version optimisée : cache 1h + safe_edit + safe_followup
 # ================================================================================
 
 # ================================================================================
@@ -16,8 +17,12 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import json
+import time
 from pathlib import Path
-from utils.discord_utils import safe_send, safe_respond
+
+from utils.discord_utils import (
+    safe_send, safe_respond, safe_edit, safe_followup, safe_defer
+)
 
 # ================================================================================
 # 📖 Chargement du dictionnaire de traduction des types
@@ -43,7 +48,7 @@ def translate_card_type(type_str: str) -> str:
     return type_str
 
 # ================================================================================
-# 🏷️ Statuts de banlist : ordre d'affichage, libellés FR, emoji
+# 🏷️ Statuts de banlist
 # ================================================================================
 STATUS_ORDER = ["Banned", "Limited", "Semi-Limited"]
 STATUS_LABELS = {
@@ -53,7 +58,7 @@ STATUS_LABELS = {
 }
 
 def group_by_status(cards: list[dict], ban_key: str) -> dict[str, list[dict]]:
-    """Regroupe les cartes par statut de banlist (Interdite/Limitée/Semi-limitée)."""
+    """Regroupe les cartes par statut de banlist."""
     groups = {status: [] for status in STATUS_ORDER}
     for c in cards:
         status = c.get("banlist_info", {}).get(ban_key)
@@ -62,7 +67,7 @@ def group_by_status(cards: list[dict], ban_key: str) -> dict[str, list[dict]]:
     return groups
 
 def flatten_grouped(groups: dict[str, list[dict]]) -> list[tuple[str, dict]]:
-    """Aplati les groupes en liste (statut, carte) triée par statut puis par nom, pour la pagination."""
+    """Aplati les groupes pour la pagination."""
     flat = []
     for status in STATUS_ORDER:
         for c in sorted(groups[status], key=lambda c: c.get("name", "")):
@@ -90,7 +95,6 @@ class BanlistPagination(discord.ui.View):
         end = start + self.per_page
         current = self.flat[start:end]
 
-        # Résumé des totaux par statut (toujours affiché, quelle que soit la page)
         summary = " • ".join(
             f"{emoji} {label} : {len(self.groups[status])}"
             for status, (emoji, label) in STATUS_LABELS.items()
@@ -132,31 +136,50 @@ class BanlistPagination(discord.ui.View):
         for child in self.children:
             child.disabled = True
         if self.message:
-            await safe_send(self.message, view=self)
+            try:
+                await safe_edit(self.message, view=self)
+            except Exception:
+                pass
 
 # ================================================================================
 # 🧠 Cog principal
 # ================================================================================
 class Banlist(commands.Cog):
-    """Commande /banlist et !banlist — Affiche les cartes d'une banlist (TCG, OCG, GOAT)"""
+    """Commande /ygobanlist et !ygobanlist — Affiche les cartes d'une banlist"""
 
     BASE_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
     BAN_KEY = {"tcg": "ban_tcg", "ocg": "ban_ocg", "goat": "ban_goat"}
+    CACHE_TTL = 3600  # 1h
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._cache = {}         # {banlist_type: groups}
+        self._cache_time = {}    # {banlist_type: timestamp}
 
     async def fetch_banlist(self, banlist_type: str):
-        """Récupère les cartes selon la banlist choisie (noms en français), regroupées par statut."""
+        """Récupère les cartes selon la banlist choisie, avec cache 1h."""
+        now = time.monotonic()
+
+        # ✅ Cache
+        if banlist_type in self._cache and (now - self._cache_time.get(banlist_type, 0)) < self.CACHE_TTL:
+            return self._cache[banlist_type]
+
         params = {"banlist": banlist_type, "sort": "name", "language": "fr"}
-        async with self.bot.aiohttp_session.get(self.BASE_URL, params=params) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json()
-            cards = data.get("data", [])
-            if not cards:
-                return None
-            return group_by_status(cards, self.BAN_KEY[banlist_type])
+        try:
+            async with self.bot.aiohttp_session.get(self.BASE_URL, params=params) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                cards = data.get("data", [])
+                if not cards:
+                    return None
+                groups = group_by_status(cards, self.BAN_KEY[banlist_type])
+                self._cache[banlist_type] = groups
+                self._cache_time[banlist_type] = now
+                return groups
+        except Exception as e:
+            print(f"[banlist] Erreur fetch : {e}")
+            return None
 
     async def _run(self, banlist_type: str):
         """Logique commune slash/prefix : retourne (groups, error_message)."""
@@ -178,20 +201,26 @@ class Banlist(commands.Cog):
     @app_commands.describe(banlist="Type de banlist: tcg, ocg, goat")
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_banlist(self, interaction: discord.Interaction, banlist: str = "tcg"):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
+
         groups, error = await self._run(banlist)
         if error:
-            return await safe_respond(interaction, error)
+            return await safe_followup(interaction, error, ephemeral=True)
 
         view = BanlistPagination(banlist.lower(), groups)
         embed = view.build_embed()
-        await interaction.followup.send(embed=embed, view=view)
-        view.message = await interaction.original_response()
+        view.message = await safe_followup(interaction, embed=embed, view=view)
 
     # ============================================================================
     # 🔹 Commande PREFIX
     # ============================================================================
-    @commands.command(name="ygobanlist", aliases=["ygobl", "ybanlist", "ybl"], help="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination.")
+    @commands.command(
+        name="ygobanlist",
+        aliases=["ygobl", "ybanlist", "ybl"],
+        help="Affiche les cartes d'une banlist (tcg, ocg ou goat) avec pagination."
+    )
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_banlist(self, ctx: commands.Context, banlist: str = "tcg"):
         groups, error = await self._run(banlist)
