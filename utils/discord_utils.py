@@ -100,3 +100,34 @@ async def safe_clear_reactions(message: discord.Message, delay: float = 0.3):
     if delay > 0:
         await asyncio.sleep(delay)
     return result
+
+# ================================================================================
+# ✅ safe_defer — Defer sécurisé
+# ================================================================================
+async def safe_defer(interaction: discord.Interaction, ephemeral: bool = False) -> bool:
+    """
+    Defer une interaction de manière sécurisée.
+    Retourne True si réussi, False si interaction expirée.
+    """
+    try:
+        if interaction.response.is_done():
+            return True
+        await interaction.response.defer(ephemeral=ephemeral)
+        return True
+    except discord.NotFound:
+        return False
+    except discord.HTTPException as e:
+        if e.status == 429:
+            wait_time = getattr(e, "retry_after", 5)
+            print(f"[safe_defer] 429, pause {wait_time}s")
+            await asyncio.sleep(wait_time)
+            try:
+                await interaction.response.defer(ephemeral=ephemeral)
+                return True
+            except Exception:
+                return False
+        print(f"[safe_defer] HTTPException : {e}")
+        return False
+    except Exception as e:
+        print(f"[safe_defer] Erreur : {e}")
+        return False
