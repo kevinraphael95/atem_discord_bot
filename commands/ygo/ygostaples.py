@@ -1,12 +1,12 @@
 # ================================================================================
-# 📌 staples.py — Commande interactive /staples et !staples
+# 📌 staples.py — Commande interactive /ygostaples et !ygostaples
 # Objectif :
 #   - Récupère les cartes Staples depuis l'API YGOPRODeck
 #   - Affiche les résultats avec pagination (20 cartes/page)
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
-# Version optimisée : session partagée + cache 1h
+# Version optimisée : cache 1h + safe_defer + safe_followup
 # ================================================================================
 
 # ================================================================================
@@ -18,7 +18,10 @@ from discord.ext import commands
 import json
 import time
 from pathlib import Path
-from utils.discord_utils import safe_send, safe_respond
+
+from utils.discord_utils import (
+    safe_send, safe_defer, safe_followup, safe_edit_original
+)
 
 # ================================================================================
 # 📖 Chargement du dictionnaire de traduction des types
@@ -65,15 +68,18 @@ class StaplesPagination(discord.ui.View):
         self.staples = staples
         self.per_page = per_page
         self.page = 0
+        self.message = None
 
     def get_page_data(self):
         start = self.page * self.per_page
         end = start + self.per_page
         return self.staples[start:end]
 
+    def _total_pages(self):
+        return max(1, (len(self.staples) - 1) // self.per_page + 1)
+
     async def update_embed(self, interaction: discord.Interaction):
         current = self.get_page_data()
-        total_pages = (len(self.staples) - 1) // self.per_page + 1
 
         description = "\n".join(
             f"**{c['name']}** — {translate_card_type(c.get('type', 'Inconnu'))} — {translate_card_attribute(c.get('attribute', 'Inconnu'))}"
@@ -81,7 +87,7 @@ class StaplesPagination(discord.ui.View):
         )
 
         embed = discord.Embed(
-            title=f"📌 Cartes Staples (Page {self.page + 1}/{total_pages})",
+            title=f"📌 Cartes Staples (Page {self.page + 1}/{self._total_pages()})",
             description=description,
             color=discord.Color.blue()
         )
@@ -90,13 +96,23 @@ class StaplesPagination(discord.ui.View):
 
     @discord.ui.button(label="⬅️ Précédent", style=discord.ButtonStyle.secondary)
     async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.page = (self.page - 1) % ((len(self.staples) - 1) // self.per_page + 1)
+        self.page = (self.page - 1) % self._total_pages()
         await self.update_embed(interaction)
 
     @discord.ui.button(label="➡️ Suivant", style=discord.ButtonStyle.secondary)
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.page = (self.page + 1) % ((len(self.staples) - 1) // self.per_page + 1)
+        self.page = (self.page + 1) % self._total_pages()
         await self.update_embed(interaction)
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            try:
+                from utils.discord_utils import safe_edit
+                await safe_edit(self.message, view=self)
+            except Exception:
+                pass
 
 # ================================================================================
 # 🧠 Cog principal
@@ -137,7 +153,7 @@ class Staples(commands.Cog):
     def _build_embed(self, staples, view):
         """Construit l'embed de la première page."""
         current = view.get_page_data()
-        total_pages = (len(staples) - 1) // view.per_page + 1
+        total_pages = view._total_pages()
 
         description = "\n".join(
             f"**{c['name']}** — {translate_card_type(c.get('type', 'Inconnu'))} — {translate_card_attribute(c.get('attribute', 'Inconnu'))}"
@@ -161,14 +177,20 @@ class Staples(commands.Cog):
     )
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_staples(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
+
         staples = await self.fetch_staples()
         if not staples:
-            return await safe_respond(interaction, "❌ Impossible de récupérer les cartes staples.")
+            return await safe_followup(interaction, "❌ Impossible de récupérer les cartes staples.", ephemeral=True)
 
         view = StaplesPagination(staples)
         embed = self._build_embed(staples, view)
-        await interaction.edit_original_response(embed=embed, view=view)
+
+        # ✅ Édite la réponse originale avec l'embed + view
+        await safe_edit_original(interaction, embed=embed, view=view)
+        view.message = await interaction.original_response()
 
     # ============================================================================
     # 🔹 Commande PREFIX
@@ -182,7 +204,7 @@ class Staples(commands.Cog):
 
         view = StaplesPagination(staples)
         embed = self._build_embed(staples, view)
-        await safe_send(ctx.channel, embed=embed, view=view)
+        view.message = await safe_send(ctx.channel, embed=embed, view=view)
 
 # ================================================================================
 # 🔌 Setup du Cog
