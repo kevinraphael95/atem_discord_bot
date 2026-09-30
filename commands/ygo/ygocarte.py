@@ -1,11 +1,5 @@
 # ================================================================================
 # 📌 carte.py — Commande interactive !ygocarte
-# Objectif :
-#   - Rechercher et afficher les détails d'une carte Yu-Gi-Oh!
-#   - OU tirer une carte aléatoire avec !ygocarte random
-# Catégorie : 🃏 Yu-Gi-Oh!
-# Accès : Public
-# Cooldown : 1 utilisation / 3 sec / utilisateur
 # ================================================================================
 
 # ================================================================================
@@ -24,7 +18,7 @@ from utils.vaact_utils import DB_PATH, get_or_create_profile
 from utils.card_utils import fetch_card_full
 
 # ================================================================================
-# 🎨 Chargement décorations et couleurs (avec reload à chaud possible)
+# 🎨 Chargement décorations et couleurs
 # ================================================================================
 CARDINFO_PATH = Path("data/cardinfofr.json")
 
@@ -40,7 +34,6 @@ TYPE_COLOR             = {}
 
 
 def load_cardinfo():
-    """Charge (ou recharge) data/cardinfofr.json et reconstruit les dicts globaux."""
     global CARDINFO, ATTRIBUT_EMOJI, TYPE_EMOJI, TYPE_TRANSLATION
     global SPELL_RACE_TRANSLATION, TRAP_RACE_TRANSLATION
     global FRAME_TYPE_TRANSLATION, BANLIST_TRANSLATION, TYPE_COLOR
@@ -72,7 +65,7 @@ def load_cardinfo():
     TYPE_COLOR.setdefault("default", discord.Color.dark_grey())
 
 
-load_cardinfo()  # chargement initial
+load_cardinfo()
 
 
 # ================================================================================
@@ -118,7 +111,6 @@ class CarteFavoriteButton(View):
 # 🔧 Helpers de formatage
 # ================================================================================
 def translate_card_type(type_str: str) -> str:
-    """Traduit le type brut de l'API en français (match le plus long)."""
     if not type_str:
         return "Inconnu"
     t = type_str.lower().strip()
@@ -165,7 +157,6 @@ def format_frame_type(frame_type: str) -> str | None:
 
 
 def format_limit_short(value: str | None) -> str:
-    """Retourne juste le nombre max autorisé en deck : '3', '2', '1' ou '0'."""
     if not value:
         return "3"
     entry = BANLIST_TRANSLATION.get(str(value).strip(), {"max": 3})
@@ -173,7 +164,6 @@ def format_limit_short(value: str | None) -> str:
 
 
 def format_price(carte: dict) -> str | None:
-    """Retourne une ligne de prix Cardmarket / TCGPlayer si dispo."""
     prices = carte.get("card_prices") or []
     if not prices:
         return None
@@ -202,16 +192,15 @@ class Carte(commands.Cog):
         if not session or session.closed:
             return await safe_send(channel, "❌ Session HTTP non disponible.")
 
-        # ✅ 1 SEUL appel API
         carte = await fetch_card_full(nom, session)
         if not carte:
             if not nom or nom.lower() == "random":
                 return await safe_send(channel, "❌ Impossible de tirer une carte aléatoire.")
             return await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
 
-        # --- Extraction des champs ---------------------------------------------
-        card_name_fr = carte.get("name_fr") or carte.get("name")
-        card_name_en = carte.get("name")
+        # --- Extraction ---------------------------------------------------------
+        card_name_fr = carte.get("name")
+        card_name_en = carte.get("name_en") or carte.get("name")
         type_raw     = carte.get("type", "")
         frame_type   = carte.get("frameType", "")
         race         = carte.get("race", "")
@@ -220,17 +209,17 @@ class Carte(commands.Cog):
         defe         = carte.get("def")
         level        = carte.get("level")
         linkval      = carte.get("linkval") or carte.get("link_rating")
-        desc         = carte.get("desc_fr") or carte.get("desc") or "Pas de description."
+        desc         = carte.get("desc") or "Pas de description."
         archetype    = carte.get("archetype")
         banlist_info = carte.get("banlist_info", {}) or {}
 
-        # misc=yes uniquement
-        genesys      = carte.get("genesys_points")
-        tcg_date     = carte.get("tcg_date")
-        md_rarity    = carte.get("md_rarity")
-        konami_id    = carte.get("konami_id")
+        genesys_tcg = carte.get("genesys_points")
+        genesys_ocg = carte.get("genesys_ocg_points")
+        tcg_date    = carte.get("tcg_date")
+        md_rarity   = carte.get("md_rarity")
+        konami_id   = carte.get("konami_id")
 
-        # --- Limites (compact sur une ligne) -----------------------------------
+        # --- Limites ------------------------------------------------------------
         tcg_limit  = format_limit_short(banlist_info.get("ban_tcg"))
         ocg_limit  = format_limit_short(banlist_info.get("ban_ocg"))
         goat_limit = format_limit_short(banlist_info.get("ban_goat"))
@@ -244,8 +233,15 @@ class Carte(commands.Cog):
             f"**Limites** : TCG {tcg_limit} / OCG {ocg_limit} / GOAT {goat_limit}"
         )
 
-        if genesys is not None:
-            header_lines.append(f"**Points Genesys** : 🎯 {genesys}")
+        genesys_parts = []
+        if genesys_tcg and genesys_tcg > 0:
+            genesys_parts.append(f"TCG {genesys_tcg}")
+        if genesys_ocg and genesys_ocg > 0:
+            genesys_parts.append(f"OCG {genesys_ocg}")
+        if genesys_parts:
+            header_lines.append(
+                f"**Coût Genesys** : 🎯 {' / '.join(genesys_parts)} pts"
+            )
 
         # --- Détails ------------------------------------------------------------
         card_type_fr = translate_card_type(type_raw)
@@ -299,7 +295,7 @@ class Carte(commands.Cog):
 
         embed.set_footer(text=f"Nom anglais : {card_name_en}")
 
-        view = CarteFavoriteButton(card_name_en, user or channel)
+        view = CarteFavoriteButton(card_name_fr, user or channel)
         await safe_send(channel, embed=embed, view=view)
 
     # ============================================================================
