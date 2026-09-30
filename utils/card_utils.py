@@ -16,9 +16,25 @@ import asyncio
 # 🎲 Récupération à la demande
 # ================================================================================
 
+async def _fetch_card_by_id_fr(session: aiohttp.ClientSession, card_id: int) -> dict | None:
+    """Récupère une carte précise en français via son id."""
+    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?id={card_id}&language=fr"
+    try:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                return None
+            data = await resp.json()
+            cards = data.get("data", [])
+            return cards[0] if cards else None
+    except Exception as e:
+        print(f"[card_utils] _fetch_card_by_id_fr : {e}")
+        return None
+
+
 async def fetch_random_card(session: aiohttp.ClientSession) -> tuple[dict | None, str]:
-    """Récupère UNE carte aléatoire (1 seul appel API)."""
-    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr"
+    """Récupère UNE carte aléatoire, en français si possible."""
+    # 1) carte aléatoire (SANS language=fr, sinon l'API renvoie toujours la même)
+    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes"
     try:
         async with session.get(url) as resp:
             if resp.status != 200:
@@ -27,10 +43,16 @@ async def fetch_random_card(session: aiohttp.ClientSession) -> tuple[dict | None
             cards = data.get("data", [])
             if not cards:
                 return None, "?"
-            return cards[0], "fr"
+            card = cards[0]
     except Exception as e:
         print(f"[card_utils] fetch_random_card : {e}")
         return None, "?"
+
+    # 2) récupération de la version FR via l'id
+    card_fr = await _fetch_card_by_id_fr(session, card["id"])
+    if card_fr:
+        return card_fr, "fr"
+    return card, "en"
 
 
 async def fetch_random_cards(session: aiohttp.ClientSession, n: int = 5) -> list[dict]:
@@ -90,26 +112,17 @@ async def fetch_staple_cards(session: aiohttp.ClientSession) -> list[dict]:
 
 async def fetch_card_full(nom: str | None, session: aiohttp.ClientSession) -> dict | None:
     """
-    Récupère une carte complète en 1 seul appel API.
+    Récupère une carte complète.
 
-    - Si nom=None ou "random" → carte aléatoire
+    - Si nom=None ou "random" → carte aléatoire (en FR si possible)
     - Sinon → recherche par nom (FR puis fallback EN)
 
     Retourne le dict de la carte ou None.
     """
     # ✅ Gère None et "random"
     if not nom or str(nom).lower() == "random":
-        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr"
-        try:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                cards = data.get("data", [])
-                return cards[0] if cards else None
-        except Exception as e:
-            print(f"[card_utils] fetch_card_full (random) : {e}")
-            return None
+        card, _ = await fetch_random_card(session)
+        return card
 
     # Sinon : recherche par nom
     nom_encode = urllib.parse.quote(str(nom))
