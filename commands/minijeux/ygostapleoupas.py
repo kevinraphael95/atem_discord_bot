@@ -1,15 +1,15 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 staple_ou_pas.py
 # Objectif : Tire une carte aléatoire et l'utilisateur doit deviner si c'est une staple
 # Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
 # Version optimisée : safe_defer + safe_followup
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -20,9 +20,9 @@ from utils.discord_utils import (
     safe_send, safe_edit, safe_defer, safe_followup
 )
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ View — Boutons de réponse
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class GuessView(View):
     def __init__(self, is_staple: bool, embed: discord.Embed, user: discord.User):
         super().__init__(timeout=15)
@@ -75,18 +75,18 @@ class GuessView(View):
     async def guess_not_staple(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.handle_guess(interaction, False)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class StapleOuPas(commands.Cog):
     """Commande /ygosop et !ygosop — Devine si la carte est une staple ou pas"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────
+    # ============================================================
     # 🔹 Helpers pour récupérer les cartes
-    # ────────────────────────────────────────────────────────────
+    # ============================================================
     async def get_random_staple(self):
         """Tire une carte parmi les vraies staples."""
         session = getattr(self.bot, "aiohttp_session", None)
@@ -137,9 +137,9 @@ class StapleOuPas(commands.Cog):
         embed.set_footer(text="💭 Devine si cette carte est une Staple ou non !")
         return embed
 
-    # ────────────────────────────────────────────────────────────
+    # ============================================================
     # 🔹 Partie commune slash / prefix
-    # ────────────────────────────────────────────────────────────
+    # ============================================================
     async def play_round(self, channel: discord.abc.Messageable, author, is_slash: bool = False, interaction=None):
         is_staple = random.choice([True, False])
         card = await (self.get_random_staple() if is_staple else self.get_random_non_staple())
@@ -158,9 +158,9 @@ class StapleOuPas(commands.Cog):
             sent = await safe_send(channel, embed=embed, view=view)
         view.message = sent
 
-    # ────────────────────────────────────────────────────────────
+    # ============================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────
+    # ============================================================
     @app_commands.command(
         name="ygosop",
         description="Devine si la carte tirée est une staple ou pas !"
@@ -172,9 +172,9 @@ class StapleOuPas(commands.Cog):
             return
         await self.play_round(interaction.channel, interaction.user, is_slash=True, interaction=interaction)
 
-    # ────────────────────────────────────────────────────────────
+    # ============================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────
+    # ============================================================
     @commands.command(
         name="ygosop",
         aliases=["ysop", "ygo_sop", "ygo_staple_ou_pas"],
@@ -184,9 +184,9 @@ class StapleOuPas(commands.Cog):
     async def prefix_staple_ou_pas(self, ctx: commands.Context):
         await self.play_round(ctx.channel, ctx.author, is_slash=False)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = StapleOuPas(bot)
     for command in cog.get_commands():
