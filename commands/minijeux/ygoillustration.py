@@ -4,7 +4,7 @@
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
-# Version optimisée : 2 appels API par partie (0 cache, 0 RAM)
+# Version optimisée : safe_defer + 2 appels API par partie
 # ================================================================================
 
 # ================================================================================
@@ -17,7 +17,7 @@ from discord.ui import View, Button
 import random
 import traceback
 
-from utils.discord_utils import safe_send, safe_edit
+from utils.discord_utils import safe_send, safe_edit, safe_defer
 from utils.card_utils import fetch_random_card, fetch_cards_by_type, fetch_cards_by_archetype
 
 # ================================================================================
@@ -46,7 +46,9 @@ class YGOIllustration(commands.Cog):
     # 🔹 Lancer le quiz
     # ============================================================================
     async def start_quiz(self, channel: discord.abc.Messageable):
-        guild_id = getattr(channel, "guild", None).id if hasattr(channel, "guild") else None
+        guild_id = getattr(channel, "guild", None)
+        guild_id = guild_id.id if guild_id else None
+
         if guild_id and self.active_sessions.get(guild_id):
             return await safe_send(channel, "⚠️ Un quiz est déjà en cours.")
         if guild_id:
@@ -134,7 +136,10 @@ class YGOIllustration(commands.Cog):
             for child in self.children:
                 child.disabled = True
             if hasattr(self, "message"):
-                await safe_edit(self.message, view=self)
+                try:
+                    await safe_edit(self.message, view=self)
+                except Exception:
+                    pass
 
     class QuizButton(Button):
         def __init__(self, label, idx, parent_view):
@@ -162,9 +167,11 @@ class YGOIllustration(commands.Cog):
     @app_commands.command(name="ygoillustration", description="Devine une carte Yu-Gi-Oh! à partir de son illustration")
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_ygoillu(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self.start_quiz(interaction.channel)
-        await interaction.delete_original_response()
+        # Pas de delete, defer = invisible
 
 # ================================================================================
 # 🔌 Setup du Cog
