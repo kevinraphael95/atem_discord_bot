@@ -8,6 +8,7 @@
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 5s
+# Version optimisée : safe_defer + safe_delete
 # ================================================================================
 
 # ================================================================================
@@ -20,7 +21,7 @@ import asyncio
 import random
 import unicodedata
 
-from utils.discord_utils import safe_send, safe_edit
+from utils.discord_utils import safe_send, safe_edit, safe_defer, safe_delete
 from utils.card_utils import fetch_random_card
 
 # ================================================================================
@@ -125,24 +126,22 @@ class PenduSession:
 # 🧠 Cog principal
 # ================================================================================
 class Pendu(commands.Cog):
-    """
-    Commande /pendu et !pendu — Jeu du pendu interactif
-    """
+    """Commande /ygopendu et !ygopendu — Jeu du pendu interactif"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.sessions = {}
         self.verif_inactivite.start()
 
     # ============================================================================
-    # 🔹 Tirage aléatoire d’un mot
+    # 🔹 Tirage aléatoire d'un mot
     # ============================================================================
     async def _fetch_random_word(self):
         try:
-            # Utilisation de la session aiohttp du bot
             carte, _ = await fetch_random_card(self.bot.aiohttp_session)
             if not carte:
                 raise ValueError("Carte introuvable")
-    
+
             nom = carte.get("name", "").strip()
             type_raw = carte.get("type", "Inconnu")
             attr = carte.get("attribute")
@@ -152,15 +151,14 @@ class Pendu(commands.Cog):
                 indice += f" / {attr}"
             if archetype:
                 indice += f" / {archetype}"
-    
+
             mot_normalise = normaliser_texte(nom)
             if len(mot_normalise) < 3:
                 raise ValueError("Nom trop court")
-    
+
             return nom, mot_normalise, indice
-    
+
         except Exception:
-            # Fallback si la carte n’a pas pu être récupérée
             fallback = [
                 ("Dragon Blanc aux Yeux Bleus", "dragon blanc aux yeux bleus", "Monstre / LUMIÈRE"),
                 ("Magicien Sombre", "magicien sombre", "Magicien / TÉNÈBRES"),
@@ -170,15 +168,16 @@ class Pendu(commands.Cog):
             ]
             return random.choice(fallback)
 
-
     # ============================================================================
     # 🔹 Commande SLASH
     # ============================================================================
     @app_commands.command(name="ygopendu", description="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
     async def slash_pendu(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self._start_game(interaction.channel, interaction.user)
-        await interaction.delete_original_response()
+        # Pas de delete, defer = invisible
 
     # ============================================================================
     # 🔹 Commande PREFIX
@@ -221,10 +220,10 @@ class Pendu(commands.Cog):
         resultat = game.propose_lettre(contenu)
         if resultat is None:
             await safe_send(message.channel, f"❌ Lettre `{contenu}` déjà proposée.", delete_after=5)
-            await message.delete()
+            await safe_delete(message)
             return
         await safe_edit(session.message, embed=game.create_embed())
-        await message.delete()
+        await safe_delete(message)
         if resultat == "gagne":
             await safe_send(message.channel, f"🎉 Bravo {message.author.mention} ! Le mot était **{game.mot_affiche}**.")
             del self.sessions[message.channel.id]
