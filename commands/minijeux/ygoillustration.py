@@ -4,6 +4,7 @@
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 5 secondes / utilisateur
+# Version optimisée : 2 appels API par partie (0 cache, 0 RAM)
 # ────────────────────────────────────────────────────────────────────────────────
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ import random
 import traceback
 
 from utils.discord_utils import safe_send, safe_edit
-from utils.vaact_utils import add_exp_for_streak
+from utils.card_utils import fetch_random_card, fetch_cards_by_type, fetch_cards_by_archetype
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 🔒 Empêcher l'utilisation en MP
@@ -39,34 +40,7 @@ class YGOIllustration(commands.Cog):
     """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.active_sessions = {}  # guild_id → quiz en cours
-
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonctions utilitaires
-    # ────────────────────────────────────────────────────────────────────────────
-    async def fetch_all_cards(self):
-        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
-        session = getattr(self.bot, "aiohttp_session", None)
-        if not session or session.closed:
-            return []
-        try:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    return []
-                data = await resp.json()
-            return data.get("data", [])
-        except Exception as e:
-            print(f"[fetch_all_cards ERROR] {e}")
-            return []
-
-    async def get_similar_cards(self, all_cards, true_card):
-        archetype = true_card.get("archetype")
-        card_type = true_card.get("type", "")
-        if archetype:
-            group = [c for c in all_cards if c.get("archetype") == archetype and c["name"] != true_card["name"]]
-        else:
-            group = [c for c in all_cards if c.get("type") == card_type and c["name"] != true_card["name"]]
-        return random.sample(group, k=min(3, len(group))) if group else []
+        self.active_sessions = {}
 
     # ────────────────────────────────────────────────────────────────────────────
     # 🔹 Lancer le quiz
@@ -79,27 +53,41 @@ class YGOIllustration(commands.Cog):
             self.active_sessions[guild_id] = True
 
         try:
-            all_cards = await self.fetch_all_cards()
-            if not all_cards:
-                return await safe_send(channel, "🚨 Impossible de récupérer les cartes depuis l’API.")
+            session = getattr(self.bot, "aiohttp_session", None)
+            if not session or session.closed:
+                return await safe_send(channel, "🚨 Session HTTP non disponible.")
 
-            candidates = [c for c in all_cards if "image_url_cropped" in c.get("card_images", [{}])[0]]
-            if not candidates:
-                return await safe_send(channel, "🚫 Pas de cartes avec images croppées.")
+            # 1️⃣ Carte à deviner (1 appel API)
+            true_card, _ = await fetch_random_card(session)
+            if not true_card:
+                return await safe_send(channel, "🚨 Impossible de récupérer une carte.")
 
-            true_card = random.choice(candidates)
-            image_url = true_card["card_images"][0].get("image_url_cropped")
+            image_url = true_card.get("card_images", [{}])[0].get("image_url_cropped")
             if not image_url:
                 return await safe_send(channel, "🚫 Carte sans image croppée.")
 
-            similar = await self.get_similar_cards(all_cards, true_card)
+            # 2️⃣ Cartes similaires (1 appel API)
+            archetype = true_card.get("archetype")
+            card_type = true_card.get("type", "")
+
+            if archetype:
+                similar = await fetch_cards_by_archetype(session, archetype, n=10)
+            else:
+                similar = await fetch_cards_by_type(session, card_type, n=10)
+
+            # Filtre : retire la vraie carte + garde 3
+            similar = [c for c in similar if c["name"] != true_card["name"]]
+            similar = random.sample(similar, k=min(3, len(similar))) if similar else []
+
             if len(similar) < 3:
                 return await safe_send(channel, "❌ Pas assez de cartes similaires.")
 
+            # 3️⃣ Choix mélangés
             choices = [true_card["name"]] + [c["name"] for c in similar]
             random.shuffle(choices)
             correct_idx = choices.index(true_card["name"])
 
+            # 4️⃣ Embed + View
             embed = discord.Embed(title="🖼️ Devine la carte !", color=discord.Color.purple())
             embed.set_image(url=image_url)
             embed.set_footer(text=f"🔹 Archétype : ||{true_card.get('archetype','Aucun')}||")
@@ -108,13 +96,16 @@ class YGOIllustration(commands.Cog):
             view.message = await safe_send(channel, embed=embed, view=view)
             await view.wait()
 
+            # 5️⃣ Résultats
             winners = [self.bot.get_user(uid) for uid, idx in view.answers.items() if idx == correct_idx]
 
             result_embed = discord.Embed(
                 title="⏰ Temps écoulé !",
-                description=(f"✅ Réponse : **{true_card['name']}**\n" +
-                             (f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}"
-                              if winners else "😢 Personne n'a trouvé...")),
+                description=(
+                    f"✅ Réponse : **{true_card['name']}**\n" +
+                    (f"🎉 Gagnants : {', '.join(w.mention for w in winners if w)}"
+                     if winners else "😢 Personne n'a trouvé...")
+                ),
                 color=discord.Color.green() if winners else discord.Color.red()
             )
             await safe_send(channel, embed=result_embed)
