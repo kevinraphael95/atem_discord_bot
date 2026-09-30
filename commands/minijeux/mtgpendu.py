@@ -1,19 +1,18 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 mtgpendu.py
 # Objectif :
 #   - Jeu du pendu interactif avec cartes Magic: The Gathering
 #   - Affiche type, couleur et set comme indice
-#   - Tout caractère non alphabétique (espace, tiret, apostrophe, virgule, etc.)
-#     est révélé automatiquement et ne compte pas comme une lettre à deviner
 #   - Les accents sont ignorés
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 5s
-# ────────────────────────────────────────────────────────────────────────────────
+# Version optimisée : safe_defer + safe_delete
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -21,17 +20,17 @@ import asyncio
 import random
 import unicodedata
 
-from utils.discord_utils import safe_send, safe_edit, safe_delete
+from utils.discord_utils import safe_send, safe_edit, safe_delete, safe_defer
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🌐 Constantes Scryfall
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 SCRYFALL_API = "https://api.scryfall.com"
 HEADERS = {"User-Agent": "VaactMagicBot/1.0", "Accept": "application/json"}
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎨 Constantes Pendu
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 PENDU_ASCII = [
     "`     \n     \n     \n     \n     \n=========`",
     "`     +---+\n     |   |\n         |\n         |\n         |\n     =========`",
@@ -45,12 +44,9 @@ PENDU_ASCII = [
 MAX_ERREURS = 7
 INACTIVITE_MAX = 180  # 3 minutes
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧩 Fonctions utilitaires
-# ────────────────────────────────────────────────────────────────────────────────
-
-# Ligatures et caractères précomposés que NFKD ne décompose pas en lettres simples.
-# On les normalise manuellement avant la décomposition Unicode classique.
+# ================================================================================
 LIGATURES = {
     "æ": "ae", "Æ": "ae",
     "œ": "oe", "Œ": "oe",
@@ -64,9 +60,9 @@ def normaliser_texte(texte: str) -> str:
     nfkd = unicodedata.normalize("NFKD", texte)
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧩 Classes internes
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class PenduGame:
     def __init__(self, mot: str, mot_affiche: str, indice: str = None):
         self.mot = mot
@@ -78,9 +74,6 @@ class PenduGame:
         self.max_erreurs = MAX_ERREURS
 
     def get_display_word(self) -> str:
-        """Affiche le mot : toute lettre non trouvée est masquée, tout caractère
-        non alphabétique (espace, tiret, apostrophe, virgule, chiffre, etc.)
-        est toujours visible."""
         res = ""
         for c in self.mot_affiche:
             if not c.isalpha():
@@ -135,29 +128,29 @@ class PenduSession:
         self.last_activity = asyncio.get_event_loop().time()
         self.player_id = author_id
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class MTGPendu(commands.Cog):
-    """
-    Commande /mtgpendu et !mtgpendu — Jeu du pendu interactif avec cartes MTG
-    """
+    """Commande /mtgpendu et !mtgpendu — Jeu du pendu interactif avec cartes MTG"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.sessions = {}
         self.verif_inactivite.start()
 
     def cog_unload(self):
-        """Stoppe proprement la tâche de fond quand le cog est déchargé/rechargé,
-        pour éviter d'avoir plusieurs boucles qui tournent en parallèle."""
         self.verif_inactivite.cancel()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Tirage aléatoire d'un mot
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _fetch_random_word(self):
         try:
-            session = self.bot.aiohttp_session
+            session = getattr(self.bot, "aiohttp_session", None)
+            if not session or session.closed:
+                raise ValueError("Session HTTP indisponible")
+
             async with session.get(f"{SCRYFALL_API}/cards/random", headers=HEADERS) as resp:
                 if resp.status != 200:
                     raise ValueError("Carte introuvable")
@@ -179,9 +172,9 @@ class MTGPendu(commands.Cog):
             ]
             return random.choice(fallback)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Démarrage de la partie
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _start_game(self, channel: discord.TextChannel, author):
         if channel.id in self.sessions:
             await safe_send(channel, "❌ Une partie est déjà en cours dans ce salon.")
@@ -191,27 +184,29 @@ class MTGPendu(commands.Cog):
         message = await safe_send(channel, embed=game.create_embed())
         self.sessions[channel.id] = PenduSession(game, message, author_id=author.id)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(name="mtgpendu", description="Démarre une partie du jeu du pendu avec cartes MTG.")
     @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id)
     async def slash_mtgpendu(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self._start_game(interaction.channel, interaction.user)
-        await interaction.delete_original_response()
+        # Pas de delete, defer = invisible
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(name="mtgpendu", help="Démarre une partie du jeu du pendu avec cartes MTG.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_mtgpendu(self, ctx: commands.Context):
         await self._start_game(ctx.channel, ctx.author)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Gestion des lettres proposées
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
@@ -240,9 +235,9 @@ class MTGPendu(commands.Cog):
             await safe_send(message.channel, f"💀 Partie terminée ! Le mot était **{game.mot_affiche}**.")
             del self.sessions[message.channel.id]
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Vérification inactivité
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @tasks.loop(seconds=30)
     async def verif_inactivite(self):
         now = asyncio.get_event_loop().time()
@@ -256,9 +251,9 @@ class MTGPendu(commands.Cog):
     async def before_verif_inactivite(self):
         await self.bot.wait_until_ready()
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = MTGPendu(bot)
     for command in cog.get_commands():
