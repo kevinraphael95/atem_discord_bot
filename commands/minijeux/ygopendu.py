@@ -1,4 +1,4 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 pendu.py
 # Objectif :
 #   - Jeu du pendu interactif avec noms de cartes Yu-Gi-Oh! françaises
@@ -8,11 +8,11 @@
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 5s
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -23,9 +23,9 @@ import unicodedata
 from utils.discord_utils import safe_send, safe_edit
 from utils.card_utils import fetch_random_card
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎨 Constantes
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 PENDU_ASCII = [
     "`     \n     \n     \n     \n     \n=========`",
     "`     +---+\n     |   |\n         |\n         |\n         |\n     =========`",
@@ -40,17 +40,17 @@ PENDU_ASCII = [
 MAX_ERREURS = 7
 INACTIVITE_MAX = 180  # 3 minutes
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧩 Fonctions utilitaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 def normaliser_texte(texte: str) -> str:
     """Supprime les accents et met en minuscules"""
     nfkd = unicodedata.normalize("NFKD", texte)
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧩 Classes internes
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class PenduGame:
     def __init__(self, mot: str, mot_affiche: str, indice: str = None, mode: str = "solo"):
         self.mot = mot
@@ -121,9 +121,9 @@ class PenduSession:
         else:
             self.player_id = author_id
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class Pendu(commands.Cog):
     """
     Commande /pendu et !pendu — Jeu du pendu interactif
@@ -133,9 +133,9 @@ class Pendu(commands.Cog):
         self.sessions = {}
         self.verif_inactivite.start()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Tirage aléatoire d’un mot
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _fetch_random_word(self):
         try:
             # Utilisation de la session aiohttp du bot
@@ -171,26 +171,26 @@ class Pendu(commands.Cog):
             return random.choice(fallback)
 
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(name="ygopendu", description="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
     async def slash_pendu(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self._start_game(interaction.channel, interaction.user)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(name="ygopendu", help="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_pendu(self, ctx: commands.Context):
         await self._start_game(ctx.channel, ctx.author)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Démarrage de la partie
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _start_game(self, channel: discord.TextChannel, author):
         mode = "solo"
         if channel.id in self.sessions:
@@ -201,9 +201,9 @@ class Pendu(commands.Cog):
         message = await safe_send(channel, embed=game.create_embed())
         self.sessions[channel.id] = PenduSession(game, message, mode=mode, author_id=author.id)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Gestion des lettres proposées
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
@@ -232,9 +232,9 @@ class Pendu(commands.Cog):
             await safe_send(message.channel, f"💀 Partie terminée ! Le mot était **{game.mot_affiche}**.")
             del self.sessions[message.channel.id]
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Vérification inactivité
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @tasks.loop(seconds=30)
     async def verif_inactivite(self):
         now = asyncio.get_event_loop().time()
@@ -244,9 +244,9 @@ class Pendu(commands.Cog):
             if session:
                 await safe_send(session.message.channel, "⏰ Partie terminée pour inactivité (3 minutes).")
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = Pendu(bot)
     for command in cog.get_commands():
