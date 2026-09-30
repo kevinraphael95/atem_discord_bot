@@ -1,10 +1,11 @@
-# ================================================================================
+# =============================================================
 # 📌 pcarte.py — Commande Pokémon TCG
 # Objectif : Afficher une carte Pokémon (ou random)
 # Catégorie : 🃏 Pokémon TCG
 # Accès : Public
 # Cooldown : 1 / 3 sec
-# ================================================================================
+# Version optimisée : safe_defer + session partagée
+# =============================================================
 
 # ================================================================================
 # 📦 Imports nécessaires
@@ -12,10 +13,9 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import aiohttp
 import random
 
-from utils.discord_utils import safe_send
+from utils.discord_utils import safe_send, safe_defer, safe_followup
 
 BASE_URL = "https://api.tcgdex.net/v2/en"
 
@@ -30,34 +30,39 @@ class PokemonCarte(commands.Cog):
     # 🔹 Fonction interne pour afficher une carte
     # =========================================================
     async def _show_card(self, channel, query: str | None):
-        async with aiohttp.ClientSession() as session:
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return await safe_send(channel, "❌ Session HTTP non disponible.")
+
+        try:
             # 🔀 Random
             if not query or query.lower() == "random":
                 async with session.get(f"{BASE_URL}/cards") as r:
                     if r.status != 200:
-                        await safe_send(channel, "❌ Impossible de récupérer une carte.")
-                        return
+                        return await safe_send(channel, "❌ Impossible de récupérer une carte.")
                     data = await r.json()
                     card = random.choice(data) if data else None
+
             # 🆔 ID direct
             elif "-" in query:
                 async with session.get(f"{BASE_URL}/cards/{query}") as r:
                     if r.status != 200:
-                        await safe_send(channel, "❌ Carte introuvable.")
-                        return
+                        return await safe_send(channel, "❌ Carte introuvable.")
                     card = await r.json()
+
             # 🔍 Recherche par nom
             else:
                 async with session.get(f"{BASE_URL}/cards", params={"name": query}) as r:
                     if r.status != 200:
-                        await safe_send(channel, "❌ Carte introuvable.")
-                        return
+                        return await safe_send(channel, "❌ Carte introuvable.")
                     data = await r.json()
                     card = random.choice(data) if data else None
+        except Exception as e:
+            print(f"[pcarte] Erreur fetch : {e}")
+            return await safe_send(channel, "❌ Une erreur est survenue.")
 
         if not card:
-            await safe_send(channel, "❌ Carte introuvable.")
-            return
+            return await safe_send(channel, "❌ Carte introuvable.")
 
         # ===============
         # 📊 Infos carte
@@ -103,7 +108,7 @@ class PokemonCarte(commands.Cog):
         )
 
         if image:
-            embed.set_thumbnail(url=image)
+            embed.set_thumbnail(url=f"{image}/high.png")
 
         await safe_send(channel, embed=embed)
 
@@ -117,9 +122,11 @@ class PokemonCarte(commands.Cog):
     @app_commands.describe(nom="Nom, ID (ex: swsh3-136) ou 'random'")
     @app_commands.checks.cooldown(1, 3.0, key=lambda i: i.user.id)
     async def slash_pcarte(self, interaction: discord.Interaction, nom: str = None):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self._show_card(interaction.channel, nom)
-        await interaction.delete_original_response()
+        # Pas de delete, defer = invisible
 
     # =========================================================
     # 🔹 Prefix command
@@ -135,5 +142,6 @@ class PokemonCarte(commands.Cog):
 async def setup(bot: commands.Bot):
     cog = PokemonCarte(bot)
     for cmd in cog.get_commands():
-        cmd.category = "PokemonTCG"
+        if not hasattr(cmd, "category"):
+            cmd.category = "PokemonTCG"
     await bot.add_cog(cog)
