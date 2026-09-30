@@ -1,15 +1,15 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 quizzvocabulaire.py
 # Objectif : Quiz interactif sur le vocabulaire Yu-Gi-Oh! (définition + choix)
 #            Mode solo (seul l'auteur peut répondre) ou multi (premier qui clique gagne)
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 5 secondes par utilisateur
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -20,9 +20,9 @@ import random
 from typing import List, Optional
 from utils.discord_utils import safe_send, safe_edit
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📂 Chargement des données JSON (vocabulaire)
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 DATA_JSON_PATH = os.path.join("data", "vocabulaire.json")
 
 def load_vocabulaire():
@@ -34,9 +34,9 @@ def load_vocabulaire():
         print(f"[ERREUR JSON] Impossible de charger {DATA_JSON_PATH} : {e}")
         return {}
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ UI — Bouton de réponse
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class AnswerButton(Button):
     def __init__(self, label: str, correct_answer: str, parent_view: "QuizView"):
         super().__init__(label=label, style=discord.ButtonStyle.secondary)
@@ -74,9 +74,9 @@ class AnswerButton(Button):
         await interaction.response.edit_message(embed=embed, view=self.parent_view)
         self.parent_view.stop()
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ UI — Vue du quiz
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class QuizView(View):
     def __init__(self, cog, channel_id: int, base_embed: discord.Embed, options_list: List[str],
                  correct_answer: str, mode: str, author_id: int):
@@ -123,9 +123,9 @@ class QuizView(View):
         self.cog.active_channels.discard(self.channel_id)
         super().stop()
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal avec commandes prefix et slash
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class QuizzVocabulaire(commands.Cog):
     """Commande !quizzvocabulaire et /quizzvocabulaire — Quiz interactif sur le vocabulaire Yu-Gi-Oh!"""
     def __init__(self, bot: commands.Bot):
@@ -133,9 +133,9 @@ class QuizzVocabulaire(commands.Cog):
         self.vocabulaire = load_vocabulaire()
         self.active_channels = set()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Fonction interne pour lancer le quiz
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     async def _start_quiz(self, channel: discord.abc.Messageable, author: discord.abc.User, mode: str):
         if channel.id in self.active_channels:
             await safe_send(channel, "❌ Un quiz est déjà en cours dans ce salon.")
@@ -170,9 +170,9 @@ class QuizzVocabulaire(commands.Cog):
             print(f"[ERREUR quizzvocabulaire] {e}")
             await safe_send(channel, f"❌ Une erreur est survenue : `{e}`")
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(
         name="ygoquizzvocabulaire",
         aliases=["yqv", "ygoqv"],
@@ -185,9 +185,9 @@ class QuizzVocabulaire(commands.Cog):
             mode = "solo"
         await self._start_quiz(ctx.channel, ctx.author, mode)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(name="ygoquizzvocabulaire", description="Fais un quiz interactif sur le vocabulaire Yu-Gi-Oh!")
     @app_commands.describe(mode="Solo (toi seul réponds) ou Multi (premier qui clique gagne)")
     @app_commands.choices(mode=[
@@ -201,9 +201,9 @@ class QuizzVocabulaire(commands.Cog):
         await self._start_quiz(interaction.channel, interaction.user, chosen_mode)
         await interaction.delete_original_response()
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = QuizzVocabulaire(bot)
     for command in cog.get_commands():
