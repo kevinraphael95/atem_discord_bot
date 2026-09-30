@@ -4,7 +4,7 @@
 # Catégorie : Fun / Jeux
 # Accès : Tous
 # Cooldown : 5 secondes par utilisateur
-# Version optimisée : session partagée + cache des sets + images fixes
+# Version optimisée : cache 1h + safe_defer + safe_followup + safe_edit_original
 # ================================================================================
 
 # ================================================================================
@@ -16,7 +16,12 @@ from discord.ext import commands
 import random
 import time
 
-from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.discord_utils import (
+    safe_send,
+    safe_defer,
+    safe_followup,
+    safe_edit_original,
+)
 
 # ================================================================================
 # 🧠 Cog principal
@@ -97,7 +102,7 @@ class PackOpening(commands.Cog):
                 cards_data = await resp.json()
         except Exception as e:
             print(f"[packopening] Erreur cards : {e}")
-            return None, f"❌ Erreur lors de la récupération du set."
+            return None, "❌ Erreur lors de la récupération du set."
 
         cards = cards_data.get("data", [])
         if not cards:
@@ -113,13 +118,11 @@ class PackOpening(commands.Cog):
             color=discord.Color.gold()
         )
 
-        # ✅ Image : la 1ère carte en grand
         first_card = pulled_cards[0]
         first_image = first_card.get("card_images", [{}])[0].get("image_url")
         if first_image:
             embed.set_image(url=first_image)
 
-        # ✅ Liste des cartes
         for card in pulled_cards:
             nom = card.get("name", "Carte inconnue")
             type_ = card.get("type", "Type inconnu")
@@ -147,13 +150,17 @@ class PackOpening(commands.Cog):
     )
     @app_commands.checks.cooldown(rate=1, per=5.0, key=lambda i: i.user.id)
     async def slash_packopening(self, interaction: discord.Interaction, set_name: str = None, cards: int = 5):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
+
         cards = max(1, min(cards, 10))
         embed, error = await self._open_booster(set_name, cards)
+
         if error:
-            await safe_respond(interaction, error, ephemeral=True)
+            await safe_followup(interaction, error, ephemeral=True)
         else:
-            await interaction.edit_original_response(embed=embed)
+            await safe_edit_original(interaction, embed=embed)
 
     # ============================================================================
     # 🔹 Commande PREFIX
