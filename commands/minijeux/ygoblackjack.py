@@ -1,61 +1,34 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 ygoblackjack.py
 # Objectif : Jouer au blackjack avec cartes Yu-Gi-Oh! (valeur = niveau des monstres)
 # Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 10s
-# ────────────────────────────────────────────────────────────────────────────────
+# Version optimisée : utilise card_utils (0 RAM permanente)
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import random
-import time
 
 from utils.discord_utils import safe_send, safe_edit
+from utils.card_utils import fetch_cards_by_type
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔹 Helper pour calculer la valeur blackjack d'une carte
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 def card_value(level: int) -> int:
     """Retourne la valeur blackjack d'une carte (niveau)."""
     return level if level and level > 0 else 1
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Fetch + cache des cartes monstres via YGOPRODeck (API v7)
-# ────────────────────────────────────────────────────────────────────────────────
-CACHE_TTL = 3600  # 1h — évite de retélécharger toute la base à chaque partie
-
-async def fetch_monsters_pool(session):
-    """Télécharge la liste complète des monstres niveau 1+ (une seule fois, mise en cache)."""
-    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr"
-
-    async with session.get(url) as resp:
-        if resp.status != 200:
-            print("[YGO BJ] HTTP error:", resp.status)
-            return []
-
-        data = await resp.json()
-
-        if "data" not in data:
-            print("[YGO BJ] API error:", data)
-            return []
-
-        monsters = [
-            c for c in data["data"]
-            if "Monster" in c.get("type", "")
-            and c.get("level") is not None
-            and c["level"] >= 1
-        ]
-        return monsters
-
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎛️ UI — Blackjack interactif
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class BlackjackView(View):
     def __init__(self, cog, player_id, player_cards, dealer_cards, deck):
         super().__init__(timeout=120)
@@ -68,7 +41,6 @@ class BlackjackView(View):
         self.game_over = False
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        """Seul le joueur qui a lancé la partie peut cliquer."""
         if interaction.user.id != self.player_id:
             await interaction.response.send_message(
                 "❌ Ce n'est pas ta partie !", ephemeral=True
@@ -77,13 +49,12 @@ class BlackjackView(View):
         return True
 
     def _draw_card(self):
-        """Pioche une carte, en repuisant dans le pool partagé si le deck local est vide."""
+        """Pioche une carte, en repuisant si le deck local est vide."""
         if not self.deck:
             self.deck = self.cog.get_shuffled_pool()
         return self.deck.pop()
 
     async def update_message(self, footer: str | None = None):
-        """Met à jour l'embed de la partie en cours."""
         player_total = sum(card_value(c["level"]) for c in self.player_cards)
 
         embed = discord.Embed(
@@ -115,7 +86,6 @@ class BlackjackView(View):
         await safe_edit(self.message, embed=embed, view=self)
 
     async def end_game(self, result: str):
-        """Fin de partie et révélation du dealer."""
         self.game_over = True
         for child in self.children:
             child.disabled = True
@@ -151,13 +121,9 @@ class BlackjackView(View):
 
         await safe_edit(self.message, embed=embed, view=self)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🃏 Bouton — Tirer
-    # ────────────────────────────────────────────────────────────────────────────
     @discord.ui.button(label="Tirer 🃏", style=discord.ButtonStyle.green)
     async def hit(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
-
         if self.game_over:
             return
 
@@ -172,13 +138,9 @@ class BlackjackView(View):
                 footer=f"Tu as tiré : {card['name']} (Niveau {card['level']})"
             )
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # ✋ Bouton — Rester
-    # ────────────────────────────────────────────────────────────────────────────
     @discord.ui.button(label="Rester ✋", style=discord.ButtonStyle.red)
     async def stand(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
-
         if self.game_over:
             return
 
@@ -197,11 +159,7 @@ class BlackjackView(View):
 
         await self.end_game(result)
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # ✋ clean boutons
-    # ────────────────────────────────────────────────────────────────────────────
     async def on_timeout(self):
-        """Appelé quand la vue expire (timeout de 120s)."""
         if self.game_over:
             return
         self.game_over = True
@@ -211,49 +169,53 @@ class BlackjackView(View):
             self.cog.active_channels.discard(self.message.channel.id)
             await safe_edit(self.message, view=self)
 
-
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class YGOBlackjack(commands.Cog):
     """Commande /ygoblackjack et !ygoblackjack — Blackjack Yu-Gi-Oh!"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self._pool = []          # cache des cartes monstres
-        self._pool_fetched_at = 0
+        self._pool = []          # pool de 100 monstres (rafraîchi à chaque partie)
         self.active_channels = set()
 
     async def _get_pool(self):
-        """Retourne le pool de cartes, en le retéléchargeant seulement si le cache est vide/périmé."""
-        now = time.monotonic()
-        if not self._pool or (now - self._pool_fetched_at) > CACHE_TTL:
-            session = self.bot.aiohttp_session
-            pool = await fetch_monsters_pool(session)
-            if pool:
-                self._pool = pool
-                self._pool_fetched_at = now
-        return self._pool
+        """Charge 100 monstres aléatoires (1 appel API)."""
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return []
+
+        # ✅ Charge 100 monstres (1 appel API + sample)
+        cards = await fetch_cards_by_type(session, "Monster", n=100)
+
+        # Filtre : garde uniquement ceux avec un niveau >= 1
+        monsters = [
+            c for c in cards
+            if "Monster" in c.get("type", "")
+            and c.get("level") is not None
+            and c["level"] >= 1
+        ]
+        return monsters
 
     def get_shuffled_pool(self):
-        """Retourne une copie mélangée du cache pour piocher dedans (sync, appelé pendant la partie)."""
+        """Mélange le pool actuel."""
         pool = list(self._pool)
         random.shuffle(pool)
         return pool
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction interne commune
-    # ────────────────────────────────────────────────────────────────────────────
     async def _start_game(self, channel: discord.abc.Messageable, author):
         if channel.id in self.active_channels:
             await safe_send(channel, "❌ Une partie est déjà en cours dans ce salon.")
             return
 
+        # ✅ Recharge un pool frais (1 appel API)
         pool = await self._get_pool()
-        if not pool:
-            await safe_send(channel, "❌ Impossible de récupérer les cartes.")
+        if len(pool) < 10:
+            await safe_send(channel, "❌ Impossible de récupérer assez de cartes.")
             return
 
+        self._pool = pool
         deck = self.get_shuffled_pool()
         player_cards = [deck.pop(), deck.pop()]
         dealer_cards = [deck.pop()]
@@ -263,9 +225,6 @@ class YGOBlackjack(commands.Cog):
         view.message = await safe_send(channel, "🃏 Blackjack YGO", view=view)
         await view.update_message(footer="Partie commencée !")
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
     @app_commands.command(
         name="ygoblackjack",
         description="Jouer au Blackjack avec des cartes Yu-Gi-Oh!"
@@ -276,17 +235,14 @@ class YGOBlackjack(commands.Cog):
         await self._start_game(interaction.channel, interaction.user)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
     @commands.command(name="ygoblackjack", help="Jouer au Blackjack avec des cartes Yu-Gi-Oh!")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def prefix_ygoblackjack(self, ctx: commands.Context):
         await self._start_game(ctx.channel, ctx.author)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = YGOBlackjack(bot)
     for command in cog.get_commands():
