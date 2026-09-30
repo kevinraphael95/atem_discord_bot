@@ -1,5 +1,5 @@
 # ================================================================================
-# 📌 pendu.py
+# 📌 ygopendu.py
 # Objectif :
 #    - Jeu du pendu interactif avec bouton "Répondre" (Modal) et mode Buzzer (Multi)
 #    - Noms de cartes Yu-Gi-Oh! françaises avec indices (Type, Attribut, Archétype)
@@ -290,7 +290,7 @@ class Pendu(commands.Cog):
     # ============================================================================
     # 🔹 Commande SLASH
     # ============================================================================
-    @app_commands.command(name="pendu", description="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
+    @app_commands.command(name="ygopendu", description="Démarre une partie du jeu du pendu avec cartes Yu-Gi-Oh! françaises.")
     @app_commands.choices(mode=[
         app_commands.Choice(name="Solo", value="solo"),
         app_commands.Choice(name="Multi", value="multi")
@@ -303,7 +303,7 @@ class Pendu(commands.Cog):
     # ============================================================================
     # 🔹 Commande PREFIX
     # ============================================================================
-    @commands.command(name="pendu", help="Démarre une partie du pendu. Utilisez 'multi' ou 'm' pour jouer à plusieurs.")
+    @commands.command(name="ygopendu", help="Démarre une partie du pendu. Utilisez 'multi' ou 'm' pour jouer à plusieurs.")
     @commands.cooldown(1, 5.0, commands.BucketType.user)
     async def prefix_pendu(self, ctx: commands.Context, mode: str = "solo"):
         m = "multi" if mode.lower() in ("multi", "m") else "solo"
