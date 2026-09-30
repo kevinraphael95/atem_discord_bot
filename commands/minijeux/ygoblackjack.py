@@ -4,7 +4,7 @@
 # Catégorie : Minijeux
 # Accès : Tous
 # Cooldown : 10s
-# Version optimisée : utilise card_utils (0 RAM permanente)
+# Version optimisée : safe_defer + safe_followup + card_utils
 # ================================================================================
 
 # ================================================================================
@@ -16,7 +16,7 @@ from discord.ext import commands
 from discord.ui import View, Button
 import random
 
-from utils.discord_utils import safe_send, safe_edit
+from utils.discord_utils import safe_send, safe_edit, safe_defer, safe_followup
 from utils.card_utils import fetch_cards_by_type
 
 # ================================================================================
@@ -167,7 +167,10 @@ class BlackjackView(View):
             child.disabled = True
         if self.message:
             self.cog.active_channels.discard(self.message.channel.id)
-            await safe_edit(self.message, view=self)
+            try:
+                await safe_edit(self.message, view=self)
+            except Exception:
+                pass
 
 # ================================================================================
 # 🧠 Cog principal
@@ -177,7 +180,7 @@ class YGOBlackjack(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self._pool = []          # pool de 100 monstres (rafraîchi à chaque partie)
+        self._pool = []
         self.active_channels = set()
 
     async def _get_pool(self):
@@ -186,10 +189,8 @@ class YGOBlackjack(commands.Cog):
         if not session or session.closed:
             return []
 
-        # ✅ Charge 100 monstres (1 appel API + sample)
         cards = await fetch_cards_by_type(session, "Monster", n=100)
 
-        # Filtre : garde uniquement ceux avec un niveau >= 1
         monsters = [
             c for c in cards
             if "Monster" in c.get("type", "")
@@ -209,7 +210,6 @@ class YGOBlackjack(commands.Cog):
             await safe_send(channel, "❌ Une partie est déjà en cours dans ce salon.")
             return
 
-        # ✅ Recharge un pool frais (1 appel API)
         pool = await self._get_pool()
         if len(pool) < 10:
             await safe_send(channel, "❌ Impossible de récupérer assez de cartes.")
@@ -225,16 +225,23 @@ class YGOBlackjack(commands.Cog):
         view.message = await safe_send(channel, "🃏 Blackjack YGO", view=view)
         await view.update_message(footer="Partie commencée !")
 
+    # ============================================================================
+    # 🔹 Commande SLASH
+    # ============================================================================
     @app_commands.command(
         name="ygoblackjack",
         description="Jouer au Blackjack avec des cartes Yu-Gi-Oh!"
     )
     @app_commands.checks.cooldown(rate=1, per=10.0, key=lambda i: i.user.id)
     async def slash_ygoblackjack(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
         await self._start_game(interaction.channel, interaction.user)
-        await interaction.delete_original_response()
 
+    # ============================================================================
+    # 🔹 Commande PREFIX
+    # ============================================================================
     @commands.command(name="ygoblackjack", help="Jouer au Blackjack avec des cartes Yu-Gi-Oh!")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def prefix_ygoblackjack(self, ctx: commands.Context):
