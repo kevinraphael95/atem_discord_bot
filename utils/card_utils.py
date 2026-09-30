@@ -88,12 +88,31 @@ async def fetch_staple_cards(session: aiohttp.ClientSession) -> list[dict]:
 # 🔍 Récupération complète (1 seul appel)
 # ================================================================================
 
-async def fetch_card_full(nom: str, session: aiohttp.ClientSession) -> dict | None:
+async def fetch_card_full(nom: str | None, session: aiohttp.ClientSession) -> dict | None:
     """
     Récupère une carte complète en 1 seul appel API.
-    Essaie d'abord en FR, puis fallback EN si non trouvé.
+
+    - Si nom=None ou "random" → carte aléatoire
+    - Sinon → recherche par nom (FR puis fallback EN)
+
+    Retourne le dict de la carte ou None.
     """
-    nom_encode = urllib.parse.quote(nom)
+    # ✅ Gère None et "random"
+    if not nom or str(nom).lower() == "random":
+        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr"
+        try:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                cards = data.get("data", [])
+                return cards[0] if cards else None
+        except Exception as e:
+            print(f"[card_utils] fetch_card_full (random) : {e}")
+            return None
+
+    # Sinon : recherche par nom
+    nom_encode = urllib.parse.quote(str(nom))
     url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language=fr"
 
     try:
@@ -116,12 +135,12 @@ async def fetch_card_full(nom: str, session: aiohttp.ClientSession) -> dict | No
 
 
 # ================================================================================
-# 🔧 Fonctions de recherche (inchangées)
+# 🔧 Fonctions de recherche (obsolètes — utiliser fetch_card_full)
 # ================================================================================
 
 async def fetch_card_multilang(nom: str, session: aiohttp.ClientSession) -> tuple[dict | None, str]:
     """Recherche exacte du nom dans plusieurs langues (fr, de, it, pt, en)."""
-    nom_encode = urllib.parse.quote(nom)
+    nom_encode = urllib.parse.quote(str(nom))
     for lang in ["fr", "de", "it", "pt", ""]:
         url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}"
         if lang:
@@ -139,7 +158,7 @@ async def fetch_card_multilang(nom: str, session: aiohttp.ClientSession) -> tupl
 
 async def fetch_card_fuzzy(nom: str, session: aiohttp.ClientSession) -> list[dict]:
     """Recherche floue (fname=...) pour trouver des cartes similaires."""
-    nom_encode = urllib.parse.quote(nom)
+    nom_encode = urllib.parse.quote(str(nom))
     url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?fname={nom_encode}&language=fr"
     async with session.get(url) as resp:
         if resp.status == 200:
