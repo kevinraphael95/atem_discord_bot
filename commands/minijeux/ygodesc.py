@@ -4,7 +4,7 @@
 # Catégorie : Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 8 secondes / utilisateur
-# Version optimisée : 2 appels API par partie (0 cache, 0 RAM)
+# Version optimisée : safe_defer + 2 appels API par partie
 # ================================================================================
 
 # ================================================================================
@@ -19,7 +19,9 @@ import re
 import sqlite3
 from difflib import SequenceMatcher
 
-from utils.discord_utils import safe_send, safe_edit, safe_reply
+from utils.discord_utils import (
+    safe_send, safe_edit, safe_defer, safe_followup
+)
 from utils.vaact_utils import add_exp_for_streak, DB_PATH
 from utils.card_utils import fetch_random_card, fetch_cards_by_type, fetch_cards_by_archetype
 
@@ -112,7 +114,10 @@ class QuizView(View):
         for child in self.children:
             child.disabled = True
         if self.message:
-            await safe_edit(self.message, view=self)
+            try:
+                await safe_edit(self.message, view=self)
+            except Exception:
+                pass
 
 class QuizButton(Button):
     def __init__(self, label, idx, parent_view):
@@ -145,21 +150,24 @@ class YGODescription(commands.Cog):
     # ============================================================================
     # 🔹 Fonction interne commune
     # ============================================================================
-    async def _start_quiz(self, ctx_or_inter, interaction=False):
-        guild_id = ctx_or_inter.guild.id
-        if self.active_sessions.get(guild_id):
-            return await safe_reply(ctx_or_inter, "⚠️ Un quiz est déjà en cours.", mention_author=False)
-        self.active_sessions[guild_id] = True
+    async def _start_quiz(self, channel: discord.abc.Messageable, is_slash: bool = False):
+        guild_id = getattr(channel, "guild", None)
+        guild_id = guild_id.id if guild_id else None
+
+        if guild_id and self.active_sessions.get(guild_id):
+            return await safe_send(channel, "⚠️ Un quiz est déjà en cours.")
+        if guild_id:
+            self.active_sessions[guild_id] = True
 
         try:
             session = getattr(self.bot, "aiohttp_session", None)
             if not session or session.closed:
-                return await safe_send(ctx_or_inter, "🚨 Session HTTP non disponible.")
+                return await safe_send(channel, "🚨 Session HTTP non disponible.")
 
             # 1️⃣ Carte à deviner (1 appel API)
             main_card, _ = await fetch_random_card(session)
             if not main_card or "desc" not in main_card or not is_clean_card(main_card):
-                return await safe_send(ctx_or_inter, "❌ Aucune carte valide trouvée.")
+                return await safe_send(channel, "❌ Aucune carte valide trouvée.")
 
             main_name = main_card["name"]
             main_desc = censor_card_name(main_card["desc"], main_name)
@@ -179,7 +187,7 @@ class YGODescription(commands.Cog):
             ]
 
             if len(wrongs) < 3:
-                return await safe_send(ctx_or_inter, "❌ Pas assez de fausses cartes valides.")
+                return await safe_send(channel, "❌ Pas assez de fausses cartes valides.")
 
             wrongs = random.sample(wrongs, 3)
             choices = [main_name] + [c["name"] for c in wrongs]
@@ -199,7 +207,7 @@ class YGODescription(commands.Cog):
 
             # 4️⃣ View
             view = QuizView(self.bot, choices, main_name)
-            view.message = await safe_send(ctx_or_inter.channel, embed=embed, view=view)
+            view.message = await safe_send(channel, embed=embed, view=view)
             await view.wait()
 
             # 5️⃣ Résultats
@@ -213,12 +221,14 @@ class YGODescription(commands.Cog):
                 ),
                 color=discord.Color.green() if winners else discord.Color.red()
             )
-            await safe_send(ctx_or_inter, embed=result_embed)
+            await safe_send(channel, embed=result_embed)
 
         except Exception as e:
-            await safe_send(ctx_or_inter, f"❌ Erreur : `{e}`")
+            print(f"[ERREUR ygodescription] {e}")
+            await safe_send(channel, f"❌ Erreur : `{e}`")
         finally:
-            self.active_sessions[guild_id] = None
+            if guild_id:
+                self.active_sessions[guild_id] = None
 
     # ============================================================================
     # 🔹 Commande SLASH
@@ -229,9 +239,10 @@ class YGODescription(commands.Cog):
     )
     @app_commands.checks.cooldown(rate=1, per=8.0, key=lambda i: i.user.id)
     async def slash_ygodescription(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        await self._start_quiz(interaction, interaction=True)
-        await interaction.delete_original_response()
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
+        await self._start_quiz(interaction.channel, is_slash=True)
 
     # ============================================================================
     # 🔹 Commande PREFIX
@@ -244,7 +255,7 @@ class YGODescription(commands.Cog):
     @no_dm()
     @commands.cooldown(1, 8, commands.BucketType.user)
     async def prefix_ygodescription(self, ctx):
-        await self._start_quiz(ctx)
+        await self._start_quiz(ctx.channel, is_slash=False)
 
 # ================================================================================
 # 🔌 Setup du Cog
