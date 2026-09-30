@@ -4,7 +4,7 @@
 # Catégorie : 🃏 Minijeux
 # Accès : Public
 # Cooldown : 1 utilisation / 30 sec / utilisateur
-# Version optimisée : utilise card_utils (0 RAM permanente)
+# Version optimisée : safe_defer + safe_followup + safe_edit
 # ================================================================================
 
 # ================================================================================
@@ -16,7 +16,9 @@ from discord.ext import commands
 from discord.ui import View, Button
 import random
 
-from utils.discord_utils import safe_send, safe_edit, safe_respond
+from utils.discord_utils import (
+    safe_send, safe_edit, safe_defer, safe_followup
+)
 from utils.card_utils import fetch_random_cards
 
 # ================================================================================
@@ -79,7 +81,10 @@ class ChoixCarteView(View):
         for child in self.children:
             child.disabled = True
         if hasattr(self, "ctx"):
-            await safe_send(self.ctx.channel, "⏱️ Temps écoulé, le mini-jeu est terminé.")
+            try:
+                await safe_send(self.ctx.channel, "⏱️ Temps écoulé, le mini-jeu est terminé.")
+            except Exception:
+                pass
 
 class ChoixButton(Button):
     def __init__(self, parent_view: ChoixCarteView, choix: str, label: str, emoji: str):
@@ -109,7 +114,6 @@ class BannisOuGarde(commands.Cog):
         if not session or session.closed:
             return None
 
-        # ✅ 3 cartes aléatoires (3 appels API en parallèle)
         cards = await fetch_random_cards(session, n=3)
         if len(cards) < 3:
             return None
@@ -136,31 +140,47 @@ class BannisOuGarde(commands.Cog):
         embed.set_footer(text="Choisis le statut de cette carte : 🗑️ Bannir, 🔥 Garder, 👎 Limiter")
         await safe_send(channel, embed=embed, view=view)
 
+    # ============================================================================
+    # 🔹 Commande SLASH
+    # ============================================================================
     @app_commands.command(
         name="ygobannisougarde",
         description="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter."
     )
     @app_commands.checks.cooldown(rate=1, per=30.0, key=lambda i: i.user.id)
     async def slash_bannisougarde(self, interaction: discord.Interaction):
+        # ✅ Defer sécurisé
+        if not await safe_defer(interaction):
+            return
+
         try:
-            await interaction.response.defer()
             cartes = await self.get_random_cards()
             if not cartes:
-                return await safe_respond(interaction, "❌ Impossible de récupérer les cartes, réessaie plus tard.", ephemeral=True)
+                return await safe_followup(
+                    interaction,
+                    "❌ Impossible de récupérer les cartes, réessaie plus tard.",
+                    ephemeral=True
+                )
             await self._start_game(interaction.channel, interaction.user, cartes)
-            await interaction.delete_original_response()
         except Exception as e:
             print(f"[ERREUR /bannisougarde] {e}")
-            await safe_respond(interaction, "❌ Une erreur est survenue.", ephemeral=True)
+            await safe_followup(interaction, "❌ Une erreur est survenue.", ephemeral=True)
 
-    @commands.command(name="ygobannisougarde", aliases=["ybog"], help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter.")
+    # ============================================================================
+    # 🔹 Commande PREFIX
+    # ============================================================================
+    @commands.command(
+        name="ygobannisougarde",
+        aliases=["ybog"],
+        help="Mini-jeu : pour 3 cartes, choisis bannir, garder ou limiter."
+    )
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def prefix_bannisougarde(self, ctx: commands.Context):
         try:
             cartes = await self.get_random_cards()
             if not cartes:
                 return await safe_send(ctx.channel, "❌ Impossible de récupérer les cartes, réessaie plus tard.")
-            await self._start_game(ctx.channel, ctx, cartes)
+            await self._start_game(ctx.channel, ctx.author, cartes)
         except Exception as e:
             print(f"[ERREUR !bannisougarde] {e}")
             await safe_send(ctx.channel, "❌ Une erreur est survenue.")
