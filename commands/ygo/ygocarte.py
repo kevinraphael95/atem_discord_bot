@@ -1,33 +1,32 @@
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📌 carte.py — Commande interactive !carte
 # Objectif :
-#   - Rechercher et afficher les détails d’une carte Yu-Gi-Oh!
+#   - Rechercher et afficher les détails d'une carte Yu-Gi-Oh!
 #   - OU tirer une carte aléatoire avec !carte random
-#   - Utilise utils/card_utils pour toutes les requêtes API
 # Catégorie : 🃏 Yu-Gi-Oh!
 # Accès : Public
 # Cooldown : 1 utilisation / 3 sec / utilisateur
-# ────────────────────────────────────────────────────────────────────────────────
+# Version optimisée : 1 seul appel API par recherche
+# ================================================================================
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 📦 Imports nécessaires
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import json
 from pathlib import Path
-import aiohttp
+import urllib.parse
 import sqlite3
 
 from utils.discord_utils import safe_send
-from utils.card_utils import search_card, fetch_random_card
 from utils.vaact_utils import DB_PATH, get_or_create_profile
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🎨 Chargement décorations et couleurs
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 CARDINFO_PATH = Path("data/cardinfofr.json")
 try:
     with CARDINFO_PATH.open("r", encoding="utf-8") as f:
@@ -36,11 +35,11 @@ except FileNotFoundError:
     print("[ERREUR] Fichier data/cardinfofr.json introuvable.")
     CARDINFO = {}
 
-ATTRIBUT_EMOJI = CARDINFO.get("ATTRIBUT_EMOJI", {})
-TYPE_EMOJI = CARDINFO.get("TYPE_EMOJI", {})
-TYPE_TRANSLATION = CARDINFO.get("TYPE_TRANSLATION", {})
+ATTRIBUT_EMOJI         = CARDINFO.get("ATTRIBUT_EMOJI", {})
+TYPE_EMOJI             = CARDINFO.get("TYPE_EMOJI", {})
+TYPE_TRANSLATION       = CARDINFO.get("TYPE_TRANSLATION", {})
 SPELL_RACE_TRANSLATION = CARDINFO.get("SPELL_RACE_TRANSLATION", {})
-TRAP_RACE_TRANSLATION = CARDINFO.get("TRAP_RACE_TRANSLATION", {})
+TRAP_RACE_TRANSLATION  = CARDINFO.get("TRAP_RACE_TRANSLATION", {})
 TYPE_COLOR = {}
 for key, hex_code in CARDINFO.get("TYPE_COLOR", {}).items():
     try:
@@ -49,9 +48,9 @@ for key, hex_code in CARDINFO.get("TYPE_COLOR", {}).items():
         TYPE_COLOR[key] = discord.Color.dark_grey()
 TYPE_COLOR.setdefault("default", discord.Color.dark_grey())
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🎛️ View — Carte favorite (SQLite local)
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
+# 🎛️ View — Carte favorite
+# ================================================================================
 class CarteFavoriteButton(View):
     def __init__(self, carte_name: str, user: discord.User):
         super().__init__(timeout=120)
@@ -61,12 +60,9 @@ class CarteFavoriteButton(View):
     @discord.ui.button(label="Carte favorite", style=discord.ButtonStyle.primary, emoji="⭐")
     async def add_favorite(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "❌ Ce bouton n’est pas pour toi.", ephemeral=True
-            )
+            await interaction.response.send_message("❌ Ce bouton n'est pas pour toi.", ephemeral=True)
             return
 
-        # S'assurer que le profil existe
         await get_or_create_profile(interaction.user.id, interaction.user.name)
 
         try:
@@ -84,12 +80,12 @@ class CarteFavoriteButton(View):
         except Exception as e:
             print(f"[ERREUR SQLite CarteFavoriteButton] {e}")
             await interaction.response.send_message(
-                "❌ Erreur lors de l’enregistrement de la carte favorite.", ephemeral=True
+                "❌ Erreur lors de l'enregistrement.", ephemeral=True
             )
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Helpers pour formatage
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
+# 🔧 Helpers de formatage
+# ================================================================================
 def translate_card_type(type_str: str) -> str:
     if not type_str:
         return "Inconnu"
@@ -122,94 +118,97 @@ def format_race(race: str, type_raw: str) -> str:
         return TRAP_RACE_TRANSLATION.get(race, race)
     return TYPE_EMOJI.get(race, race)
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Helper pour nom anglais STRICT (banlist)
-# ────────────────────────────────────────────────────────────────────────────────
-async def fetch_english_name_by_id(card_id: int, session: aiohttp.ClientSession) -> str | None:
-    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
-    async with session.get(url, params={"id": card_id}) as resp:
-        if resp.status != 200:
-            return None
-        data = await resp.json()
-        if "data" not in data or not data["data"]:
-            return None
-        return data["data"][0].get("name")
+# ================================================================================
+# 🔧 FONCTION UNIQUE : fetch la carte complète en 1 appel
+# ================================================================================
+async def fetch_card_full(nom: str | None, session, multi_lang: bool = True):
+    """
+    Récupère une carte complète en UN SEUL appel API.
 
-# ────────────────────────────────────────────────────────────────────────────────
-# 🔧 Helper pour fetch banlist exacte (identique à banlist_check)
-# ────────────────────────────────────────────────────────────────────────────────
-async def fetch_exact_banlist(card_name: str, session: aiohttp.ClientSession) -> dict:
-    url = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
-    async with session.get(url, params={"name": card_name}) as resp:
-        if resp.status != 200:
-            return {}
-        data = await resp.json()
-        if "data" not in data or not data["data"]:
-            return {}
-        return data["data"][0].get("banlist_info", {})
+    - Si `nom` est None ou "random" → carte aléatoire
+    - Sinon → recherche par nom (multi-langue : fr, de, it, pt, en)
 
-# ────────────────────────────────────────────────────────────────────────────────
+    Retourne le dict de la carte ou None.
+    """
+    if not nom or nom.lower() == "random":
+        url = "https://db.ygoprodeck.com/api/v7/cardinfo.php?random=yes&language=fr"
+    else:
+        nom_encode = urllib.parse.quote(nom)
+        url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={nom_encode}&language=fr"
+
+    try:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                # Si pas trouvé en FR, essaie sans langue (anglais)
+                if nom and multi_lang:
+                    url = f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={urllib.parse.quote(nom)}"
+                    async with session.get(url) as resp2:
+                        if resp2.status != 200:
+                            return None
+                        data = await resp2.json()
+                        cards = data.get("data", [])
+                        return cards[0] if cards else None
+                return None
+
+            data = await resp.json()
+            cards = data.get("data", [])
+            return cards[0] if cards else None
+    except Exception as e:
+        print(f"[fetch_card_full] Erreur : {e}")
+        return None
+
+# ================================================================================
 # 🧠 Cog principal
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 class Carte(commands.Cog):
-    """Commande /carte et !carte — Rechercher ou tirer une carte Yu-Gi-Oh!"""
+    """Commande /ygocarte et !ygocarte — Rechercher ou tirer une carte Yu-Gi-Oh!"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ────────────────────────────────────────────────────────────────────────────
-    # 🔹 Fonction interne commune
-    # ────────────────────────────────────────────────────────────────────────────
     async def _show_card(self, channel: discord.abc.Messageable, nom: str, user=None):
-        # Tirage aléatoire
-        if not nom or nom.lower() == "random":
-            carte, langue = await fetch_random_card(self.bot.aiohttp_session)
-            if not carte:
-                await safe_send(channel, "❌ Impossible de tirer une carte aléatoire depuis l’API.")
-                return
-        else:
-            carte, langue, message = await search_card(nom, self.bot.aiohttp_session)
-            if message:
-                await safe_send(channel, message)
-                return
-            if not carte:
-                await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
-                return
+        session = getattr(self.bot, "aiohttp_session", None)
+        if not session or session.closed:
+            return await safe_send(channel, "❌ Session HTTP non disponible.")
 
-        card_name_display = (
-            carte.get(f"name_{langue.lower()}")
-            or carte.get("name_fr")
-            or carte.get("name")
-        )
-        card_id = carte.get("id")
-        card_name_en = await fetch_english_name_by_id(card_id, self.bot.aiohttp_session)
-        if not card_name_en:
-            card_name_en = carte.get("name")
+        # ✅ 1 SEUL appel API
+        carte = await fetch_card_full(nom, session)
+        if not carte:
+            if not nom or nom.lower() == "random":
+                return await safe_send(channel, "❌ Impossible de tirer une carte aléatoire.")
+            return await safe_send(channel, f"❌ Aucune carte trouvée pour `{nom}`.")
 
-        type_raw = carte.get("type", "")
-        race = carte.get("race", "")
-        attr = carte.get("attribute", "")
-        atk = carte.get("atk")
-        defe = carte.get("def")
-        level = carte.get("level")
-        rank = carte.get("rank")
-        linkval = carte.get("linkval") or carte.get("link_rating")
-        desc = carte.get(f"desc_{langue.lower()}") or carte.get("desc") or "Pas de description disponible."
-        archetype = carte.get("archetype")
-        genesys_points = carte.get("genesys_points")
+        # ✅ Tout est déjà dans `carte` (1 seul appel)
+        card_name_fr  = carte.get("name_fr") or carte.get("name")
+        card_name_en  = carte.get("name")  # Nom anglais toujours présent
+        card_id       = carte.get("id")
+        type_raw      = carte.get("type", "")
+        race          = carte.get("race", "")
+        attr          = carte.get("attribute", "")
+        atk           = carte.get("atk")
+        defe          = carte.get("def")
+        level         = carte.get("level")
+        rank          = carte.get("rank")
+        linkval       = carte.get("linkval") or carte.get("link_rating")
+        desc          = carte.get("desc_fr") or carte.get("desc") or "Pas de description."
+        archetype     = carte.get("archetype")
+        genesys       = carte.get("genesys_points")
+        banlist_info  = carte.get("banlist_info", {})
 
-        banlist_info = await fetch_exact_banlist(card_name_en, self.bot.aiohttp_session)
-        tcg_limit = banlist_info.get("ban_tcg", "Autorisé")
-        ocg_limit = banlist_info.get("ban_ocg", "Autorisé")
+        # Banlist
+        tcg_limit  = banlist_info.get("ban_tcg", "Autorisé")
+        ocg_limit  = banlist_info.get("ban_ocg", "Autorisé")
         goat_limit = banlist_info.get("ban_goat", "Autorisé")
 
+        # Header
         header_lines = []
         if archetype:
             header_lines.append(f"**Archétype** : 🧬 {archetype}")
         header_lines.append(f"**Limites** : TCG {tcg_limit} / OCG {ocg_limit} / GOAT {goat_limit}")
-        if genesys_points is not None:
-            header_lines.append(f"**Points Genesys** : 🎯 {genesys_points}")
+        if genesys is not None:
+            header_lines.append(f"**Points Genesys** : 🎯 {genesys}")
 
+        # Détails
         card_type_fr = translate_card_type(type_raw)
         color = pick_embed_color(type_raw)
         lines = [f"**Type de carte** : {card_type_fr}"]
@@ -227,8 +226,9 @@ class Carte(commands.Cog):
             lines.append(f"**ATK/DEF** : ⚔️ {atk or '?'} / 🛡️ {defe or '?'}")
         lines.append(f"**Description**\n{desc}")
 
+        # Embed
         embed = discord.Embed(
-            title=f"**{card_name_display}**",
+            title=f"**{card_name_fr}**",
             description="\n".join(header_lines) + "\n\n" + "\n".join(lines),
             color=color
         )
@@ -243,9 +243,9 @@ class Carte(commands.Cog):
         view = CarteFavoriteButton(card_name_en, user or channel)
         await safe_send(channel, embed=embed, view=view)
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande SLASH
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @app_commands.command(
         name="ygocarte",
         description="Rechercher ou tirer une carte Yu-Gi-Oh! (FR/EN/DE/PT/IT)."
@@ -257,21 +257,21 @@ class Carte(commands.Cog):
         await self._show_card(interaction.channel, nom, user=interaction.user)
         await interaction.delete_original_response()
 
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     # 🔹 Commande PREFIX
-    # ────────────────────────────────────────────────────────────────────────────
+    # ============================================================================
     @commands.command(
         name="ygocarte",
         aliases=["ycarte", "ygocard", "ycard"],
-        help="🔍 Rechercher une carte ou tirer une carte aléatoire avec !carte random."
+        help="🔍 Rechercher une carte ou tirer une carte aléatoire avec !ygocarte random."
     )
     @commands.cooldown(1, 3.0, commands.BucketType.user)
     async def prefix_carte(self, ctx: commands.Context, *, nom: str = None):
         await self._show_card(ctx.channel, nom, user=ctx.author)
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 # 🔌 Setup du Cog
-# ────────────────────────────────────────────────────────────────────────────────
+# ================================================================================
 async def setup(bot: commands.Bot):
     cog = Carte(bot)
     for command in cog.get_commands():
