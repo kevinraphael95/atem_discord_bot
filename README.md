@@ -1,8 +1,6 @@
-# ⚡ Atem
+# Atem
 
-**Atem** est un bot Discord utilitaire pour Yu-Gi-Oh! avec quelques mini-jeux.  
+- [Présentation](https://kevinraphael95.github.io/atem_discord_bot/index.html)
 
-🔗 [Site / Présentation](https://kevinraphael95.github.io/atem_discord_bot/index.html)
-
-📄 [docs/Liste_des_Commandes.md](docs/Liste_des_Commandes.md)
+- [Liste des Commandes](docs/Liste_des_Commandes.md)
 
